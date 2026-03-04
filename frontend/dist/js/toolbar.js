@@ -1,5 +1,5 @@
 /**
- * Navbar / toolbar module.
+ * Navbar / toolbar module
  *
  * - Wires up dropdown open/close behaviour
  * - Wires each menu item to its action
@@ -10,7 +10,7 @@
 
 import { showToast } from './toast.js';
 
-// ── Dropdown behaviour ────────────────────────────────────────────
+// ## Dropdown behaviour ############################################
 
 export function initToolbar() {
     initDropdowns();
@@ -51,13 +51,13 @@ function closeAll() {
     document.querySelectorAll('.menu-item.open').forEach(i => i.classList.remove('open'));
 }
 
-/** Close all dropdowns and optionally re-focus the editor. */
+/** Close all dropdowns and optionally re-focus the editor */
 export function closeDropdowns() { closeAll(); }
 
-// ── Theme ─────────────────────────────────────────────────────────
+// ## Theme #########################################################
 
 /**
- * Register the theme toggle and return a getter for the current theme.
+ * Register the theme toggle and return a getter for the current theme
  * @param {(theme: 'dark'|'light') => void} onThemeChange
  */
 export function initTheme(onThemeChange) {
@@ -80,7 +80,7 @@ function applyTheme(theme, toggle, cb) {
     cb?.(theme);
 }
 
-// ── Output console ────────────────────────────────────────────────
+// ## Output console ################################################
 
 export function initConsoleToggle() {
     const btn   = document.getElementById('close-console');
@@ -108,7 +108,7 @@ export function hideConsole() {
 }
 
 /**
- * Write a message to the output console.
+ * Write a message to the output console
  * @param {'success'|'error'|'info'} type
  * @param {string} text
  */
@@ -122,7 +122,7 @@ export function writeToConsole(type, text) {
     el.scrollTop = el.scrollHeight;
 }
 
-// ── Resizable split panel ─────────────────────────────────────────
+// ## Resizable split panel #########################################
 
 function initResizeHandle() {
     const handle      = document.getElementById('resize-handle');

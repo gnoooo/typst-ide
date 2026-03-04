@@ -1,12 +1,13 @@
 /**
- * Application entry point — wires all modules together.
+ * Application entry point 
+ *  wires all modules together
  */
 
 import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoomPct } from './editor.js';
 import { initPreview }   from './preview.js';
 import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.js';
 import { registerShortcuts } from './shortcuts.js';
-import { createNewProject, openProject, scheduleAutosave, notifySaveIndicator } from './project.js';
+import { createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
 
 async function main() {
     if (!window.__TAURI__) {
@@ -14,10 +15,10 @@ async function main() {
         return;
     }
 
-    // ── Bootstrap UI ─────────────────────────────────────────────
+    // ## Bootstrap UI #############################################
     initToolbar();
 
-    // ── Monaco editor ─────────────────────────────────────────────
+    // ## Monaco editor #############################################
     const container = document.getElementById('typst-editor');
     const editor    = await createEditor(container);
 
@@ -27,7 +28,7 @@ async function main() {
     const zoomEl = document.getElementById('status-zoom');
     if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`;
 
-    // ── Preview ────────────────────────────────────────────────────
+    // ## Preview ####################################################
     const preview = document.getElementById('preview');
     const frame   = document.getElementById('preview-frame');
 
@@ -38,13 +39,13 @@ async function main() {
         frame,
     });
 
-    // ── Autosave ───────────────────────────────────────────────────
+    // ## Autosave ###################################################
     editor.onDidChangeModelContent(() => {
         notifySaveIndicator(true);
         scheduleAutosave(editor.getValue());
     });
 
-    // ── Shortcuts ──────────────────────────────────────────────────
+    // ## Shortcuts ##################################################
     const compile = () => {
         // Trigger a manual compile by forcing the preview to re-run immediately
         const event = new Event('input', { bubbles: true });
@@ -60,9 +61,10 @@ async function main() {
         onZoomReset:  () => { zoomReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; },
         onNewProject: () => createNewProject((content) => editor.setValue(content)),
         onOpenProject:() => openProject((content) => editor.setValue(content)),
+        onExportPDF:   () => exportPDF(editor.getValue()),
     });
 
-    // ── Toolbar menu actions ───────────────────────────────────────
+    // ## Toolbar menu actions #######################################
     bindMenuAction('new-project',   () => createNewProject((content) => editor.setValue(content)));
     bindMenuAction('open-project',  () => openProject((content) => editor.setValue(content)));
     bindMenuAction('action-undo',   () => editor.trigger('', 'undo', null));
@@ -80,6 +82,11 @@ async function main() {
         triggerCompile(editor, preview, frame);
     });
 
+    // Save PDF button
+    document.getElementById('save-btn')?.addEventListener('click', () => {
+        savePdf(editor);
+    });
+
     // Auto-compile checkbox (persisted)
     const autoCompile = document.getElementById('auto-compile');
     if (autoCompile) {
@@ -90,7 +97,7 @@ async function main() {
     }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────
+// ## Helpers #######################################################
 
 function bindMenuAction(id, fn) {
     document.getElementById(id)?.addEventListener('click', (e) => {
@@ -99,7 +106,7 @@ function bindMenuAction(id, fn) {
     });
 }
 
-/** Force an immediate preview compile by programmatically running the Tauri command. */
+// Force an immediate preview compile by programmatically running the Tauri command
 async function triggerCompile(editor, preview, frame) {
     const { invoke } = window.__TAURI__.core;
     try {
@@ -121,6 +128,24 @@ async function triggerCompile(editor, preview, frame) {
         div.className = 'preview-error';
         div.textContent = String(err);
         preview.appendChild(div);
+    }
+}
+
+// Export current source to PDF, asking for a path on first save
+async function savePdf(editor) {
+    const { invoke } = window.__TAURI__.core;
+    try {
+        let path = sessionStorage.getItem('pdf-export-path');
+        if (!path) {
+            path = await invoke('pick_pdf_path');
+            if (!path) return; // user cancelled
+            sessionStorage.setItem('pdf-export-path', path);
+        }
+        await invoke('export_pdf', { source: editor.getValue(), path });
+        writeToConsole('success', `PDF exporté : ${path}`);
+    } catch (err) {
+        writeToConsole('error', String(err));
+        showConsole();
     }
 }
 

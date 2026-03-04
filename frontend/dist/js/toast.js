@@ -1,6 +1,6 @@
 /**
- * Toast notification system.
- * Shows brief, non-blocking messages at the bottom-right of the screen.
+ * Toast notification system
+ * Shows brief, non-blocking messages at the bottom-right of the screen
  */
 
 let _container = null;
@@ -13,7 +13,7 @@ function getContainer() {
 }
 
 /**
- * Show a toast notification.
+ * Show a toast notification
  * @param {'success'|'error'|'warning'|'info'} type
  * @param {string} message
  * @param {number} [duration=3500] ms before auto-dismiss

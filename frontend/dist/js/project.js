@@ -1,15 +1,15 @@
 /**
- * Project management module.
+ * Project management module
  *
  * Handles creating and opening Typst projects via Tauri commands,
- * saving to disk, and exposing the current project state to the app.
+ * saving to disk, and exposing the current project state to the app
  */
 
 import { showToast } from './toast.js';
 
 const { invoke } = window.__TAURI__.core;
 
-// ── Current project state ────────────────────────────────────────
+// ## Current project state ########################################
 
 /** @type {{ name: string, path: string, typFile: string } | null} */
 let currentProject = null;
@@ -17,7 +17,7 @@ let currentProject = null;
 /** @type {Array<{ name: string, path: string, lastOpened: string }>} */
 let projectHistory = JSON.parse(localStorage.getItem('project-history') ?? '[]');
 
-/** Listeners called when a project is loaded/changed. */
+/** Listeners called when a project is loaded/changed */
 const onChangeListeners = [];
 
 export function onProjectChange(fn) {
@@ -32,7 +32,7 @@ export function getCurrentProject() {
     return currentProject;
 }
 
-// ── History ───────────────────────────────────────────────────────
+// ## History #######################################################
 
 function addToHistory(project) {
     projectHistory = projectHistory.filter(p => p.path !== project.path);
@@ -45,14 +45,14 @@ export function getProjectHistory() {
     return projectHistory;
 }
 
-// ── Save ──────────────────────────────────────────────────────────
+// ## Save ##########################################################
 
 let saveTimer = null;
 let pendingSave = false;
 
 /**
- * Schedule an autosave (debounced, 800 ms).
- * @param {string} content - Current editor content.
+ * Schedule an autosave (debounced, 800 ms)
+ * @param {string} content - Current editor content
  */
 export function scheduleAutosave(content) {
     if (!currentProject) return;
@@ -73,7 +73,7 @@ async function flushSave(content) {
     }
 }
 
-// ── Save-indicator ────────────────────────────────────────────────
+// ## Save-indicator ################################################
 
 let _indicator = null;
 
@@ -96,7 +96,26 @@ export function notifySaveIndicator(unsaved) {
     }
 }
 
-// ── Internal: load a project into the app ────────────────────────
+// ## Export PDF (save as PDF) #####################################
+
+export async function exportPDF(content) {
+    try {
+        const pdfData = await invoke('export_pdf', { source: content });
+        const blob = new Blob([pdfData], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentProject ? currentProject.name : 'document'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        showToast('error', `Erreur lors de l'export PDF : ${err}`);
+    }
+}
+
+// ## Internal: load a project into the app ########################
 
 /**
  * @param {{ name, path, typ_file, content }} info
@@ -117,10 +136,10 @@ function loadProject(info, setEditorContent) {
     notifyChange();
 }
 
-// ── Modal helper ──────────────────────────────────────────────────
+// ## Modal helper ##################################################
 
 /**
- * Show a simple prompt modal. Returns the entered string, or null if cancelled.
+ * Show a simple prompt modal. Returns the entered string, or null if cancelled
  * @param {{ title: string, label: string, placeholder: string, validate?: (v:string) => string|true }} opts
  * @returns {Promise<string|null>}
  */
@@ -171,7 +190,7 @@ function showPrompt({ title, label, placeholder, validate }) {
     });
 }
 
-// ── Public API ────────────────────────────────────────────────────
+// ## Public API ####################################################
 
 const INVALID_NAME = /[<>:"/\\|?*]/;
 function validateName(v) {
@@ -181,7 +200,7 @@ function validateName(v) {
 }
 
 /**
- * Create a new project: ask for a name, pick a folder, create dir + main.typ.
+ * Create a new project: ask for a name, pick a folder, create dir + main.typ
  * @param {(content: string) => void} setEditorContent
  */
 export async function createNewProject(setEditorContent) {
@@ -209,7 +228,7 @@ export async function createNewProject(setEditorContent) {
 }
 
 /**
- * Open an existing project by picking a folder.
+ * Open an existing project by picking a folder
  * @param {(content: string) => void} setEditorContent
  */
 export async function openProject(setEditorContent) {

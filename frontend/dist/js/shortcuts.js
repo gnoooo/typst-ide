@@ -1,20 +1,20 @@
 /**
- * Keyboard shortcuts module.
+ * Keyboard shortcuts module
  *
- * Registers global shortcuts that complement Monaco's built-in ones.
+ * Registers global shortcuts that complement Monaco's built-in ones
  * Monaco handles: Ctrl+Z/Y, Ctrl+F, Ctrl+H, Ctrl+G, Ctrl+/ (comment)
  *
  * We handle:
- *   Ctrl+B          → Bold (*text*)
- *   Ctrl+I          → Italic (_text_)
- *   Ctrl+U          → Underline (#underline[text])
- *   Ctrl+R          → Trigger compilation
- *   Ctrl+E          → Toggle console
- *   Ctrl+Shift+N    → New project
- *   Ctrl+Shift+O    → Open project
- *   Ctrl+Shift++    → Zoom in
- *   Ctrl+Shift+-    → Zoom out
- *   Ctrl+0          → Zoom reset
+ *   Ctrl+B          : Bold (*text*)
+ *   Ctrl+I          : Italic (_text_)
+ *   Ctrl+U          : Underline (#underline[text])
+ *   Ctrl+R          : Trigger compilation
+ *   Ctrl+E          : Toggle console
+ *   Ctrl+Shift+N    : New project
+ *   Ctrl+Shift+O    : Open project
+ *   Ctrl+Shift++    : Zoom in
+ *   Ctrl+Shift+-    : Zoom out
+ *   Ctrl+0          : Zoom reset
  */
 
 import { toggleConsole } from './toolbar.js';
@@ -30,7 +30,7 @@ import { toggleConsole } from './toolbar.js';
  * @param {() => void} opts.onOpenProject
  */
 export function registerShortcuts({ editor, onCompile, onZoomIn, onZoomOut, onZoomReset, onNewProject, onOpenProject }) {
-    // ── Monaco custom actions ────────────────────────────────────────
+    // ## Monaco custom actions ########################################
     const KM = monaco.KeyMod;
     const KC = monaco.KeyCode;
 
@@ -90,7 +90,7 @@ export function registerShortcuts({ editor, onCompile, onZoomIn, onZoomOut, onZo
         run: () => onZoomReset(),
     });
 
-    // ── Global shortcuts (not captured by Monaco) ────────────────────
+    // ## Global shortcuts (not captured by Monaco) ####################
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyN') {
             e.preventDefault();
@@ -103,10 +103,10 @@ export function registerShortcuts({ editor, onCompile, onZoomIn, onZoomOut, onZo
     }, true);
 }
 
-// ── Helpers ───────────────────────────────────────────────────────
+// ## Helpers #######################################################
 
 /**
- * Wrap the current selection (or insert empty markers at cursor) with prefix/suffix.
+ * Wrap the current selection (or insert empty markers at cursor) with prefix/suffix
  * @param {import('monaco-editor').editor.IStandaloneCodeEditor} ed
  * @param {string} prefix
  * @param {string} suffix

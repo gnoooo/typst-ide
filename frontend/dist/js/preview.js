@@ -1,20 +1,21 @@
 /**
- * Preview panel — compiles Typst source and renders it in the iframe.
+ * Preview panel 
+ *  compiles Typst source and renders it in the iframe
  *
  * Exports a single `initPreview()` function that wires up the editor textarea
- * to the preview iframe via the Tauri `render_preview` command.
+ * to the preview iframe via the Tauri `render_preview` command
  */
 
 const { invoke } = window.__TAURI__.core;
 
-/** @type {number} Incremented each time a new compilation is triggered. */
+/** @type {number} Incremented each time a new compilation is triggered */
 let currentGeneration = 0;
 
 /** @type {ReturnType<typeof setTimeout>|undefined} */
 let debounceTimer;
 
 /**
- * Shows an error message in the preview panel.
+ * Shows an error message in the preview panel
  * @param {HTMLElement} preview
  * @param {HTMLIFrameElement} frame
  * @param {string} message
@@ -29,7 +30,7 @@ function showError(preview, frame, message) {
 }
 
 /**
- * Clears any visible error and restores the iframe.
+ * Clears any visible error and restores the iframe
  * @param {HTMLElement} preview
  * @param {HTMLIFrameElement} frame
  */
@@ -39,8 +40,8 @@ function clearError(preview, frame) {
 }
 
 /**
- * Compiles `source` and writes the result into `frame`.
- * Stale results (superseded by a newer call) are silently dropped.
+ * Compiles `source` and writes the result into `frame`
+ * Stale results (superseded by a newer call) are silently dropped
  * @param {string} source
  * @param {HTMLElement} preview
  * @param {HTMLIFrameElement} frame
@@ -61,12 +62,12 @@ async function compile(source, preview, frame) {
 }
 
 /**
- * Initialises the preview panel.
- * Wires the editor to the iframe and triggers an initial compilation.
+ * Initialises the preview panel
+ * Wires the editor to the iframe and triggers an initial compilation
  *
  * @param {object} opts
- * @param {() => string}    opts.getSource   - Returns the current editor content.
- * @param {(cb: () => void) => void} opts.onChange - Calls `cb` whenever the content changes.
+ * @param {() => string}    opts.getSource Returns the current editor content
+ * @param {(cb: () => void) => void} opts.onChange Calls `cb` whenever the content changes
  * @param {HTMLElement}     opts.preview
  * @param {HTMLIFrameElement} opts.frame
  * @param {number}          [opts.debounceMs=100]
@@ -75,6 +76,8 @@ export function initPreview({ getSource, onChange, preview, frame, debounceMs = 
     const run = () => compile(getSource(), preview, frame);
 
     onChange(() => {
+        const autoCompile = document.getElementById('auto-compile');
+        if (autoCompile && !autoCompile.checked) return;
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(run, debounceMs);
     });

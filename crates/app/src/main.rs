@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::Serialize;
-use typst_ide_core::compiler::compile_to_preview_html;
+use typst_ide_core::compiler::{compile_to_preview_html, compile_to_pdf};
 
 // ---------------------------------------------------------------------------
 // Preview
@@ -95,6 +95,38 @@ async fn save_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| e.to_string())
 }
 
+// ###########################################################################
+// PDF export
+// ###########################################################################
+
+/// Opens a native "Enregistrer sous" dialog filtered to PDF files.
+/// Returns the chosen path as a string, or `null` if the user cancelled.
+#[tauri::command]
+async fn pick_pdf_path() -> Option<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Enregistrer en PDF")
+            .add_filter("PDF", &["pdf"])
+            .save_file()
+            .map(|p| p.to_string_lossy().into_owned())
+    })
+    .await
+    .unwrap_or(None)
+}
+
+/// Compiles `source` to PDF and writes it to `path`.
+#[tauri::command]
+async fn export_pdf(source: String, path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = compile_to_pdf(&source)?;
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&path, &bytes).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
@@ -107,6 +139,8 @@ fn main() {
             create_project,
             open_project,
             save_file,
+            pick_pdf_path,
+            export_pdf,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

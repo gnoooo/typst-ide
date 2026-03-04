@@ -6,7 +6,7 @@ use typst::layout::PagedDocument;
 use typst_as_library::TypstWrapperWorld;
 use typst_pdf::PdfOptions;
 
-/// Returns the current working directory as a String, falling back to ".".
+/// Returns the current working directory as a String, falling back to "."
 fn current_dir() -> String {
     env::current_dir()
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
@@ -14,7 +14,7 @@ fn current_dir() -> String {
         .to_string()
 }
 
-/// Formats a slice of Typst diagnostics into a single user-facing string.
+/// Formats a slice of Typst diagnostics into a single user-facing string
 fn format_diagnostics(diagnostics: &[SourceDiagnostic]) -> String {
     diagnostics
         .iter()
@@ -23,25 +23,25 @@ fn format_diagnostics(diagnostics: &[SourceDiagnostic]) -> String {
         .join("\n")
 }
 
-/// Creates a default world (paged target) with the given content.
+/// Creates a default world (paged target) with the given content
 pub fn create_default_world(content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(current_dir(), content.to_owned())
 }
 
-/// Creates a world configured for HTML export (`Feature::Html` enabled).
+/// Creates a world configured for HTML export (`Feature::Html` enabled)
 pub fn create_html_world(content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new_for_html(current_dir(), content.to_owned())
 }
 
-/// Creates a world rooted at a custom path.
+/// Creates a world rooted at a custom path
 pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(root.to_owned(), content.to_owned())
 }
 
-/// Compiles Typst source to a preview HTML document.
+/// Compiles Typst source to a preview HTML document
 ///
 /// Each page is rendered as a full-fidelity inline SVG (via `typst-svg`), so
-/// all Typst features — including math equations — are rendered correctly.
+/// all Typst features, including math equations, are rendered correctly.
 /// The SVGs are wrapped in a minimal styled HTML page ready to be loaded in
 /// an iframe.
 pub fn compile_to_preview_html(content: &str) -> Result<String, String> {
@@ -93,12 +93,18 @@ pub fn compile_to_preview_html(content: &str) -> Result<String, String> {
     ))
 }
 
-/// Compiles a Typst document to PDF and writes it to the specified output path.
-/// # Arguments
-/// * `world` - A reference to the `TypstWrapperWorld` containing the document and environment settings.
-/// * `output` - A reference to a `std::path::Path` where the compiled PDF should be written.
-/// # Returns
-/// * `Warned<SourceResult<typst::Document>>` containing the result of the compilation process, or an error if the compilation fails.
+/// Compiles Typst source to raw PDF bytes
+pub fn compile_to_pdf(content: &str) -> Result<Vec<u8>, String> {
+    let world = create_default_world(content);
+    let document: PagedDocument = typst::compile(&world)
+        .output
+        .map_err(|errors| format_diagnostics(&errors))?;
+    
+    typst_pdf::pdf(&document, &PdfOptions::default())
+        .map_err(|errors| format_diagnostics(&errors))
+}
+
+/// Compiles a Typst document to PDF and writes it to the specified output path
 pub fn compile(world: &TypstWrapperWorld, output: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     let document = typst::compile(world)
         .output

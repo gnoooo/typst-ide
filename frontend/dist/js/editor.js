@@ -1,10 +1,10 @@
 /**
- * Monaco Editor wrapper.
+ * Monaco Editor wrapper
  *
  * Provides:
- * - `createEditor(container)` → initialises Monaco and returns the editor instance
- * - `setEditorTheme(theme)`   → switches between 'dark' and 'light' Monaco themes
- * - `zoomIn()` / `zoomOut()` / `zoomReset()` → font-size zoom
+ * - `createEditor(container)` -> initialises Monaco and returns the editor instance
+ * - `setEditorTheme(theme)`   -> switches between 'dark' and 'light' Monaco themes
+ * - `zoomIn()` / `zoomOut()` / `zoomReset()` -> font-size zoom
  */
 
 const MONACO_CDN = 'vendor/vs';
@@ -20,10 +20,10 @@ if (isNaN(_currentSize) || _currentSize < MIN_FONT_SIZE || _currentSize > MAX_FO
     _currentSize = DEFAULT_FONT_SIZE;
 }
 
-// ── Public API ────────────────────────────────────────────────────
+// ## Public API ####################################################
 
 /**
- * Initialises Monaco inside `container` and returns the editor instance.
+ * Initialises Monaco inside `container` and returns the editor instance
  * @param {HTMLElement} container
  * @returns {Promise<import('monaco-editor').editor.IStandaloneCodeEditor>}
  */
@@ -57,7 +57,7 @@ export function createEditor(container) {
 }
 
 /**
- * Switch Monaco between dark and light themes.
+ * Switch Monaco between dark and light themes
  * @param {'dark'|'light'} theme
  */
 export function setEditorTheme(theme) {
@@ -86,7 +86,7 @@ export function getCurrentZoomPct() {
     return Math.round((_currentSize / DEFAULT_FONT_SIZE) * 100);
 }
 
-// ── Internal ──────────────────────────────────────────────────────
+// ## Internal ######################################################
 
 function _applySize() {
     _editor?.updateOptions({ fontSize: _currentSize });
@@ -95,7 +95,7 @@ function _applySize() {
     if (el) el.textContent = `${getCurrentZoomPct()}%`;
 }
 
-// ── Typst language registration ────────────────────────────────────
+// ## Typst language registration ####################################
 
 function registerTypstLanguage() {
     if (monaco.languages.getLanguages().some((l) => l.id === 'typst')) return;

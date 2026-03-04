@@ -1,8 +1,10 @@
 @import "tailwindcss";
-/* ===================================================================
-   Typst IDE — Application stylesheet
+@plugin "daisyui";
+
+/* ###################################################################
+   Typst IDE : Application stylesheet
    Dark theme by default, light theme via [data-theme="light"]
-   =================================================================== */
+   ################################################################### */
 
 /* ## CSS variables ################################################ */
 :root {
@@ -82,7 +84,7 @@ html, body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 0px 8px 0px 8px;
+    padding: 0px 8px 8px 8px;
 }
 
 /* ## Navbar ####################################################### */
@@ -104,6 +106,30 @@ html, body {
     color: var(--text-navbar);
     padding: 0 8px;
     white-space: nowrap;
+}
+
+@font-face {
+    font-family: "Libertinus Serif Bold";
+    src: url("../fonts/LibertinusSerif-Bold.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: "Liberation Mono Bold";
+    src: url("../fonts/LiberationMono-Bold.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+}
+
+#title-typst {
+    font-family: "Libertinus Serif Bold", serif;
+    font-weight: bold;
+    font-size: 18px;
+}
+
+#title-ide {
+    font-family: "Liberation Mono Bold", monospace;
+    font-size: 14px;
 }
 
 .navbar-menu {
@@ -195,8 +221,11 @@ html, body {
     font-family: inherit;
     font-size: 11px;
     color: var(--text-muted);
-    white-space: nowrap;
+    border: 1px solid var(--border);
+    /* white-space: nowrap; */
     margin-left: auto;
+    padding: 0px 2px 0px 2px;
+    box-shadow: 0 1px 1px rgba(0,0,0,.2);
 }
 
 .dropdown .separator {
@@ -230,17 +259,67 @@ html, body {
 /* Tool button */
 .tool-btn {
     background: var(--btn-tool);
-    border: 1px solid rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border);
     color: #222;
     padding: 4px 12px;
     border-radius: 4px;
+    box-shadow: 0 0.8px 1.6px rgba(0,0,0,.16);
     cursor: pointer;
     font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
+    transition-duration: 0.2s;
 }
 
-.tool-btn:hover { background: var(--btn-tool-hover); }
+#preview-zoom-panel {
+    background: var(--btn-tool);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 0.8px 1.6px rgba(0,0,0,.16);
+    white-space: nowrap;
+    display: flex;
+    align-items: stretch;
+}
+
+#zoom-out-btn , #zoom-in-btn {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+#zoom-out-btn { 
+    border-right: 1px solid var(--border); 
+    border-radius: 4px 0px 0px 4px;
+}
+#zoom-in-btn { 
+    border-left: 1px solid var(--border); 
+    border-radius: 0px 4px 4px 0px;
+}
+#zoom-input {
+    text-align: center;
+}
+#zoom-display {
+    padding: 0 0.8vw 0 0.8vw;
+}
+
+
+#zoom-input::-webkit-outer-spin-button,
+#zoom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#zoom-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.tool-btn:focus,
+
+
+
+.tool-btn:hover { 
+    background: var(--btn-tool-hover); 
+    
+}
 .tool-btn:active { transform: scale(.97); }
 
 /* Theme toggle */
