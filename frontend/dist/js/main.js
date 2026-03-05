@@ -4,7 +4,7 @@
  */
 
 import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoomPct } from './editor.js';
-import { initPreview }   from './preview.js';
+import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset } from './preview.js';
 import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.js';
 import { registerShortcuts } from './shortcuts.js';
 import { createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
@@ -73,9 +73,16 @@ async function main() {
     bindMenuAction('action-replace',() => editor.getAction('editor.action.startFindReplaceAction')?.run());
     bindMenuAction('action-goto',   () => editor.getAction('editor.action.gotoLine')?.run());
     bindMenuAction('action-comment',() => editor.getAction('editor.action.commentLine')?.run());
+
+    // Zoom buttons in toolbar
     bindMenuAction('zoom-in',       () => { zoomIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
     bindMenuAction('zoom-out',      () => { zoomOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
     bindMenuAction('zoom-reset',    () => { zoomReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+
+    // Zoom input fields
+    bindMenuAction("zoom-in-btn",   () => { zoomPreviewIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction("zoom-out-btn",  () => { zoomPreviewOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction("zoom-reset-btn",() => { zoomPreviewReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
 
     // Compile button
     document.getElementById('compile-btn')?.addEventListener('click', () => {

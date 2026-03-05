@@ -183,7 +183,7 @@
                 <button class="tool-btn" id="zoom-out-btn">-</button>
                 <span class="flex items-center text-align-center" id="zoom-display">
                     <!-- weird instructions to remove increment and decrement arrows -->
-                    <input class="w-8" id="zoom-input" type="number" min="20" max="400" value="100">
+                    <input class="w-8" id="zoom-input" type="number" min="20" max="400" value="100" step="10">
                     %
                 </span>
                 
@@ -223,9 +223,12 @@
         <div class="resize-handle" id="resize-handle"></div>
 
         <div class="pane preview-pane" id="preview-pane">
-            <div id="preview" class="preview-content">
-                <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
-            </div>
+            <!-- <div id="preview-container"> -->
+                <div id="preview" class="preview-content">
+                    <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
+                </div>
+
+            <!-- </div> -->
         </div>
 
     </div>

@@ -48,9 +48,9 @@
     --text:           #333333;
     --text-muted:     #717171;
     --text-navbar:    #333333;
-    --accent:         #0065a9;
-    --accent-hover:   #0078c8;
-    --btn-tool:    #fdfdfd;
+    --accent:         #e9e9e9;
+    --accent-hover:   #e9e9e9;
+    --btn-tool:       #fdfdfd;
     --btn-tool-hover: #e9e9e9;
     --error-bg:       #fdf2f2;
     --error-text:     #cd3131;
@@ -84,7 +84,7 @@ html, body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    padding: 0px 8px 8px 8px;
+    padding: 0px 8px 0px 8px;
 }
 
 /* ## Navbar ####################################################### */
@@ -208,14 +208,15 @@ html, body {
 
 .dropdown li button:hover,
 .dropdown li label.menu-label:hover {
-    background: var(--accent);
-    color: #fff;
+    background: var(--accent-hover);
+    transition-duration: 0.2s;
+    /* color: #000; */
 }
 
-.dropdown li button:hover kbd,
+/* .dropdown li button:hover kbd,
 .dropdown li label.menu-label:hover kbd {
     color: rgba(255,255,255,.8);
-}
+} */
 
 .dropdown kbd {
     font-family: inherit;
@@ -244,11 +245,12 @@ html, body {
     font-size: 12px;
     color: var(--text);
     width: 100%;
+    transition-duration: 0.2s;
 }
 
 .dropdown .menu-checkbox:hover {
     background: var(--accent);
-    color: #fff;
+    /* color: #fff; */
 }
 
 .dropdown .menu-checkbox input[type="checkbox"] {
@@ -457,24 +459,36 @@ html, body {
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    margin-bottom: 8px;
+    margin-right: 8px;
+    border-radius: 16px;
 }
 
 /* Preview pane */
 .preview-content {
     flex: 1;
     background: white;
-    overflow: hidden;
+    overflow: auto;
     min-height: 0;
     display: flex;
     flex-direction: column;
+    border-radius: 16px;
+    margin-left: 8px;
+    margin-right: 8px;
+    margin-bottom: 8px;
 }
 
 .preview-content iframe {
     width: 100%;
     height: 100%;
     border: none;
-    flex: 1;
+    flex: none;
 }
+
+/* #preview-container {
+    margin-left: 8px;
+    border-radius: 8px;
+} */
 
 .preview-error {
     color: var(--error-text);

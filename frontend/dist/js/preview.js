@@ -46,15 +46,43 @@ function clearError(preview, frame) {
  * @param {HTMLElement} preview
  * @param {HTMLIFrameElement} frame
  */
+let previewZoom = 100;
+let _lastHtml = '';
+
+// Scale width/height attributes on all <svg> tags — affects real layout, scroll works
+function scaleSvgs(html, scale) {
+    if (scale === 1) return html;
+    return html.replace(/<svg([^>]*)>/g, (_, attrs) => {
+        const scaled = attrs
+            .replace(/\bwidth="([\d.]+)(pt|px)?"/g,  (_, n, u = '') => `width="${parseFloat(n) * scale}${u}"`)
+            .replace(/\bheight="([\d.]+)(pt|px)?"/g,  (_, n, u = '') => `height="${parseFloat(n) * scale}${u}"`);
+        return `<svg${scaled}>`;
+    });
+}
+
+function writeHtml(frame, html) {
+    // Reset so scrollWidth/scrollHeight are accurate
+    frame.style.width  = '100%';
+    frame.style.height = '100%';
+    frame.contentDocument.open();
+    frame.contentDocument.write(scaleSvgs(html, previewZoom / 100));
+    frame.contentDocument.close();
+    // Expand iframe to fit actual content so parent can scroll
+    const doc = frame.contentDocument;
+    frame.style.width  = doc.documentElement.scrollWidth  + 'px';
+    frame.style.height = doc.documentElement.scrollHeight + 'px';
+    const zoomInput = document.getElementById('zoom-input');
+    if (zoomInput) zoomInput.value = previewZoom;
+}
+
 async function compile(source, preview, frame) {
     const generation = ++currentGeneration;
     try {
         const html = await invoke('render_preview', { source });
         if (generation !== currentGeneration) return;
+        _lastHtml = html;
         clearError(preview, frame);
-        frame.contentDocument.open();
-        frame.contentDocument.write(html);
-        frame.contentDocument.close();
+        writeHtml(frame, html);
     } catch (error) {
         if (generation !== currentGeneration) return;
         showError(preview, frame, String(error));
@@ -84,4 +112,18 @@ export function initPreview({ getSource, onChange, preview, frame, debounceMs = 
 
     // Initial render
     run();
+}
+
+export function zoomPreviewIn()    { setPreviewZoom(previewZoom + 10); }
+export function zoomPreviewOut()   { setPreviewZoom(previewZoom - 10); }
+export function zoomPreviewReset() { setPreviewZoom(100); }
+
+function setPreviewZoom(value) {
+    previewZoom = Math.min(400, Math.max(20, value));
+    const frame = document.getElementById('preview-frame');
+    const preview = document.getElementById('preview');
+    if (frame && preview && _lastHtml) {
+        clearError(preview, frame);
+        writeHtml(frame, _lastHtml);
+    }
 }

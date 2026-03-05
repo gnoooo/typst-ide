@@ -67,7 +67,7 @@ pub fn compile_to_preview_html(content: &str) -> Result<String, String> {
   <style>
     * {{ margin: 0; padding: 0; box-sizing: border-box; }}
     body {{
-      background: #f5f5f5;
+      background: #d8d8d8;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -80,8 +80,6 @@ pub fn compile_to_preview_html(content: &str) -> Result<String, String> {
     }}
     .page svg {{
       display: block;
-      max-width: 100%;
-      height: auto;
     }}
   </style>
 </head>
