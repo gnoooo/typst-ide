@@ -66,8 +66,9 @@ For example, I plan to implement a note-pad feature that lets users save reusabl
 Nothing complicated, but potentially very useful.
 
 ## Special thanks
-A special thanks to the **Typst team** for providing such a wonderful tool! Perfect for people like me who are intimidated by complex (but yet powerful) languages like LaTeX for writing academic and professionnal documents.
+A special thanks to the **Typst team** for providing such a wonderful tool! Perfect for people like me who are intimidated by complex (but yet powerful) languages like LaTeX for writing academic and professionnal documents.\
 https://github.com/typst/typst
 
-Thanks as well to **tfatchmann** for his examples and implementation of Typst's crates. I will rely on them until I fully understand how the Typst compiler works internally (world, etc.).
+
+Thanks as well to **tfatchmann** for his examples and implementation of Typst's crates. I will rely on them until I fully understand how the Typst compiler works internally (world, etc.).\
 https://github.com/tfachmann/typst-as-library
