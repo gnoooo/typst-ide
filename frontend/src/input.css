@@ -574,7 +574,7 @@ html, body {
 }
 
 /* ## Modal / overlay ############################################## */
-.modal-overlay {
+.ide-modal-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,.6);
@@ -582,28 +582,87 @@ html, body {
     align-items: center;
     justify-content: center;
     z-index: 8000;
+    opacity: 0;
+    transition: opacity 150ms ease;
 }
 
-.modal {
+.ide-modal-overlay--visible {
+    opacity: 1;
+}
+
+.ide-modal {
     background: var(--bg-panel);
     border: 1px solid var(--border);
     border-radius: 8px;
-    padding: 24px;
     min-width: 340px;
-    max-width: 480px;
+    max-width: 90vw;
+    max-height: 85vh;
     box-shadow: 0 8px 32px rgba(0,0,0,.5);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    overflow: hidden;
+    transform: translateY(-6px);
+    transition: transform 150ms ease;
 }
 
-.modal h2 {
+.ide-modal-overlay--visible .ide-modal {
+    transform: translateY(0);
+}
+
+/* Header */
+.ide-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.ide-modal-header h2 {
     font-size: 14px;
     font-weight: 600;
     color: var(--text);
+    margin: 0;
 }
 
-.modal label {
+.ide-modal-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+    border-radius: 4px;
+}
+
+.ide-modal-close-btn:hover {
+    color: var(--text);
+    background: var(--bg-hover);
+}
+
+/* Body — scrollable if content overflows */
+.ide-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    color: var(--text);
+    font-size: 13px;
+}
+
+.ide-modal-message {
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Label + input inside modal body */
+.ide-modal-label {
     font-size: 12px;
     color: var(--text-muted);
     display: flex;
@@ -611,7 +670,7 @@ html, body {
     gap: 6px;
 }
 
-.modal input[type="text"] {
+.ide-modal-input {
     background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 4px;
@@ -622,22 +681,27 @@ html, body {
     width: 100%;
 }
 
-.modal input[type="text"]:focus {
+.ide-modal-input:focus {
     border-color: var(--accent);
 }
 
-.modal-error {
+.ide-modal-error {
     color: var(--error-text);
     font-size: 11px;
     min-height: 1em;
 }
 
-.modal-actions {
+/* Footer */
+.ide-modal-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
 }
 
+/* Buttons */
 .btn {
     padding: 6px 14px;
     border-radius: 4px;

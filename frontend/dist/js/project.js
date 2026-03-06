@@ -6,6 +6,7 @@
  */
 
 import { showToast } from './toast.js';
+import { showPrompt } from './modal.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -134,60 +135,6 @@ function loadProject(info, setEditorContent) {
 
     setEditorContent(info.content);
     notifyChange();
-}
-
-// ## Modal helper ##################################################
-
-/**
- * Show a simple prompt modal. Returns the entered string, or null if cancelled
- * @param {{ title: string, label: string, placeholder: string, validate?: (v:string) => string|true }} opts
- * @returns {Promise<string|null>}
- */
-function showPrompt({ title, label, placeholder, validate }) {
-    return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-
-        overlay.innerHTML = `
-            <div class="modal" role="dialog" aria-modal="true">
-                <h2>${title}</h2>
-                <label>
-                    ${label}
-                    <input type="text" id="modal-input" placeholder="${placeholder}" maxlength="80" autocomplete="off" />
-                </label>
-                <div class="modal-error" id="modal-error"></div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" id="modal-cancel">Annuler</button>
-                    <button class="btn btn-primary"   id="modal-confirm">Confirmer</button>
-                </div>
-            </div>`;
-
-        document.body.appendChild(overlay);
-        const input   = overlay.querySelector('#modal-input');
-        const errorEl = overlay.querySelector('#modal-error');
-        input.focus();
-
-        const confirm = () => {
-            const value = input.value.trim();
-            if (!value) { errorEl.textContent = 'Ce champ est requis.'; return; }
-            if (validate) {
-                const result = validate(value);
-                if (result !== true) { errorEl.textContent = result; return; }
-            }
-            overlay.remove();
-            resolve(value);
-        };
-
-        const cancel = () => { overlay.remove(); resolve(null); };
-
-        overlay.querySelector('#modal-confirm').addEventListener('click', confirm);
-        overlay.querySelector('#modal-cancel').addEventListener('click', cancel);
-        overlay.addEventListener('click', e => { if (e.target === overlay) cancel(); });
-        input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') confirm();
-            if (e.key === 'Escape') cancel();
-        });
-    });
 }
 
 // ## Public API ####################################################

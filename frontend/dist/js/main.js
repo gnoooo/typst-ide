@@ -102,6 +102,25 @@ async function main() {
             localStorage.setItem('auto-compile', String(autoCompile.checked));
         });
     }
+
+    // TO DELETE : ONLY TO TEST MODALS
+    // link bold button to a modal example
+    document.getElementById('bold-btn').addEventListener('click', () => {
+        import('./modal.js').then(({ openModal }) => {
+            openModal({
+                title: 'Example Modal',
+                width: '600px',
+                body: `
+                    <p>This is an example modal. You can put any content here.</p>
+                    <input class="w-full" placeholder="Type something..." />
+                `,
+                buttons: [
+                    { label: 'OK', primary: true, onClick: (close) => { alert('OK clicked'); close(); } },
+                    { label: 'Cancel', onClick: (close) => { alert('Cancel clicked'); close(); } },
+                ],
+            });
+        });
+    });
 }
 
 // ## Helpers #######################################################
