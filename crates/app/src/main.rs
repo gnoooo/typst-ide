@@ -148,6 +148,7 @@ fn font_exists(name: String) -> bool {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             render_preview,
             open_folder_dialog,

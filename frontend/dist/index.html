@@ -162,8 +162,10 @@
             <div class="menu-item">
                 <button class="menu-trigger">Aide</button>
                 <ul class="dropdown">
-                    <li><button onclick="window.__TAURI__?.opener?.open('https://typst.app/docs/')">Documentation Typst</button></li>
                     <li><button id="editor-fontfamily-btn">Changer la police de l'éditeur</button></li>
+                    <li class="separator"></li>
+                    <li><button onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/')">Documentation Typst <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span></button></li>
+                    <li><button onclick="window.__TAURI__.opener.openUrl('https://gitlab.com/gnoooo/typst-ide')">Official Typst IDE repo <span class="material-symbols-outlined" style="font-size: 16px;">open_in_new</span></button></li>
                 </ul>
             </div>
 

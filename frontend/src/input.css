@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @plugin "daisyui";
+@import "../node_modules/material-symbols/outlined.css";
 
 /* ###################################################################
    Typst IDE : Application stylesheet

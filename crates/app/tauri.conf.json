@@ -15,5 +15,10 @@
                 "height": 800
             }
         ]
+    },
+    "plugins": {
+        "opener": {
+            "requireLiteralLeadingDot": false
+        }
     }
 }

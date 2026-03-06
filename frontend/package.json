@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "material-symbols": "^0.40.2",
     "monaco-editor": "^0.52.2"
   },
   "devDependencies": {
