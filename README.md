@@ -15,6 +15,12 @@ A modern local Typst editor (not a lie anymore, since Electron has been replaced
 Not yet implemented: I'll make a CI/CD pipeline to compile the app when a release will come out.
 
 ## Developers
+### Prerequisites
+- Rust + Cargo
+- Node.js + npm
+- Tauri CLI : ```bash cargo install tauri-cli```
+
+### Build
 Clone this repository:
 ```sh
 git clone https://gitlab.com/gnoooo/typst-ide
@@ -22,16 +28,18 @@ cd typst-ide
 ```
 
 Since I didn't pushed the whole repository, we neet to initialize some things:
-1. NPM packages
-    ```sh
-
+1. NPM
+    ```bash
+    cd frontend && npm install
+    npm run build:css # not necessary: everytime the app build, it generate the CSS
+    npm run postinstall # to convert Monaco Editor (which use web workers) to an ESM module
     ```
-2. Copy some packages to `dist/vendor` (???)
-    - Maybe will change (Monaco Editor will be charged directly by referring to the `node_modules` files)
-    ```sh
-    
+2. Cargo
+    ```bash
+    # if you are in frontend/
+    cd ../crates/app
+    cargo tauri build # then pray
     ```
-3. Cargo
 
 # Usage
 ## Typical workflow
