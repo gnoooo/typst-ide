@@ -163,11 +163,11 @@ export function showPrompt({ title, label, placeholder, validate }) {
         const errorEl = overlay.querySelector(`#${errorId}`);
         input?.focus();
 
-        function tryConfirm() {
+        async function tryConfirm() {
             const value = input?.value.trim() ?? '';
             if (!value) { errorEl.textContent = 'Ce champ est requis.'; return; }
             if (validate) {
-                const result = validate(value);
+                const result = await validate(value);
                 if (result !== true) { errorEl.textContent = result; return; }
             }
             done(value);

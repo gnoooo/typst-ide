@@ -65,6 +65,18 @@ export function setEditorTheme(theme) {
     monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
 }
 
+// ## Font family change #############################################
+export function getCurrentFontFamily() {
+    return _editor?.getOption(monaco.editor.EditorOption.fontFamily) ?? '';
+}
+
+export function setEditorFontFamily(fontFamily) {
+    if (!_editor) return;
+    _editor.updateOptions({ fontFamily });
+    localStorage.setItem('editor-font-family', fontFamily);
+}
+
+// ## Zoom controls ##################################################
 export function zoomIn() {
     if (_currentSize >= MAX_FONT_SIZE) return;
     _currentSize += ZOOM_STEP;

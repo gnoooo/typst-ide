@@ -128,6 +128,21 @@ async fn export_pdf(source: String, path: String) -> Result<(), String> {
     .map_err(|e| e.to_string())?
 }
 // ---------------------------------------------------------------------------
+// Fonts
+// ---------------------------------------------------------------------------
+
+/// Checks whether a font family name is available on the system.
+#[tauri::command]
+fn font_exists(name: String) -> bool {
+    use font_kit::family_name::FamilyName;
+    use font_kit::properties::Properties;
+    use font_kit::source::SystemSource;
+    SystemSource::new()
+        .select_best_match(&[FamilyName::Title(name)], &Properties::new())
+        .is_ok()
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
@@ -141,6 +156,7 @@ fn main() {
             save_file,
             pick_pdf_path,
             export_pdf,
+            font_exists,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

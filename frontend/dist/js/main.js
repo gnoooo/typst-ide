@@ -3,11 +3,12 @@
  *  wires all modules together
  */
 
-import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoomPct } from './editor.js';
+import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily } from './editor.js';
 import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset } from './preview.js';
 import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.js';
 import { registerShortcuts } from './shortcuts.js';
 import { createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
+import { openModal, showPrompt } from './modal.js';
 
 async function main() {
     if (!window.__TAURI__) {
@@ -102,6 +103,22 @@ async function main() {
             localStorage.setItem('auto-compile', String(autoCompile.checked));
         });
     }
+
+    // Change editor font family
+    document.getElementById('editor-fontfamily-btn')?.addEventListener('click', async () => {
+        const { invoke } = window.__TAURI__.core;
+        const current = getCurrentFontFamily();
+        const newFont = await showPrompt({
+            title: 'Changer la police de l\'éditeur',
+            label: 'Nom de la police (ex: "Fira Code", "JetBrains Mono", "Cascadia Mono")',
+            placeholder: current || 'Fira Code',
+            validate: async (v) => {
+                const exists = await invoke('font_exists', { name: v });
+                return exists || `Police "${v}" introuvable sur cette machine.`;
+            },
+        });
+        if (newFont !== null) setEditorFontFamily(newFont);
+    });
 
     // TO DELETE : ONLY TO TEST MODALS
     // link bold button to a modal example
