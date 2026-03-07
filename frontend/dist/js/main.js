@@ -9,6 +9,7 @@ import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.j
 import { registerShortcuts } from './shortcuts.js';
 import { unsavedBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
 import { openModal, showPrompt } from './modal.js';
+import { openNotepad } from './notepad.js';
 
 async function main() {
     if (!window.__TAURI__) {
@@ -82,6 +83,9 @@ async function main() {
 
     // Save project
     bindMenuAction('unsaved-btn',   () => createNewProject((content) => editor.setValue(content), editor.getValue()));
+
+    // Notepad buttons
+    bindMenuAction('notepad-btn', () => { openNotepad(); });
 
     // Zoom input fields
     bindMenuAction("zoom-preview-in-btn",   () => { zoomPreviewIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });

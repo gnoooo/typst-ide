@@ -2,7 +2,6 @@
     "$schema": "https://tauri.app/schemas/config-schema.json",
     "identifier": "com.typst.ide",
     "build": {
-        "beforeDevCommand": "npm --prefix ../frontend run dev",
         "devUrl": "http://localhost:1420",
         "frontendDist": "../../frontend/dist"
     },

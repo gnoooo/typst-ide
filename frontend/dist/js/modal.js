@@ -33,13 +33,14 @@
  * }} opts
  * @returns {{ close: () => void, overlay: HTMLElement }}
  */
-export function openModal({ title, body, buttons = [], width = '480px', onClose, closable = true }) {
+export function openModal({ title, body, buttons = [], width = '480px', height = 'auto', onClose, closable = true }) {
     const overlay = document.createElement('div');
     overlay.className = 'ide-modal-overlay';
 
     const modal = document.createElement('div');
     modal.className = 'ide-modal';
     modal.style.width = width;
+    modal.style.height = height;
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
 
@@ -118,8 +119,8 @@ export function showConfirm({ title, message, confirmLabel = 'Confirmer', cancel
             title,
             body: `<p class="ide-modal-message">${message}</p>`,
             buttons: [
-                { label: cancelLabel,  primary: false, onClick: (c) => { c(); resolve(false); } },
-                { label: confirmLabel, primary: true,  onClick: (c) => { c(); resolve(true);  } },
+                { label: cancelLabel,  primary: false, onClick: (c) => { resolve(false); c(); } },
+                { label: confirmLabel, primary: true,  onClick: (c) => { resolve(true);  c(); } },
             ],
             onClose: () => resolve(false),
         });

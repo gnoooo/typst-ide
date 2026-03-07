@@ -1,12 +1,23 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::Mutex;
 use serde::Serialize;
+use tauri::Manager;
 use typst_ide_core::compiler::{compile_to_preview_html, compile_to_pdf};
+use typst_ide_core::database::notes_db::{self, Note};
 
-// ---------------------------------------------------------------------------
+// ## Database state ############################################################
+
+/// Tauri-managed state for the notes database
+pub struct NotesDbState(pub Mutex<rusqlite::Connection>);
+
+/// Tauri-managed state for a second database (example)
+// pub struct OtherDbState(pub Mutex<rusqlite::Connection>);
+
+// ###########################################################################
 // Preview
-// ---------------------------------------------------------------------------
+// ###########################################################################
 
 /// Compiles Typst source code to a preview HTML document (pages rendered as inline SVGs)
 /// Runs on a blocking thread pool to avoid freezing the UI during compilation
@@ -17,9 +28,9 @@ async fn render_preview(source: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
-// ---------------------------------------------------------------------------
+// ###########################################################################
 // File system / project management
-// ---------------------------------------------------------------------------
+// ###########################################################################
 
 /// Opens a native folder picker dialog and returns the selected path, or `null` if cancelled
 #[tauri::command]
@@ -96,6 +107,74 @@ async fn save_file(path: String, content: String) -> Result<(), String> {
 }
 
 // ###########################################################################
+// Database
+// ###########################################################################
+
+/// Adds a note to the database
+#[tauri::command]
+fn add_note(
+    state: tauri::State<NotesDbState>,
+    title: String,
+    content: String,
+    scope: String,
+    project_id: Option<String>,
+) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    notes_db::add_note(&conn, &title, &content, &scope, project_id.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+/// Returns all notes
+#[tauri::command]
+fn get_all_notes(state: tauri::State<NotesDbState>) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    notes_db::get_all_notes(&conn).map_err(|e| e.to_string())
+}
+
+/// Returns all global notes (not linked to a project)
+#[tauri::command]
+fn get_global_notes(state: tauri::State<NotesDbState>) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    notes_db::get_global_notes(&conn).map_err(|e| e.to_string())
+}
+
+/// Returns all notes linked to a project path
+#[tauri::command]
+fn get_project_notes(state: tauri::State<NotesDbState>, project_path: String) -> Result<Vec<Note>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let project_id = notes_db::project_id_from_path(&project_path);
+    notes_db::get_project_notes(&conn, &project_id).map_err(|e| e.to_string())
+}
+
+/// Get the hash of a project path to use as a project ID in the database
+#[tauri::command]
+fn get_current_project_id(project_path: String) -> String {
+    notes_db::project_id_from_path(&project_path)
+}
+
+/// Deletes a note by its ID
+#[tauri::command]
+fn delete_note(state: tauri::State<NotesDbState>, note_id: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    notes_db::delete_note(&conn, &note_id).map_err(|e| e.to_string())
+}
+
+/// Updates a note by its ID
+#[tauri::command]
+fn update_note(
+    state: tauri::State<NotesDbState>,
+    note_id: String,
+    title: String,
+    content: String,
+    scope: String,
+    project_id: Option<String>,
+) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    notes_db::update_note(&conn, &note_id, &title, &content, &scope, project_id.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+// ###########################################################################
 // PDF export
 // ###########################################################################
 
@@ -127,9 +206,9 @@ async fn export_pdf(source: String, path: String) -> Result<(), String> {
     .await
     .map_err(|e| e.to_string())?
 }
-// ---------------------------------------------------------------------------
+// ###########################################################################
 // Fonts
-// ---------------------------------------------------------------------------
+// ###########################################################################
 
 /// Checks whether a font family name is available on the system
 #[tauri::command]
@@ -142,13 +221,22 @@ fn font_exists(name: String) -> bool {
         .is_ok()
 }
 
-// ---------------------------------------------------------------------------
+// ###########################################################################
 // Entry point
-// ---------------------------------------------------------------------------
+// ###########################################################################
 
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let data_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&data_dir)?;
+            let db_path = data_dir.join("notes.db");
+            let conn = notes_db::init_db(db_path.to_str().unwrap())
+                .expect("Failed to initialise notes DB");
+            app.manage(NotesDbState(Mutex::new(conn)));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             render_preview,
             open_folder_dialog,
@@ -158,6 +246,14 @@ fn main() {
             pick_pdf_path,
             export_pdf,
             font_exists,
+
+            add_note,
+            get_all_notes,
+            delete_note,
+            update_note,
+            get_global_notes,
+            get_project_notes,
+            get_current_project_id,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

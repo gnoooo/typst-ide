@@ -11,6 +11,7 @@ typst-ide-core = { path = "../core", package = "core" }
 rfd = "0.17.2"
 font-kit = "0.14"
 tauri-plugin-opener = "2"
+rusqlite = { version = "0.38.0", features = ["bundled"] }
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

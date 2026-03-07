@@ -37,6 +37,7 @@
 
     --bg-blink: #8ce0ff;
     --text-blink: #00bbff;
+    /* --bg-note-btn: #2a2d2e; */
 }
 
 [data-theme="light"] {
@@ -59,7 +60,7 @@
     --error-bg:       #fdf2f2;
     --error-text:     #cd3131;
     --success-text:   #388a34;
-    --warning-text:   #795e26;
+    --warning-text:   #dfa32c;
     --info-text:      #0065a9;
     --resize-handle:  #cecece;
     --resize-hover:   #0065a9;
@@ -334,6 +335,106 @@ html, body {
     margin: 0 auto;
 }
 
+.note-btn {
+    border-radius: 6px;
+    background-color: var(--btn-tool);
+    border: 1.6px solid var(--border);
+    box-shadow: 0 0.8px 1.6px rgba(0,0,0,.16);
+    cursor: pointer;
+    
+    width: 100%;
+    margin-top: 6px;
+    padding: 2px 6px;
+    transition: 0.2s;
+}
+.note-btn:hover {
+    background: var(--btn-tool-hover);
+}
+.note-btn-title {
+    font-size: 16px;
+    font-weight: bold;
+    text-align: start;
+}
+.note-btn-content {
+    /* font-family: "Monaspace Krypton"; dynamiquement instanciée par le js, pour avoir la même que celle de l'éditeur*/ 
+    font-size: 12px;
+    text-align: start;
+    margin-top: 2px;
+    margin-left: 8px;
+
+    white-space: pre-wrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.delete-note-btn {
+    color: var(--error-text);
+    padding: 2px;
+    border-radius: 6px;
+    transition: 0.2s;
+    cursor: pointer;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.delete-note-btn:hover {
+    background-color: var(--error-text);
+    color: white;
+
+}
+.delete-note-icon {
+    font-size: 20px;
+}
+.edit-note-btn {
+    color: var(--warning-text);
+    padding: 2px;
+    border-radius: 6px;
+    transition: 0.2s;
+    cursor: pointer;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.edit-note-btn:hover {
+    background-color: var(--warning-text);
+    color: white;
+
+}
+.edit-note-icon {
+    font-size: 20px;
+}
+.view-note-btn {
+    color: var(--info-text);
+    padding: 2px;
+    border-radius: 6px;
+    transition: 0.2s;
+    cursor: pointer;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.view-note-btn:hover {
+    background-color: var(--info-text);
+    color: white;
+
+}
+.view-note-icon {
+    font-size: 20px;
+}
+#note-preview-content {
+    background-color: var(--btn-tool-hover);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-top: 8px;
+    padding: 8px 16px;
+    white-space:pre-wrap;
+    font-size:13px;
+}
+
 #bold-btn {
     font-size: 15px;
     font-weight: 600;
@@ -405,11 +506,7 @@ html, body {
   -moz-appearance: textfield;
 }
 
-.tool-btn:focus,
-
-
-
-.tool-btn:hover { 
+.tool-btn:focus, .tool-btn:hover { 
     background: var(--btn-tool-hover); 
     
 }
