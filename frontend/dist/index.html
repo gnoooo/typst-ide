@@ -174,26 +174,37 @@
         <!-- <div class="navbar-end">
         </div> -->
     </nav>
-    <div class="flex items-center justify-between px-4 py-2">
-        
-            <div class="flex gap-2">
-                <button class="tool-btn" id="bold-btn"><strong>B</strong></button>
-                <button class="tool-btn" id="italic-btn"><em>I</em></button>
-                <button class="tool-btn" id="underline-btn"><u>U</u></button>
-            </div>
+    <div class="toolbar-row">
 
-            <div class="btn-group" id="preview-zoom-panel">
-                <button class="tool-btn" id="zoom-out-btn">-</button>
+            <span class="flex gap-2">
+                <span class="gap-2">
+                    <button class="tool-btn _unsaved-blinking" id="unsaved-btn">
+                        <span class="material-symbols-outlined" id="unsaved-icon">file_save</span>
+                    </button>
+                    <button class="tool-btn" id="notepad-btn">
+                        <span class="material-symbols-outlined" id="notepad-icon">sticky_note_2</span>
+                    </button>
+                </span>
+    
+                <div class="btn-group flex justify-start" id="text-formatting-panel">
+                    <button class="tool-btn" id="bold-btn">B</button>
+                    <button class="tool-btn" id="italic-btn">I</button>
+                    <button class="tool-btn" id="underline-btn">U</button>
+                </div>
+
+            </span>
+
+            <div class="btn-group flex" id="preview-zoom-panel">
+                <button class="tool-btn" id="zoom-preview-out-btn">-</button>
                 <span class="flex items-center text-align-center" id="zoom-display">
                     <!-- weird instructions to remove increment and decrement arrows -->
-                    <input class="w-8" id="zoom-input" type="number" min="20" max="400" value="100" step="10">
+                    <input class="w-8" id="zoom-preview-input" type="number" min="20" max="400" value="100" step="10">
                     %
                 </span>
-                
-                <button class="tool-btn" id="zoom-in-btn">+</button>
+                <button class="tool-btn" id="zoom-preview-in-btn">+</button>
             </div>
             
-            <div class="flex gap-2">
+            <div class="flex gap-2 justify-end">
                 <button class="tool-btn" id="compile-btn">Compiler</button>
                 <button class="tool-btn" id="save-btn">Save</button>
             </div>

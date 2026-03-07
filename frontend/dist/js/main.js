@@ -7,7 +7,7 @@ import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoo
 import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset } from './preview.js';
 import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.js';
 import { registerShortcuts } from './shortcuts.js';
-import { createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
+import { unsavedBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
 import { openModal, showPrompt } from './modal.js';
 
 async function main() {
@@ -80,10 +80,13 @@ async function main() {
     bindMenuAction('zoom-out',      () => { zoomOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
     bindMenuAction('zoom-reset',    () => { zoomReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
 
+    // Save project
+    bindMenuAction('unsaved-btn',   () => createNewProject((content) => editor.setValue(content), editor.getValue()));
+
     // Zoom input fields
-    bindMenuAction("zoom-in-btn",   () => { zoomPreviewIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
-    bindMenuAction("zoom-out-btn",  () => { zoomPreviewOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
-    bindMenuAction("zoom-reset-btn",() => { zoomPreviewReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction("zoom-preview-in-btn",   () => { zoomPreviewIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction("zoom-preview-out-btn",  () => { zoomPreviewOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction("zoom-preview-reset-btn",() => { zoomPreviewReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
 
     // Compile button
     document.getElementById('compile-btn')?.addEventListener('click', () => {
@@ -120,24 +123,26 @@ async function main() {
         if (newFont !== null) setEditorFontFamily(newFont);
     });
 
+    unsavedBtnUpdate();
+
     // TO DELETE : ONLY TO TEST MODALS
     // link bold button to a modal example
-    document.getElementById('bold-btn').addEventListener('click', () => {
-        import('./modal.js').then(({ openModal }) => {
-            openModal({
-                title: 'Example Modal',
-                width: '600px',
-                body: `
-                    <p>This is an example modal. You can put any content here.</p>
-                    <input class="w-full" placeholder="Type something..." />
-                `,
-                buttons: [
-                    { label: 'OK', primary: true, onClick: (close) => { alert('OK clicked'); close(); } },
-                    { label: 'Cancel', onClick: (close) => { alert('Cancel clicked'); close(); } },
-                ],
-            });
-        });
-    });
+    // document.getElementById('bold-btn').addEventListener('click', () => {
+    //     import('./modal.js').then(({ openModal }) => {
+    //         openModal({
+    //             title: 'Example Modal',
+    //             width: '600px',
+    //             body: `
+    //                 <p>This is an example modal. You can put any content here.</p>
+    //                 <input class="w-full" placeholder="Type something..." />
+    //             `,
+    //             buttons: [
+    //                 { label: 'OK', primary: true, onClick: (close) => { alert('OK clicked'); close(); } },
+    //                 { label: 'Cancel', onClick: (close) => { alert('Cancel clicked'); close(); } },
+    //             ],
+    //         });
+    //     });
+    // });
 }
 
 // ## Helpers #######################################################
@@ -193,4 +198,7 @@ async function savePdf(editor) {
 }
 
 main();
+
+// ## Debug helpers (dev only) ####################################
+// window.__debug = { getCurrentProject };
 

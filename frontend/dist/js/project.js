@@ -75,6 +75,16 @@ async function flushSave(content) {
 }
 
 // ## Save-indicator ################################################
+export function unsavedBtnUpdate() {
+    // Blink unsaved indicator if the project isn't saved yet
+    if (getCurrentProject() === null){
+        document.getElementById('unsaved-btn')?.classList.remove('_unsaved-btn-none');
+    } else {
+        document.getElementById('unsaved-btn')?.classList.add('_unsaved-btn-none');
+    }
+}
+
+
 
 let _indicator = null;
 
@@ -135,6 +145,7 @@ function loadProject(info, setEditorContent) {
 
     setEditorContent(info.content);
     notifyChange();
+    unsavedBtnUpdate();
 }
 
 // ## Public API ####################################################
@@ -149,8 +160,9 @@ function validateName(v) {
 /**
  * Create a new project: ask for a name, pick a folder, create dir + main.typ
  * @param {(content: string) => void} setEditorContent
+ * @param {string} content
  */
-export async function createNewProject(setEditorContent) {
+export async function createNewProject(setEditorContent, content = '') {
     const name = await showPrompt({
         title: 'Nouveau projet',
         label: 'Nom du projet',
@@ -163,9 +175,9 @@ export async function createNewProject(setEditorContent) {
     if (!basePath) return;
 
     try {
-        const projectPath = await invoke('create_project', { name, basePath });
+        const projectPath = await invoke('create_project', { name, basePath, content });
         await loadProject(
-            { name, path: projectPath, typ_file: 'main.typ', content: '' },
+            { name, path: projectPath, typ_file: 'main.typ', content: content },
             setEditorContent,
         );
         showToast('success', `Projet "${name}" créé.`);
