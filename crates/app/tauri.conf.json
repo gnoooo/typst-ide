@@ -1,5 +1,7 @@
 {
     "$schema": "https://tauri.app/schemas/config-schema.json",
+    "productName": "Typst IDE",
+    "version": "0.1.0",
     "identifier": "com.typst.ide",
     "build": {
         "devUrl": "http://localhost:1420",
@@ -19,5 +21,15 @@
         "opener": {
             "requireLiteralLeadingDot": false
         }
+    },
+
+    "bundle": {
+        "active": true,
+        "targets": ["appimage", "nsis"],
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png"
+        ]
     }
 }

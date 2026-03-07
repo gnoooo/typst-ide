@@ -5,10 +5,11 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm run build:css && vite build dist",
     "build:css": "tailwindcss -i src/input.css -o dist/css/output.css --minify",
     "dev:css": "tailwindcss -i src/input.css -o dist/css/output.css --watch",
     "dev": "concurrently \"npm run dev:css\" \"vite dist --port 1420\"",
-    "postinstall": "node -e \"require('fs').cpSync('node_modules/monaco-editor/min/vs','dist/vendor/vs',{recursive:true})\""
+    "postinstall": "node -e \"require('fs').cpSync('node_modules/monaco-editor/min/vs','dist/vendor/vs',{recursive:true}); require('fs').mkdirSync('dist/css',{recursive:true}); require('fs').copyFileSync('node_modules/material-symbols/material-symbols-outlined.woff2','dist/css/material-symbols-outlined.woff2');\""
   },
   "keywords": [],
   "author": "",

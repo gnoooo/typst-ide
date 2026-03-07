@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use typst::diag::{eco_format, FileError, FileResult, PackageError, PackageResult};
 use typst::foundations::{Bytes, Datetime};
@@ -10,6 +10,17 @@ use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Feature, Features, Library, LibraryExt};
 use typst_kit::fonts::{FontSearcher, FontSlot};
+
+/// Cached font search result — computed once at first compilation, reused afterwards.
+/// On Linux with many system fonts, this scan can take hundreds of milliseconds.
+static FONT_CACHE: OnceLock<(typst::text::FontBook, Arc<Vec<FontSlot>>)> = OnceLock::new();
+
+fn get_fonts() -> &'static (typst::text::FontBook, Arc<Vec<FontSlot>>) {
+    FONT_CACHE.get_or_init(|| {
+        let result = FontSearcher::new().include_system_fonts(true).search();
+        (result.book, Arc::new(result.fonts))
+    })
+}
 
 /// Main interface that determines the environment for Typst.
 pub struct TypstWrapperWorld {
@@ -26,7 +37,7 @@ pub struct TypstWrapperWorld {
     book: LazyHash<FontBook>,
 
     /// Metadata about all known fonts.
-    fonts: Vec<FontSlot>,
+    fonts: Arc<Vec<FontSlot>>,
 
     /// Map of all known files.
     files: Arc<Mutex<HashMap<FileId, FileEntry>>>,
@@ -44,13 +55,13 @@ pub struct TypstWrapperWorld {
 impl TypstWrapperWorld {
     pub fn new(root: String, source: String) -> Self {
         let root = PathBuf::from(root);
-        let fonts = FontSearcher::new().include_system_fonts(true).search();
+        let (book, fonts) = get_fonts();
 
         Self {
             library: LazyHash::new(Library::default()),
-            book: LazyHash::new(fonts.book),
+            book: LazyHash::new(book.clone()),
             root,
-            fonts: fonts.fonts,
+            fonts: Arc::clone(fonts),
             source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
@@ -66,15 +77,15 @@ impl TypstWrapperWorld {
     /// which is required to compile to `HtmlDocument` via `typst::compile`.
     pub fn new_for_html(root: String, source: String) -> Self {
         let root = PathBuf::from(root);
-        let fonts = FontSearcher::new().include_system_fonts(true).search();
+        let (book, fonts) = get_fonts();
         let features: Features = [Feature::Html].into_iter().collect();
         let library = Library::builder().with_features(features).build();
 
         Self {
             library: LazyHash::new(library),
-            book: LazyHash::new(fonts.book),
+            book: LazyHash::new(book.clone()),
             root,
-            fonts: fonts.fonts,
+            fonts: Arc::clone(fonts),
             source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
