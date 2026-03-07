@@ -20,7 +20,7 @@ Not yet implemented: I'll make a CI/CD pipeline to compile the app when a releas
 - Node.js + npm
 - Tauri CLI : ```bash cargo install tauri-cli```
 
-### Build
+### Setup
 Clone this repository:
 ```sh
 git clone https://gitlab.com/gnoooo/typst-ide
@@ -40,6 +40,28 @@ Since I didn't pushed the whole repository, we neet to initialize some things:
     cd ../crates/app
     cargo tauri build # then pray
     ```
+### Build the app
+To build the app (into an AppImage for Linux and a setup executable for Windows), we have to:
+1. Compile CSS and build the frontend:
+    ```bash
+    cd frontend/
+    npm run build   # => npm run build:css && vite build dist
+    ```
+2. Build the app (it's long...):
+    - Windows
+        ```bash
+        cd crates/app/
+        cargo tauri build --target x86_64-pc-windows-gnu
+        ```
+    - Linux
+        ```bash
+        cd crates/app/
+        NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu
+        ```
+        - `NO_STRIP=1` helps avoid the `failed to bundle project \`failed to run linuxdeploy\`` error
+3. The executables files will be in:
+    - Linux : `$HOME/path/to/typst-ide/target/x86_64_unknown-linux-gnu/release/bundle/appimage/Typst IDE_x.y.z_amd64.AppImage`
+    - Windows : `$HOME/path/to/typst-ide/target/x86_64-pc-windows-gnu/bundle/nsis/Typst IDE_x.y.z_x64-setup.exe`
 
 # Usage
 ## Typical workflow
