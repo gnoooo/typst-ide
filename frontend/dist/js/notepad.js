@@ -9,7 +9,7 @@
 const { invoke } = window.__TAURI__.core;
 
 import { openModal, showPrompt, showConfirm } from './modal.js';
-import { getCurrentFontFamily } from './editor.js';
+import { getCurrentFontFamily, getEditor } from './editor.js';
 import { getCurrentProject } from './project.js';
 
 /**
@@ -49,6 +49,23 @@ function createNote(scope='project') {
             }}
         ]
     });
+}
+
+function insertNote(content) {
+    const editor = getEditor();
+    if (editor) {
+        const selection = editor.getSelection();
+        if (selection) {
+            editor.executeEdits(null, [
+                {
+                    range: selection,
+                    text: content,
+                    forceMoveMarkers: true
+                }
+            ]);
+        }
+    }
+    closeNotepad();
 }
 
 async function deleteNote(noteId) {
@@ -156,6 +173,9 @@ function viewNote(note) {
 }
 
 function attachNoteListeners(noteEl, note) {
+    const noteBtn = noteEl.querySelector(`#${note.id}`);
+    noteBtn.addEventListener('click', () => insertNote(note.content));
+
     const deleteBtn = noteEl.querySelector(`#delete-${note.id}`);
     deleteBtn.addEventListener('click', () => deleteNote(note.id));
 

@@ -4,7 +4,7 @@
  */
 
 import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily } from './editor.js';
-import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset } from './preview.js';
+import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom } from './preview.js';
 import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.js';
 import { registerShortcuts } from './shortcuts.js';
 import { unsavedBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
@@ -27,8 +27,7 @@ async function main() {
     initTheme((theme) => setEditorTheme(theme));
 
     // Update status-bar zoom on load
-    const zoomEl = document.getElementById('status-zoom');
-    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`;
+    updateZoomPreview();
 
     // ## Preview ####################################################
     const preview = document.getElementById('preview');
@@ -58,9 +57,9 @@ async function main() {
     registerShortcuts({
         editor,
         onCompile:    () => triggerCompile(editor, preview, frame),
-        onZoomIn:     () => { zoomIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; },
-        onZoomOut:    () => { zoomOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; },
-        onZoomReset:  () => { zoomReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; },
+        onZoomIn:     () => { zoomIn()},
+        onZoomOut:    () => { zoomOut()},
+        onZoomReset:  () => { zoomReset()},
         onNewProject: () => createNewProject((content) => editor.setValue(content)),
         onOpenProject:() => openProject((content) => editor.setValue(content)),
         onExportPDF:   () => exportPDF(editor.getValue()),
@@ -77,9 +76,9 @@ async function main() {
     bindMenuAction('action-comment',() => editor.getAction('editor.action.commentLine')?.run());
 
     // Zoom buttons in toolbar
-    bindMenuAction('zoom-in',       () => { zoomIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
-    bindMenuAction('zoom-out',      () => { zoomOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
-    bindMenuAction('zoom-reset',    () => { zoomReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction('zoom-in',       () => { zoomIn()});
+    bindMenuAction('zoom-out',      () => { zoomOut()});
+    bindMenuAction('zoom-reset',    () => { zoomReset()});
 
     // Save project
     bindMenuAction('unsaved-btn',   () => createNewProject((content) => editor.setValue(content), editor.getValue()));
@@ -88,9 +87,9 @@ async function main() {
     bindMenuAction('notepad-btn', () => { openNotepad(); });
 
     // Zoom input fields
-    bindMenuAction("zoom-preview-in-btn",   () => { zoomPreviewIn();    if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
-    bindMenuAction("zoom-preview-out-btn",  () => { zoomPreviewOut();   if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
-    bindMenuAction("zoom-preview-reset-btn",() => { zoomPreviewReset(); if (zoomEl) zoomEl.textContent = `${getCurrentZoomPct()}%`; });
+    bindMenuAction("zoom-preview-in-btn",   () => { zoomPreviewIn();    updateZoomPreview(); });
+    bindMenuAction("zoom-preview-out-btn",  () => { zoomPreviewOut();   updateZoomPreview(); });
+    bindMenuAction("zoom-preview-reset-btn",() => { zoomPreviewReset(); updateZoomPreview(); });
 
     // Compile button
     document.getElementById('compile-btn')?.addEventListener('click', () => {
@@ -156,6 +155,13 @@ function bindMenuAction(id, fn) {
         e.preventDefault();
         fn();
     });
+}
+
+function updateZoomPreview() {
+    const zoomEl = document.getElementById('zoom-preview-input');
+    console.log(zoomEl);
+    if (zoomEl) zoomEl.value = getPreviewZoom();
+    console.log(`Preview zoom: ${getPreviewZoom()}%`);
 }
 
 // Force an immediate preview compile by programmatically running the Tauri command

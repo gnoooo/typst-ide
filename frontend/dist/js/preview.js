@@ -117,6 +117,7 @@ export function initPreview({ getSource, onChange, preview, frame, debounceMs = 
 export function zoomPreviewIn()    { setPreviewZoom(previewZoom + 10); }
 export function zoomPreviewOut()   { setPreviewZoom(previewZoom - 10); }
 export function zoomPreviewReset() { setPreviewZoom(100); }
+export function getPreviewZoom() { return previewZoom; }
 
 function setPreviewZoom(value) {
     previewZoom = Math.min(400, Math.max(20, value));

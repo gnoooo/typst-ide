@@ -65,6 +65,10 @@ export function setEditorTheme(theme) {
     monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
 }
 
+export function getEditor() {
+    return _editor;
+}
+
 // ## Font family change #############################################
 export function getCurrentFontFamily() {
     return _editor?.getOption(monaco.editor.EditorOption.fontFamily) ?? '';
