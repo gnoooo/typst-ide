@@ -4,10 +4,10 @@
  */
 
 import { createEditor, setEditorTheme, zoomIn, zoomOut, zoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily, getEditor } from './editor.js';
-import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom } from './preview.js';
+import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom, scrollToJumpPos } from './preview.js';
 import { initToolbar, initTheme, writeToConsole, showConsole } from './toolbar.js';
 import { registerShortcuts } from './shortcuts.js';
-import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator } from './project.js';
+import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator, getCurrentProject } from './project.js';
 import { openModal, showPrompt } from './modal.js';
 import { openNotepad } from './notepad.js';
 import { openHistory } from './history.js';
@@ -38,6 +38,7 @@ async function main() {
     initPreview({
         getSource: () => editor.getValue(),
         onChange:  (cb) => editor.onDidChangeModelContent(cb),
+        getCursor: () => editor.getPosition(),
         preview,
         frame,
         onDiagnostics: (diagnostics) => applyMonacoMarkers(editor, diagnostics),
@@ -178,13 +179,21 @@ function updateZoomPreview() {
 async function triggerCompile(editor, preview, frame) {
     const { invoke } = window.__TAURI__.core;
     try {
-        const html = await invoke('render_preview', { source: editor.getValue() });
+        const result = await invoke('render_preview', {
+            source: editor.getValue(),
+            root:   getCurrentProject()?.path ?? null,
+            cursor: editor.getPosition(),
+        });
+        const { html, jump_pos: jumpPos } = result;
         applyMonacoMarkers(editor, []);
         preview.querySelector('.preview-error')?.remove();
         frame.style.display = '';
+        const savedScroll = preview.scrollTop;
         frame.contentDocument.open();
         frame.contentDocument.write(html);
         frame.contentDocument.close();
+        preview.scrollTop = savedScroll;
+        if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
         writeToConsole('success', 'Compilation successful');
     } catch (err) {
         const diagnostics = Array.isArray(err) ? err : [];
@@ -236,7 +245,7 @@ async function savePdf(editor) {
             if (!path) return; // user cancelled
             sessionStorage.setItem('pdf-export-path', path);
         }
-        await invoke('export_pdf', { source: editor.getValue(), path });
+        await invoke('export_pdf', { source: editor.getValue(), path, root: getCurrentProject()?.path ?? null });
         writeToConsole('success', `PDF exporté : ${path}`);
     } catch (err) {
         writeToConsole('error', String(err));

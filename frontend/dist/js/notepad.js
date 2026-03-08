@@ -120,7 +120,7 @@ async function editNote(note) {
     <option value="global" ${note.scope === 'global' ? 'selected' : ''}>Globale (visible dans tous les projets)</option>
     <option value="project" ${note.scope === 'project' ? 'selected' : ''}>Projet actuel seulement</option>
 </select>
-<textarea placeholder="Contenu de la note" style="flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;">${note.content}</textarea>
+<textarea placeholder="Contenu de la note" style="flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;font-family:${getCurrentFontFamily()};">${note.content}</textarea>
     `;
     openModal({
         title: 'Modifier la note',

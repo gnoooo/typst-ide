@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 use serde::Serialize;
 use tauri::Manager;
-use typst_ide_core::compiler::{compile_to_preview_html, compile_to_pdf, DiagnosticInfo};
+use typst_ide_core::compiler::{compile_to_preview_html, compile_to_pdf, DiagnosticInfo, PreviewResult};
 use typst_ide_core::database::{
     notes_db::{self, Note},
     history_db::{self, HistoryEntry}
@@ -23,11 +23,23 @@ pub struct HistoryDbState(pub Mutex<rusqlite::Connection>);
 // Preview
 // ###########################################################################
 
+/// Cursor position as reported by Monaco (1-based line and UTF-16 column).
+/// Transmitted by the frontend to enable forward-search (editor → preview sync).
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CursorPos {
+    line_number: u32,
+    column: u32,
+}
+
 /// Compiles Typst source code to a preview HTML document (pages rendered as inline SVGs)
 /// Runs on a blocking thread pool to avoid freezing the UI during compilation
 #[tauri::command]
-async fn render_preview(source: String) -> Result<String, Vec<DiagnosticInfo>> {
-    tauri::async_runtime::spawn_blocking(move || compile_to_preview_html(&source))
+async fn render_preview(source: String, root: Option<String>, cursor: Option<CursorPos>) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let cur = cursor.map(|c| (c.line_number, c.column));
+        compile_to_preview_html(root.as_deref(), &source, cur)
+    })
         .await
         .map_err(|e| vec![DiagnosticInfo {
             severity: "error".into(),
@@ -252,9 +264,9 @@ async fn pick_pdf_path() -> Option<String> {
 
 /// Compiles `source` to PDF and writes it to `path`
 #[tauri::command]
-async fn export_pdf(source: String, path: String) -> Result<(), String> {
+async fn export_pdf(source: String, path: String, root: Option<String>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let bytes = compile_to_pdf(&source)?;
+        let bytes = compile_to_pdf(root.as_deref(), &source)?;
         if let Some(parent) = std::path::Path::new(&path).parent() {
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }

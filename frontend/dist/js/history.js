@@ -95,16 +95,21 @@ async function editHistoryEntry(entry) {
         width: '50%',
         buttons: [
             { label: 'Annuler',    primary: false, onClick: (c) => c() },
-            { label: 'Enregistrer', primary: true,  onClick: async (c) => {
-                const newName = body.querySelector('#history-entry-name').value.trim();
+            { label: 'Enregistrer', primary: true,  onClick: async (close) => {
+                const newName = body.querySelector('#history-entry-path-input').value.trim();
                 if (!newName || !newPath) {
                     showToast("error", "Le nom et le chemin ne peuvent pas être vides.");
                     return;
                 }
                 try {
-                    await invoke('update_history_entry', { id: entry.id, name: newName, path: newPath });
+                    await invoke('update_history_entry', { 
+                        id: entry.id, 
+                        name: newName, 
+                        path: newPath 
+                    });
                     showToast("success", "Entrée de l'historique mise à jour !");
-                    c();
+                    close();
+                    closeHistory();
                     openHistory();
                 } catch (err) {
                     showToast("error", "Erreur lors de la mise à jour de l'entrée : " + err);

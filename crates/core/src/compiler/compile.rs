@@ -7,6 +7,7 @@ use typst::layout::PagedDocument;
 use typst::World;
 use typst_as_library::TypstWrapperWorld;
 use typst_pdf::PdfOptions;
+use typst_ide;
 
 /// Returns the current working directory as a String, falling back to "."
 fn current_dir() -> String {
@@ -79,6 +80,22 @@ fn collect_diagnostics(
         .collect()
 }
 
+/// Position in the rendered preview corresponding to a cursor position in the source.
+#[derive(Serialize, Clone)]
+pub struct JumpPos {
+    pub page: usize,  // 1-based page number
+    pub x: f64,       // x coordinate in pt
+    pub y: f64,       // y coordinate in pt
+}
+
+/// Result returned by compile_to_preview_html, bundling the HTML and an optional
+/// jump position so the frontend can scroll the preview to the current cursor.
+#[derive(Serialize)]
+pub struct PreviewResult {
+    pub html: String,
+    pub jump_pos: Option<JumpPos>,
+}
+
 /// Formats a slice of Typst diagnostics into a single user-facing string
 /// (kept for compile_to_pdf which doesn't need structured output)
 fn format_diagnostics(diagnostics: &[SourceDiagnostic]) -> String {
@@ -87,6 +104,31 @@ fn format_diagnostics(diagnostics: &[SourceDiagnostic]) -> String {
         .map(|d| d.message.to_string())
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Converts a Monaco-style cursor (1-based line, 1-based UTF-16 column) to a UTF-8 byte offset
+/// in `text`. This is what `typst_ide::jump_from_cursor` expects.
+fn monaco_pos_to_byte(text: &str, line: u32, column: u32) -> usize {
+    // Advance to the start of the target line (1-based)
+    let mut current_line = 1u32;
+    let mut byte_pos = 0usize;
+    for ch in text.chars() {
+        if current_line == line { break; }
+        byte_pos += ch.len_utf8();
+        if ch == '\n' { current_line += 1; }
+    }
+    // Advance (column - 1) UTF-16 units within the line
+    let line_text = &text[byte_pos..];
+    let mut utf16_consumed = 0u32;
+    let target_utf16 = column.saturating_sub(1);
+    for ch in line_text.chars() {
+        if ch == '\n' { break; }
+        let ch_utf16 = ch.len_utf16() as u32;
+        if utf16_consumed + ch_utf16 > target_utf16 { break; }
+        utf16_consumed += ch_utf16;
+        byte_pos += ch.len_utf8();
+    }
+    byte_pos
 }
 
 /// Creates a default world (paged target) with the given content
@@ -108,12 +150,32 @@ pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
 ///
 /// Returns structured diagnostics on error so the frontend can display
 /// squiggly underlines via Monaco's `setModelMarkers` API.
-pub fn compile_to_preview_html(content: &str) -> Result<String, Vec<DiagnosticInfo>> {
-    let world = create_default_world(content);
+/// `root` should be the open project directory so that relative file paths
+/// (images, imports…) are resolved against it instead of the process cwd.
+pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option<(u32, u32)>) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
+    let world = match root {
+        Some(r) => create_world_with_root(r, content),
+        None    => create_default_world(content),
+    };
 
     let document: PagedDocument = typst::compile(&world)
         .output
         .map_err(|errors| collect_diagnostics(&errors, &world))?;
+
+    // Compute the preview jump position corresponding to the editor cursor
+    let jump_pos = cursor.and_then(|(line, col)| {
+        let source = world.source(world.main()).ok()?;
+        let offset = monaco_pos_to_byte(source.text(), line, col);
+        // jump_from_cursor returns a Vec; take the first result (most relevant)
+        typst_ide::jump_from_cursor(&document, &source, offset)
+            .into_iter()
+            .next()
+            .map(|pos| JumpPos {
+                page: pos.page.get(),
+                x:    pos.point.x.to_pt(),
+                y:    pos.point.y.to_pt(),
+            })
+    });
 
     let pages_html: String = document
         .pages
@@ -122,7 +184,7 @@ pub fn compile_to_preview_html(content: &str) -> Result<String, Vec<DiagnosticIn
         .collect::<Vec<_>>()
         .join("\n");
 
-    Ok(format!(
+    let html = format!(
         r#"<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -152,12 +214,18 @@ pub fn compile_to_preview_html(content: &str) -> Result<String, Vec<DiagnosticIn
 </body>
 </html>
 "#
-    ))
+    );
+
+    Ok(PreviewResult { html, jump_pos })
 }
 
 /// Compiles Typst source to raw PDF bytes
-pub fn compile_to_pdf(content: &str) -> Result<Vec<u8>, String> {
-    let world = create_default_world(content);
+/// `root` should be the open project directory.
+pub fn compile_to_pdf(root: Option<&str>, content: &str) -> Result<Vec<u8>, String> {
+    let world = match root {
+        Some(r) => create_world_with_root(r, content),
+        None    => create_default_world(content),
+    };
     let document: PagedDocument = typst::compile(&world)
         .output
         .map_err(|errors| format_diagnostics(&errors))?;

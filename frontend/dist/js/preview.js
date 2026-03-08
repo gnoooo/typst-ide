@@ -34,6 +34,7 @@
  */
 
 const { invoke } = window.__TAURI__.core;
+import { getCurrentProject } from './project.js';
 
 /**
  * Initialises the preview panel
@@ -46,8 +47,8 @@ const { invoke } = window.__TAURI__.core;
  * @param {HTMLIFrameElement} opts.frame
  * @param {number}          [opts.debounceMs=100]
  */
-export function initPreview({ getSource, onChange, preview, frame, debounceMs = 100, onDiagnostics }) {
-    const run = () => compile(getSource(), preview, frame, onDiagnostics);
+export function initPreview({ getSource, onChange, preview, frame, debounceMs = 100, onDiagnostics, getCursor }) {
+    const run = () => compile(getSource(), preview, frame, onDiagnostics, getCursor);
 
     onChange(() => {
         const autoCompile = document.getElementById('auto-compile');
@@ -101,6 +102,7 @@ function clearError(preview, frame) {
  */
 let previewZoom = 100;
 let _lastHtml = '';
+let _lastJumpPos = null;
 
 // Scale width/height attributes on all <svg> tags — affects real layout, scroll works
 function scaleSvgs(html, scale) {
@@ -128,14 +130,48 @@ function writeHtml(frame, html) {
     if (zoomInput) zoomInput.value = previewZoom;
 }
 
-async function compile(source, preview, frame, onDiagnostics) {
+/**
+ * Scrolls `previewContainer` so that the rendered preview position `jumpPos`
+ * (returned by the Rust `jump_from_cursor` call) is visible near the top third.
+ *
+ * @param {HTMLIFrameElement} frame
+ * @param {HTMLElement} previewContainer  The scrollable .preview-content div
+ * @param {{ page: number, x: number, y: number }} jumpPos  Typst coordinates (pt, 1-based page)
+ */
+export function scrollToJumpPos(frame, previewContainer, jumpPos) {
+    if (!jumpPos || !frame.contentDocument) return;
+    const { page, y } = jumpPos;
+    const pages = frame.contentDocument.querySelectorAll('.page');
+    if (!pages || page < 1 || page > pages.length) return;
+    const pageEl = pages[page - 1];
+    // Standard CSS pt → px: 1pt = 96/72 CSS px. The zoom scale is applied on top.
+    const PX_PER_PT = 96 / 72;
+    const scale = previewZoom / 100;
+    const yPx = y * PX_PER_PT * scale;
+    const scrollTarget = pageEl.offsetTop + yPx - previewContainer.clientHeight * 0.3;
+    previewContainer.scrollTop = Math.max(0, scrollTarget);
+}
+
+async function compile(source, preview, frame, onDiagnostics, getCursor) {
     const generation = ++currentGeneration;
+    const cursor = getCursor?.() ?? null;
     try {
-        const html = await invoke('render_preview', { source });
+        const result = await invoke('render_preview', {
+            source,
+            root:   getCurrentProject()?.path ?? null,
+            cursor,
+        });
         if (generation !== currentGeneration) return;
+        const { html, jump_pos: jumpPos } = result;
         _lastHtml = html;
+        _lastJumpPos = jumpPos ?? null;
+        const savedScroll = preview.scrollTop;
         clearError(preview, frame);
         writeHtml(frame, html);
+        // Restore saved scroll synchronously to prevent flash to top,
+        // then override with jump position if available.
+        preview.scrollTop = savedScroll;
+        if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
         onDiagnostics?.([]); // clear markers on success
     } catch (error) {
         if (generation !== currentGeneration) return;
@@ -162,7 +198,10 @@ function setPreviewZoom(value) {
     const frame = document.getElementById('preview-frame');
     const preview = document.getElementById('preview');
     if (frame && preview && _lastHtml) {
+        const savedScroll = preview.scrollTop;
         clearError(preview, frame);
         writeHtml(frame, _lastHtml);
+        preview.scrollTop = savedScroll;
+        if (_lastJumpPos) scrollToJumpPos(frame, preview, _lastJumpPos);
     }
 }

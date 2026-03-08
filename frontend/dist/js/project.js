@@ -126,7 +126,7 @@ export function notifySaveIndicator(unsaved) {
 
 export async function exportPDF(content) {
     try {
-        const pdfData = await invoke('export_pdf', { source: content });
+        const pdfData = await invoke('export_pdf', { source: content, root: currentProject?.path ?? null });
         const blob = new Blob([pdfData], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

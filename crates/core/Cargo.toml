@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 typst = "*"
+typst-ide = "0.14.2"
 typst-as-library = { path = "../typst-as-library" }
 typst-pdf = "*"
 typst-svg = "*"

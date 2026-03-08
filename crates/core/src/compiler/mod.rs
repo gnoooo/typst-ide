@@ -8,5 +8,7 @@ pub use compile::{
     create_html_world,
     create_world_with_root,
     DiagnosticInfo,
+    JumpPos,
+    PreviewResult,
 };
 // pub use export::export_to_pdf;
