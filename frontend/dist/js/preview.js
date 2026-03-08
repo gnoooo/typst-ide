@@ -3,10 +3,63 @@
  *  compiles Typst source and renders it in the iframe
  *
  * Exports a single `initPreview()` function that wires up the editor textarea
- * to the preview iframe via the Tauri `render_preview` command
+ * to the preview iframe via the Tauri `render_preview` 
+ * 
+ * ## API
+ * initPreview(opts)
+ *  * opts.getSource() -> string: returns the current editor content
+ *  * opts.onChange(cb) -> void: registers `cb` to be called whenever the source changes
+ *  * opts.preview: HTMLElement container for the preview (used to show error messages)
+ *  * opts.frame: HTMLIFrameElement where the compiled HTML should be written
+ *  * opts.debounceMs: number of milliseconds to wait after a change before recompiling (default: 100)
+ * 
+ * showError(preview, frame, message) -> void
+ *  * Displays the given error message in the preview panel, hiding the iframe
+ * 
+ * clearError(preview, frame) -> void
+ *  * Clears any visible error and restores the iframe
+ * 
+ * compile(source, preview, frame) -> Promise<void>
+ *  * Compiles the given source and writes the result into `frame`
+ *  * Shows an error message on failure. Stale results (superseded by a newer call) are silently dropped.
+ * 
+ * zoomPreviewIn/Out/Reset() -> void: 
+ *  * Adjust the zoom level of the preview iframe
+ * 
+ * getPreviewZoom() -> number: 
+ *  * Returns the current zoom level as a percentage (e.g. 100)
+ * 
+ * setPreviewZoom(value) -> void: 
+ *  * Sets the zoom level, clamped between 20 and 400
  */
 
 const { invoke } = window.__TAURI__.core;
+
+/**
+ * Initialises the preview panel
+ * Wires the editor to the iframe and triggers an initial compilation
+ *
+ * @param {object} opts
+ * @param {() => string}    opts.getSource Returns the current editor content
+ * @param {(cb: () => void) => void} opts.onChange Calls `cb` whenever the content changes
+ * @param {HTMLElement}     opts.preview
+ * @param {HTMLIFrameElement} opts.frame
+ * @param {number}          [opts.debounceMs=100]
+ */
+export function initPreview({ getSource, onChange, preview, frame, debounceMs = 100, onDiagnostics }) {
+    const run = () => compile(getSource(), preview, frame, onDiagnostics);
+
+    onChange(() => {
+        const autoCompile = document.getElementById('auto-compile');
+        if (autoCompile && !autoCompile.checked) return;
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(run, debounceMs);
+
+    });
+
+    // Initial render
+    run();
+}
 
 /** @type {number} Incremented each time a new compilation is triggered */
 let currentGeneration = 0;
@@ -98,30 +151,6 @@ async function compile(source, preview, frame, onDiagnostics) {
     }
 }
 
-/**
- * Initialises the preview panel
- * Wires the editor to the iframe and triggers an initial compilation
- *
- * @param {object} opts
- * @param {() => string}    opts.getSource Returns the current editor content
- * @param {(cb: () => void) => void} opts.onChange Calls `cb` whenever the content changes
- * @param {HTMLElement}     opts.preview
- * @param {HTMLIFrameElement} opts.frame
- * @param {number}          [opts.debounceMs=100]
- */
-export function initPreview({ getSource, onChange, preview, frame, debounceMs = 100, onDiagnostics }) {
-    const run = () => compile(getSource(), preview, frame, onDiagnostics);
-
-    onChange(() => {
-        const autoCompile = document.getElementById('auto-compile');
-        if (autoCompile && !autoCompile.checked) return;
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(run, debounceMs);
-    });
-
-    // Initial render
-    run();
-}
 
 export function zoomPreviewIn()    { setPreviewZoom(previewZoom + 10); }
 export function zoomPreviewOut()   { setPreviewZoom(previewZoom - 10); }
