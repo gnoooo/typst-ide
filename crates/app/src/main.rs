@@ -295,11 +295,6 @@ fn font_exists(name: String) -> bool {
 // ###########################################################################
 
 fn main() {
-    // WebKitGTK can produce a black window or crash with EGL errors on some Linux systems.
-    // WEBKIT_DISABLE_COMPOSITING_MODE forces software rendering, which fixes both issues.
-    #[cfg(target_os = "linux")]
-    std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
