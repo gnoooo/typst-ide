@@ -17,7 +17,7 @@ async function hold(label, count = 8, delay = 150) {
 describe("Walkthrough 1 : first open", () => {
   it("shows the main layout on startup", async () => {
     await waitForEditor();
-    await hold("startup", 6);
+    // await hold("startup", 6);
     await shot("app-loaded");
 
     const saveBtn = await $("#unsaved-btn");
@@ -32,8 +32,8 @@ describe("Walkthrough 1 : first open", () => {
     // await hold("menu-hover", 6);
     // await shot("menu-fichier-hover");
 
-    await $("body").click({ x: 600, y: 400 });
+    // await $("body").click({ x: 600, y: 400 });
     await hold("idle", 10);
-    await shot("idle");
+    // await shot("idle");
   });
 });
