@@ -1,11 +1,45 @@
 <!doctype html>
 <html lang="fr" data-theme="light">
     <head>
+      <script>self["MonacoEnvironment"] = (function (paths) {
+          return {
+            globalAPI: false,
+            getWorkerUrl : function (moduleId, label) {
+              var result =  paths[label];
+              if (/^((http:)|(https:)|(file:)|(\/\/))/.test(result)) {
+                var currentUrl = String(window.location);
+                var currentOrigin = currentUrl.substr(0, currentUrl.length - window.location.hash.length - window.location.search.length - window.location.pathname.length);
+                if (result.substring(0, currentOrigin.length) !== currentOrigin) {
+                  var js = '/*' + label + '*/importScripts("' + result + '");';
+                  var blob = new Blob([js], { type: 'application/javascript' });
+                  return URL.createObjectURL(blob);
+                }
+              }
+              return result;
+            }
+          };
+        })({
+  "editorWorkerService": "./monacoeditorwork/editor.worker.bundle.js",
+  "css": "./monacoeditorwork/css.worker.bundle.js",
+  "html": "./monacoeditorwork/html.worker.bundle.js",
+  "json": "./monacoeditorwork/json.worker.bundle.js",
+  "typescript": "./monacoeditorwork/ts.worker.bundle.js",
+  "javascript": "./monacoeditorwork/ts.worker.bundle.js",
+  "less": "./monacoeditorwork/css.worker.bundle.js",
+  "scss": "./monacoeditorwork/css.worker.bundle.js",
+  "handlebars": "./monacoeditorwork/html.worker.bundle.js",
+  "razor": "./monacoeditorwork/html.worker.bundle.js"
+});</script>
+
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Typst IDE</title>
         <!-- <link rel="stylesheet" href="css/app.css"> -->
-        <link rel="stylesheet" href="css/output.css" />
+      <script type="module" crossorigin src="../assets/main-wro2Ax4Z.js"></script>
+      <link rel="modulepreload" crossorigin href="../assets/chunk-bwbTjDly.js">
+      <link rel="modulepreload" crossorigin href="../assets/editor.api-BSZB5l0V.js">
+      <link rel="stylesheet" crossorigin href="../assets/editor-B55U_qvj.css">
+      <link rel="stylesheet" crossorigin href="../assets/main-CbFkSago.css">
     </head>
     <body>
         <div class="app-layout">
@@ -338,8 +372,5 @@
 
         <!-- Toast container -->
         <div id="toast-container" class="toast-container"></div>
-
-        <script src="vendor/vs/loader.js"></script>
-        <script type="module" src="js/main.js"></script>
     </body>
 </html>
