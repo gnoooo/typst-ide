@@ -3,7 +3,10 @@
  *  wires all modules together
  */
 
+import "../style.css";
+
 import * as monaco from 'monaco-editor';
+window.monaco = monaco;
 
 import { createEditor, setEditorTheme, editorZoomIn, editorZoomOut, editorZoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily, getEditor, insertImageAtCursor } from "./editor.js";
 import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth } from "./preview.js";
@@ -14,6 +17,7 @@ import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, 
 import { openModal, showPrompt } from "./modal.js";
 import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
+import { openBibliography } from './bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 
@@ -137,26 +141,16 @@ async function main() {
   });
 
   // ## Toolbar menu actions #######################################
-  bindMenuAction("new-project", () =>
-    createNewProject((content) => editor.setValue(content)),
-  );
-  bindMenuAction("open-project", () =>
-    openProject((content) => editor.setValue(content)),
-  );
+  bindMenuAction("new-project", () => createNewProject((content) => editor.setValue(content)));
+  bindMenuAction("open-project", () => openProject((content) => editor.setValue(content)));
   bindMenuAction("action-undo", () => editor.trigger("", "undo", null));
   bindMenuAction("action-redo", () => editor.trigger("", "redo", null));
-  bindMenuAction("action-search", () =>
-    editor.getAction("actions.find")?.run(),
-  );
-  bindMenuAction("action-replace", () =>
-    editor.getAction("editor.action.startFindReplaceAction")?.run(),
-  );
-  bindMenuAction("action-goto", () =>
-    editor.getAction("editor.action.gotoLine")?.run(),
-  );
-  bindMenuAction("action-comment", () =>
-    editor.getAction("editor.action.commentLine")?.run(),
-  );
+  bindMenuAction("action-search", () => editor.getAction("actions.find")?.run());
+  bindMenuAction("action-replace", () =>editor.getAction("editor.action.startFindReplaceAction")?.run());
+  bindMenuAction("action-goto", () => editor.getAction("editor.action.gotoLine")?.run());
+  bindMenuAction("action-comment", () => editor.getAction("editor.action.commentLine")?.run());
+
+  bindMenuAction("manage-bibliography", () => openBibliography());
 
   // Zoom buttons in toolbar (zoom the entire WebView)
   bindMenuAction("webview-zoom-in", () => webviewZoomIn());

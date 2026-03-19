@@ -4,12 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "npm run build:css && vite build && cp dist/src/index.html dist/index.html",
-    "build:css": "tailwindcss -i src/input.css -o dist/css/output.css --minify",
-    "dev:css": "tailwindcss -i src/input.css -o dist/css/output.css --watch",
-    "dev": "concurrently \"npm run dev:css\" \"vite dist --port 1420\"",
-    "postinstall": "node -e \"require('fs').mkdirSync('dist/css',{recursive:true}); require('fs').copyFileSync('node_modules/material-symbols/material-symbols-outlined.woff2','dist/css/material-symbols-outlined.woff2');\""
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "",
@@ -17,16 +14,18 @@
   "type": "commonjs",
   "dependencies": {
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
-    "material-symbols": "^0.40.2",
-    "monaco-editor": "^0.52.2"
+    "material-symbols": "^0.40.2"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.2.1",
+    "@tailwindcss/postcss": "^4.2.2",
+    "autoprefixer": "^10.4.27",
     "concurrently": "^9.2.1",
     "daisyui": "^5.5.19",
+    "esbuild": "^0.27.4",
+    "monaco-editor": "^0.55.1",
     "tailwindcss": "^4.2.1",
     "vite": "^8.0.0",
-    "vite-plugin-monaco-editor": "^1.1.0",
-    "esbuild": "^0.27.4"
+    "vite-plugin-monaco-editor": "^1.1.0"
   }
 }

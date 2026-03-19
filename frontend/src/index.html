@@ -5,7 +5,24 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Typst IDE</title>
         <!-- <link rel="stylesheet" href="css/app.css"> -->
-        <link rel="stylesheet" href="css/output.css" />
+        <!--<link rel="stylesheet" href="./css/output.css" />
+        <script>
+            // Ensure the Tailwind output.css from `public/` is loaded at runtime
+            // (keeps build simple while guaranteeing the file is included in dist)
+            (function(){
+                try{
+                    var href = './css/output.css';
+                    var exists = true; // allow browser to attempt load; no pre-check here
+                    if (exists) {
+                        var l = document.createElement('link');
+                        l.rel = 'stylesheet';
+                        l.href = href;
+                        document.head.appendChild(l);
+                    }
+                } catch(e){}
+            })();
+        </script>-->
+        <!--<script type="module" src="main.js"></script>-->
     </head>
     <body>
         <div class="app-layout">
@@ -344,10 +361,6 @@
 
         <!-- Toast container -->
         <div id="toast-container" class="toast-container"></div>
-        <script type="module">
-            import * as monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
-            window.monaco = monaco;
-        </script>
-        <script type="module" src="js/main.js"></script>
+        <script type="module" src="./js/main.js"></script>
     </body>
 </html>

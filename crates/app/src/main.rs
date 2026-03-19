@@ -2,14 +2,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use serde::Serialize;
+// use tauri_plugin_clipboard_manager::Error;
 use std::sync::Mutex;
+use std::io::ErrorKind;
 use tauri::Manager;
 use typst_ide_core::compiler::{DiagnosticInfo, PreviewResult, compile_to_pdf, compile_to_preview_html};
 use typst_ide_core::database::{
     history_db::{self},
     notes_db::{self, Note},
-    bibliography_db::{self, BibliographyEntry},
 };
+use typst_ide_core::features::bibliography;
+use serde_json::Value;
+
 
 // ## Database state ############################################################
 
@@ -347,55 +351,54 @@ fn update_history_entry(
     history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| e.to_string())
 }
 
+// ###########################################################################
+// Features
+// ###########################################################################
 /// ####################################################
-/// Bibliography DB
+/// Bibliography
+
 #[tauri::command]
-fn add_bibliography_entry(
-    state: tauri::State<'_, BibliographyDbState>,
-    title: String,
-    path: String,
-    full: bool,
-    style: String,
+fn create_bib_file_if_missing(filepath: &str) -> Result<bool, String> {
+    let out = bibliography::create_bib_file_if_missing(filepath);
+    match out {
+        Ok(_) => Ok(true),
+        Err(ref e) if e.kind() == ErrorKind::AlreadyExists => Ok(false),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+#[tauri::command]
+fn parse_bib_file(filepath: &str) -> Result<Vec<bibliography::BibEntry>, String> {
+    bibliography::parse_bib_file(filepath)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_entry_to_bib(
+    filepath: &str,
+    entry_type: &str,
+    cite_key: &str,
+    json: serde_json::Value
 ) -> Result<bool, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let inserted = bibliography_db::add_entry(&conn, &title, &path, &full, &style).map_err(|e| e.to_string())?;
-    Ok(inserted)
+    let out = bibliography::add_entry_to_bib(filepath, entry_type, cite_key, &json);
+    match out {
+        Ok(_) => Ok(true),
+        Err(e) => {
+            if e.to_string().contains("Entry already exists") {
+                Ok(false)
+            } else {
+                Err(e.to_string())
+            }
+        }
+    }
 }
 
 #[tauri::command]
-fn get_bibliography(
-    state: tauri::State<'_, BibliographyDbState>,
-) -> Result<Vec<bibliography_db::BibliographyEntry>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::get_bibliography(&conn).map_err(|e| e.to_string())
+fn get_all_bibs(projectpath: &str) -> Result<Vec<String>, String> {
+    bibliography::get_all_bibs(projectpath)
+        .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-fn delete_bibliography_entry(
-    state: tauri::State<'_, BibliographyDbState>,
-    title: String
-) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::delete_bibliography_entry(&conn, &title).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-fn update_bibliography_entry(
-    state: tauri::State<'_, BibliographyDbState>,
-    title: String,
-    path: String,
-    full: bool,
-    style: String,
-) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::update_bibliography_entry(
-        &conn,
-        &title,
-        &path,
-        &full,
-        &style,
-    ).map_err(|e| e.to_string())
-}
 
 // ###########################################################################
 // PDF export
@@ -486,11 +489,6 @@ fn main() {
                 .expect("Failed to initialise history DB");
             app.manage(HistoryDbState(Mutex::new(history_conn)));
 
-            let bibliography_db_path = data_dir.join("bibliography.db");
-            let bibliography_conn = bibliography_db::init_db(bibliography_db_path.to_str().unwrap())
-                .expect("Failed to initialise bibliography DB");
-            app.manage(BibliographyDbState(Mutex::new(bibliography_conn)));
-
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -519,10 +517,10 @@ fn main() {
             delete_history_entry,
             update_history_entry,
 
-            add_bibliography_entry,
-            get_bibliography,
-            delete_bibliography_entry,
-            update_bibliography_entry,
+            create_bib_file_if_missing,
+            parse_bib_file,
+            add_entry_to_bib,
+            get_all_bibs,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

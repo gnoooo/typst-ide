@@ -8,26 +8,26 @@
  *  * scope: 'global' | 'project'
  *  * Opens the note creation modal
  *  * If `scope` is provided, it will be the default scope for the new note
- * 
+ *
  * insertNote(content) -> void
  *  * content: string of the note to insert
  *  * Inserts the given content at the current cursor position in the editor
- * 
+ *
  * deleteNote(noteId) -> void
  *  * noteId: string ID of the note to delete
  *  * Deletes the note with the given ID after user confirmation
- * 
+ *
  * editNote(note) -> void
  *  * note: { id, title, content, scope, created_at, updated_at }
  *  * Opens the note editing modal pre-filled with the note's current data
- * 
+ *
  * viewNote(note) -> void
  *  * note: { id, title, content, scope, created_at, updated_at }
  *  * Opens a read-only modal to view the note's content and metadata
- * 
+ *
  * openNotesList() -> HTMLElement
  *  * Returns a DOM element containing the list of all notes (both global and project-specific)
- * 
+ *
  * openNotepad() -> void
  *  * Opens a modal displaying all notes with options to add, edit, delete, and insert them
  */
@@ -60,7 +60,7 @@ function createNote(scope='project') {
                 const title = body.querySelector('input')?.value.trim();
                 const text = body.querySelector('textarea')?.value.trim();
                 const scope = body.querySelector('select')?.value;
-                
+
                 if (title && text) {
                     let project_id;
                     if (scope == 'project'){
@@ -100,7 +100,7 @@ async function deleteNote(noteId) {
         confirmLabel: 'Supprimer',
         cancelLabel: 'Annuler'
     });
-    
+
     if (confirmed) {
         await invoke('delete_note', { noteId });
         closeNotepad();
@@ -132,7 +132,7 @@ async function editNote(note) {
                 const title = body.querySelector('input')?.value.trim();
                 const text = body.querySelector('textarea')?.value.trim();
                 const scope = body.querySelector('select')?.value;
-                
+
                 if (title && text) {
                     let project_id;
                     if (scope == 'project'){
@@ -140,12 +140,12 @@ async function editNote(note) {
                     } else {
                         project_id = null;
                     }
-                    invoke('update_note', { 
-                        noteId: note.id, 
-                        title, 
-                        content: text, 
-                        scope, 
-                        projectId: project_id 
+                    invoke('update_note', {
+                        noteId: note.id,
+                        title,
+                        content: text,
+                        scope,
+                        projectId: project_id
                     });
                     close();
                     closeNotepad();
@@ -242,13 +242,13 @@ async function createNotesList() {
         <div class="note-btn-content" style="font-family: ${getCurrentFontFamily()};">${note.content}</div>
     </button>
     <div class="flex items-center gap-1">
-        <button class="delete-note-btn" id="delete-${note.id}">
+        <button class="action-btn delete-note-btn" id="delete-${note.id}">
             <span class="material-symbols-outlined delete-note-icon">delete</span>
         </button>
-        <button class="edit-note-btn" id="edit-${note.id}">
+        <button class="action-btn edit-note-btn" id="edit-${note.id}">
             <span class="material-symbols-outlined edit-note-icon">edit</span>
         </button>
-        <button class="view-note-btn" id="view-${note.id}">
+        <button class="action-btn view-note-btn" id="view-${note.id}">
             <span class="material-symbols-outlined view-note-icon">visibility</span>
         </button>
     </div>
@@ -296,7 +296,7 @@ async function createNotesList() {
                     `;
                     // Attach event listeners
                     attachNoteListeners(noteEl, note);
-                    
+
                     container.appendChild(noteEl);
                 });
             }

@@ -35,11 +35,11 @@ async function createHistoryEntry() {
             { label: 'Annuler',    primary: false, onClick: (c) => c() },
             { label: 'Ajouter', primary: true,  onClick: async (c) => {
                 if (!path) return;
-                
+
                 const name = path.split(/[/\\]/).pop();
-                console.log('Adding history entry:', { name, path });
+                // console.log('Adding history entry:', { name, path });
                 if (!name || !path) {
-                    showToast("error", "Veuillez fournir un nom et un chemin valides.");
+                    showToast("error", "Veuillez un chemin valide.");
                     return;
                 }
 
@@ -102,10 +102,10 @@ async function editHistoryEntry(entry) {
                     return;
                 }
                 try {
-                    await invoke('update_history_entry', { 
-                        id: entry.id, 
-                        name: newName, 
-                        path: newPath 
+                    await invoke('update_history_entry', {
+                        id: entry.id,
+                        name: newName,
+                        path: newPath
                     });
                     showToast("success", "Entrée de l'historique mise à jour !");
                     close();
@@ -174,7 +174,7 @@ async function openProject(entry) {
 function attachHistoryEntryListeners(entryEl, entry) {
     const entryHistoryBtn = entryEl.querySelector(`#history-${entry.id}`);
     entryHistoryBtn?.addEventListener('click', async () => await openProject(entry));
-    
+
     const deleteBtn = entryEl.querySelector('.delete-history-entry-btn');
     deleteBtn?.addEventListener('click', () => deleteHistoryEntry(entry.id));
 
@@ -198,13 +198,13 @@ async function createHistoryList() {
         <div class="history-entry-btn-content" style="font-family: ${getCurrentFontFamily()};">${entry.path}</div>
     </button>
     <div class="flex items-center gap-1">
-        <button class="delete-history-entry-btn" id="delete-${entry.id}">
+        <button class="action-btn delete-history-entry-btn" id="delete-${entry.id}">
             <span class="material-symbols-outlined delete-history-entry-icon">delete</span>
         </button>
-        <button class="edit-history-entry-btn" id="edit-${entry.id}">
+        <button class="action-btn edit-history-entry-btn" id="edit-${entry.id}">
             <span class="material-symbols-outlined edit-history-entry-icon">edit</span>
         </button>
-        <button class="view-history-entry-btn" id="view-${entry.id}">
+        <button class="action-btn view-history-entry-btn" id="view-${entry.id}">
             <span class="material-symbols-outlined view-history-entry-icon">visibility</span>
         </button>
     </div>
