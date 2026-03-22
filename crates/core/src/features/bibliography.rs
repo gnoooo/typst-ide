@@ -1,11 +1,9 @@
 use std::{
-    fs::{File, read_dir, OpenOptions},
-    io::{BufRead, BufReader, Result, Error, ErrorKind, Write as IoWrite},
-    fmt::Write as FmtWrite,
-    collections::HashMap,
+    cell::Ref, collections::HashMap, fmt::Write as FmtWrite, fs::{self, File, OpenOptions, read_dir}, io::{BufRead, BufReader, Error, ErrorKind, Result, Write as IoWrite}
 };
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
+use regex::Regex;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BibEntry {
@@ -178,4 +176,95 @@ pub fn get_all_bibs(
     }
 
     Ok(files)
+}
+
+pub fn replace_whole_bib_source(filepath: &str, entry: &Value) -> Result<()> {
+    let content = fs::read_to_string(filepath)?;
+    let re = Regex::new(r"@(\w+)\{([^,]+),([\s\S]*?)\}")
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+    let new_data = entry
+        .get("data")
+        .and_then(|v| v.as_object())
+        .map(|map| {
+            map.iter()
+                .map(|(k, v)| format!("\t{} = \"{}\",", k, v.as_str().unwrap_or("")))
+                .collect::<Vec<_>>()
+                    .join("\n")
+        })
+        .unwrap_or_default();
+
+    let new_content = re.replace_all(&content, |caps: &regex::Captures| {
+        let entry_type = &caps[1];
+        let cite_key = &caps[2];
+        format!(
+            "@{}{{{},\n{}\n}}",
+            entry_type,
+            cite_key,
+            new_data
+        )
+    });
+
+    fs::write(filepath, new_content.as_bytes())?;
+    Ok(())
+}
+
+pub fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Result<()> {
+    let content = fs::read_to_string(filepath)?;
+    let re = Regex::new(r"@(\w+)\{([^,]+),([\s\S]*?)\}")
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+    let new_content = re.replace_all(&content, |caps: &regex::Captures| {
+        let cite_key = &caps[2];
+        if cite_key == cite_key_to_delete {
+            "".to_string()
+        } else {
+            caps[0].to_string()
+        }
+    });
+
+    fs::write(filepath, new_content.as_bytes())?;
+    Ok(())
+}
+
+pub fn delete_bib_source_value(filepath: &str, cite_key_to_edit: &str, key_to_delete: &str) -> Result<()> {
+    let content = fs::read_to_string(filepath)?;
+    let re = Regex::new(r"@(\w+)\{([^,]+),([\s\S]*?)\}")
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+    let new_content = re.replace_all(&content, |caps: &regex::Captures| {
+        let entry_type = &caps[1];
+        let cite_key = &caps[2];
+        let data_block = &caps[3];
+
+        if cite_key != cite_key_to_edit {
+            return caps[0].to_string();
+        }
+
+        let lines: Vec<String> = data_block
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    None
+                } else if trimmed.starts_with(key_to_delete) {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            })
+            .collect();
+
+        let new_data_block = lines.join("\n");
+
+        format!(
+            "@{}{{{},\n{}\n}}",
+            entry_type,
+            cite_key,
+            new_data_block
+        )
+    });
+
+    fs::write(filepath, new_content.as_bytes())?;
+    Ok(())
 }

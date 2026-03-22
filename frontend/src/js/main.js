@@ -17,7 +17,7 @@ import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, 
 import { openModal, showPrompt } from "./modal.js";
 import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
-import { openBibliography } from './bibliography.js';
+import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 

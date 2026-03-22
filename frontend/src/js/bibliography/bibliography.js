@@ -3,12 +3,12 @@
 const { invoke } = window.__TAURI__.core;
 const { join } = window.__TAURI__.path;
 
-import { openModal, showConfirm } from "./modal.js";
-import { getCurrentFontFamily } from './editor.js';
-import { showToast } from './toast.js';
-import { getCurrentProject } from "./project";
+import { openModal, showConfirm } from "../modal.js";
+import { showToast } from '../toast.js';
+import { getCurrentProject } from "../project.js";
+import { openSources, addNewSource } from "./sources.js";
 
-async function createBibliographyEntry() {
+async function createBibliography() {
   const body = document.createElement("div");
   body.innerHTML = `
 <div class="bibliography-entry-form">
@@ -65,12 +65,23 @@ async function createBibliographyEntry() {
   })
 }
 
-function attachBibliographyEntryListeners(entryEl, entry) {
-    const deleteBtn = entryEl.querySelector('.delete-bibliography-entry-btn');
-    // deleteBtn?.addEventListener('click', () => deleteBibliographyEntry(entry.id));
 
-    const editBtn = entryEl.querySelector('.edit-bibliography-entry-btn');
-    // editBtn?.addEventListener('click', () => editBibliographyEntry(entry));
+
+function attachBibliographyListeners(entryEl, entry) {
+  const mainBtn = entryEl.querySelector('.bibliography-entry-btn');
+  mainBtn?.addEventListener("click", async () => {
+    closeBibliography();
+    await openSources(entry);
+  })
+
+  const deleteBtn = entryEl.querySelector('.delete-bibliography-entry-btn');
+  // deleteBtn?.addEventListener('click', () => deleteBibliographyEntry(entry.id));
+
+  const editBtn = entryEl.querySelector('.edit-bibliography-entry-btn');
+  // editBtn?.addEventListener('click', () => editBibliographyEntry(entry));
+
+  const rawtBtn = entryEl.querySelector('.raw-bibliography-entry-btn');
+  // rawtBtn?.addEventListener('click', () => rawBibliographyEntry(entry));
 }
 
 async function createBibliographyList() {
@@ -85,47 +96,25 @@ async function createBibliographyList() {
     const entryEl = document.createElement('div');
     entryEl.className = 'bibliography-entry';
     entryEl.innerHTML = `
-<div class="flex gap-2">
-  <button class="bibliography-entry-btn" id="history-${entry}">
-      <div class="bibliography-entry-btn-title">${entry}</div>
-  </button>
-  <div class="flex items-center gap-1 ml-2">
-    <button class="action-btn delete-bibliography-entry-btn self-center" id="delete-${entry}">
-      <span class="material-symbols-outlined delete-bibliography-entry-icon">delete</span>
-    </button>
-    <button class="action-btn edit-bibliography-entry-btn self-center" id="edit-${entry}">
-      <span class="material-symbols-outlined edit-bibliography-entry-icon">edit</span>
-    </button>
-    <button class="action-btn raw-bibliography-entry-btn self-center" id="raw-${entry}">
-      <span class="material-symbols-outlined raw-bibliography-entry-icon">code</span>
-    </button>
-  </div>
-</div>
+      <div class="flex gap-2">
+        <button class="bibliography-entry-btn" id="bibliography-${entry}">
+            <div class="bibliography-entry-btn-title">${entry}</div>
+        </button>
+        <div class="flex items-center gap-1 ml-2">
+          <button class="action-btn delete-bibliography-entry-btn self-center" id="delete-${entry}">
+            <span class="material-symbols-outlined delete-bibliography-entry-icon">delete</span>
+          </button>
+          <button class="action-btn edit-bibliography-entry-btn self-center" id="edit-${entry}">
+            <span class="material-symbols-outlined edit-bibliography-entry-icon">edit</span>
+          </button>
+          <button class="action-btn raw-bibliography-entry-btn self-center" id="raw-${entry}">
+            <span class="material-symbols-outlined raw-bibliography-entry-icon">code</span>
+          </button>
+        </div>
+      </div>
     `;
 
-/*
-
-entryEl.innerHTML = `
-<span class="flex gap-2">
-<div class="bibliography-entry-btn" id="bibliography-${entry.cite_key}">
-    <div class="bibliography-entry-title">${entry.cite_key}</div>
-    <div class="bibliography-entry-content" style="font-family: ${getCurrentFontFamily()};">
-      <p>path = ${entry.data}</p>
-    </div>
-</div>
-<div class="flex items-center gap-1">
-    <button class="delete-bibliography-entry-btn" id="delete-${entry.cite_key}">
-        <span class="material-symbols-outlined delete-bibliography-entry-icon">delete</span>
-    </button>
-    <button class="edit-bibliography-entry-btn" id="edit-${entry.cite_key}">
-        <span class="material-symbols-outlined edit-bibliography-entry-icon">edit</span>
-    </button>
-</div>
-</span>
-`;
-*/
-
-    attachBibliographyEntryListeners(entryEl, entry);
+    attachBibliographyListeners(entryEl, entry);
     container.appendChild(entryEl);
   });
   return container;
@@ -142,7 +131,7 @@ export async function openBibliography() {
     buttons: [
       { label: "Fermer", primary: true, onClick: (close) => close() },
       { label: "Ajouter une bibliothèque", primary: false, onClick: async (close) => {
-          await createBibliographyEntry();
+          await createBibliography();
           close();
         }},
     ],

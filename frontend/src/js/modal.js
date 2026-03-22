@@ -180,3 +180,64 @@ export function showPrompt({ title, label, placeholder, validate }) {
         });
     });
 }
+
+/**
+ * Show a text-input prompt modal.
+ * @param {{ title: string, label: string, optionsdata: JSON, validate?: (v: string) => string | true }} opts
+ * @returns {Promise<string|null>}
+ */
+export function showSelect({ title, label, optionsdata, validate }) {
+  return new Promise((resolve) => {
+    const selectId = 'modal-prompt-input-' + Date.now();
+    const errorId = 'modal-prompt-error-' + Date.now();
+
+    let options = "";
+    Object.entries(optionsdata).forEach(([name, required]) => {
+      options += `<option value="${name.toLowerCase()}"${required ? " required" : ""}>${name}</option>`
+    });
+
+    const bodyHtml = `
+      <label class="ide-modal-label">
+        ${label}
+        <select id="${selectId}">
+          ${options}
+        </select>
+      </label>
+      <div class="ide-modal-error" id="${errorId}"></div>
+    `;
+
+    let resolved = false;
+    function done(value) {
+      if (!resolved) { resolved = true; close(); resolve(value); }
+    }
+
+    const { close, overlay } = openModal({
+      title,
+      body: bodyHtml,
+      buttons: [
+        { label: 'Annuler',    primary: false, onClick: () => done(null) },
+        { label: 'Confirmer', primary: true,  onClick: () => tryConfirm() },
+      ],
+      onClose: () => done(null),
+    });
+
+    const input   = overlay.querySelector(`#${selectId}`);
+    const errorEl = overlay.querySelector(`#${errorId}`);
+    input?.focus();
+
+    async function tryConfirm() {
+      const value = input?.value.trim() ?? '';
+      if (!value) { errorEl.textContent = 'Ce champ est requis.'; return; }
+      if (validate) {
+        const result = await validate(value);
+        if (result !== true) { errorEl.textContent = result; return; }
+      }
+      done(value);
+    }
+
+    input?.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  tryConfirm();
+      if (e.key === 'Escape') done(null);
+    });
+  });
+}

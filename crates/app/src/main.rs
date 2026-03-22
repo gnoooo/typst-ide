@@ -399,6 +399,32 @@ fn get_all_bibs(projectpath: &str) -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn replace_whole_bib_source(filepath: &str, entry: serde_json::Value) -> Result<bool, String> {
+    let out = bibliography::replace_whole_bib_source(filepath, &entry);
+    match out {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false)
+    }
+}
+
+#[tauri::command]
+fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Result<bool, String> {
+    let out = bibliography::delete_whole_bib_source(filepath, cite_key_to_delete);
+    match out {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false)
+    }
+}
+
+#[tauri::command]
+fn delete_bib_source_value(filepath: &str, cite_key_to_edit: &str, key_to_delete: &str) -> Result<bool, String> {
+    let out = bibliography::delete_bib_source_value(filepath, cite_key_to_edit, key_to_delete);
+    match out {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false)
+    }
+}
 
 // ###########################################################################
 // PDF export
@@ -521,6 +547,9 @@ fn main() {
             parse_bib_file,
             add_entry_to_bib,
             get_all_bibs,
+            replace_whole_bib_source,
+            delete_whole_bib_source,
+            delete_bib_source_value,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

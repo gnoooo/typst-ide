@@ -511,9 +511,9 @@ body {
     overflow: hidden;
 }
 
-.bibliography-entry-btn:hover {
+/*.bibliography-entry-btn:hover {
     background: var(--btn-tool-hover);
-}
+}*/
 
 .bibliography-entry-btn-title {
     font-size: 16px;
@@ -578,6 +578,84 @@ div.flex.items-center.gap-1>button.action-btn:first-child {
 
 
 
+
+.bibliography-source-entry-btn {
+    border-radius: var(--radius-sm);
+    background-color: var(--btn-tool);
+    border: 1.6px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+    padding: 2px 6px;
+    transition: var(--transition-med);
+    overflow: hidden;
+}
+
+.bibliography-source-title {
+    font-family: 14px;
+    font-weight: bold;
+}
+
+.delete-bibliography-source-value-btn {
+    padding: 2px;
+    margin-left: 4px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-med);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-bibliography-source-value-btn { color: var(--error-text); }
+.delete-bibliography-source-value-btn:hover {
+    background-color: var(--error-text);
+    color: white;
+}
+
+.delete-bibliography-source-value-icon {
+    font-size: 18px;
+}
+
+
+
+.delete-bibliography-source-btn,
+.save-bibliography-source-btn,
+.add-bibliography-source-btn {
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-med);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-bibliography-source-btn { color: var(--error-text); }
+.save-bibliography-source-btn { color: var(--success-text); }
+.add-bibliography-source-btn { color: var(--info-text); }
+.delete-bibliography-source-btn:hover {
+    background-color: var(--error-text);
+    color: white;
+}
+.save-bibliography-source-btn:hover {
+    background-color: var(--success-text);
+    color: white;
+}
+.add-bibliography-source-btn:hover {
+    background-color: var(--info-text);
+    color: white;
+}
+
+.delete-bibliography-source-icon,
+.save-bibliography-source-icon,
+.add-bibliography-source-icon {
+    font-size: 20px;
+}
+
+
+
 /*  Zoom panel  */
 #preview-zoom-panel {
     font-weight: 500;
@@ -610,7 +688,9 @@ div.flex.items-center.gap-1>button.action-btn:first-child {
 
 #zoom-preview-input {
     text-align: center;
+    border: none;
 }
+
 #zoom-display {
     padding: 0 0.8vw;
 }
