@@ -11,24 +11,24 @@ import { openSources, addNewSource } from "./sources.js";
 async function createBibliography() {
   const body = document.createElement("div");
   body.innerHTML = `
-<div class="bibliography-entry-form">
-    <div>
-      <p id="bibliography-entry-title">Titre de la bibliographie</p>
-      <input id="bibliography-entry-title-input" type="text" placeholder="Nom de la bib" style="width:100%;" required/>
-    </div>
+    <div class="bibliography-entry-form">
+        <div>
+          <p id="bibliography-entry-title">Titre de la bibliographie</p>
+          <input id="bibliography-entry-title-input" type="text" placeholder="Nom de la bib" style="width:100%;" required/>
+        </div>
 
-    <div class="flex gap-2 items-center">
-      <input id="bibliography-entry-full-input" type="checkbox" value="full" required/>
-      <label id="bibliography-entry-full">Afficher toute la bibliographie en entier</label>
-    </div>
+        <div class="flex gap-2 items-center">
+          <input id="bibliography-entry-full-input" type="checkbox" value="full" required/>
+          <label id="bibliography-entry-full">Afficher toute la bibliographie en entier</label>
+        </div>
 
-    <div>
-      <p id="bibliography-entry-style">Style de la bibliographie</p>
-      <select id="bibliography-entry-style-input" style="width:100%;" required>
-        <option value="ieee" selected>IEEE</option>
-      </select>
+        <div>
+          <p id="bibliography-entry-style">Style de la bibliographie</p>
+          <select id="bibliography-entry-style-input" style="width:100%;" required>
+            <option value="ieee" selected>IEEE</option>
+          </select>
+        </div>
     </div>
-</div>
   `;
   openModal({
     title: "Ajouter une bibliographie",

@@ -200,6 +200,11 @@ body {
     white-space: nowrap;
 }
 
+div.toolbar-row>span,
+div.toolbar-row>#preview-manage-btn{
+  gap: 3px;
+}
+
 #title-typst {
     font-family: "Libertinus Serif Bold", serif;
     font-weight: bold;

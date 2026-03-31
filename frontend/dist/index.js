@@ -442,26 +442,22 @@ ${JSON.stringify(i,null,2)}`);return t.value}}async notify(e,t,n){if(!this.check
         </button>
     </div>
 </span>
-        `,Xc(n,e),t.appendChild(n)}),t}async function Qc(){let e=document.createElement(`div`);e.appendChild(await Zc()),Y({title:`Historique des projets`,body:e,width:window.innerWidth<1e3?`75%`:`50%`,buttons:[{label:`Fermer`,primary:!0,onClick:e=>e()},{label:`Ajouter un projet`,primary:!1,onClick:async e=>{await Gc(),e()}}]})}function $c(){let e=document.querySelector(`.ide-modal-overlay`);e&&e.remove()}var el,tl,nl=e((()=>{_s(),us(),ps(),Ls(),{invoke:el}=window.__TAURI__.core,{join:tl}=window.__TAURI__.path})),rl,il=e((()=>{rl={article:[`author`,`date`,`journaltitle`,`title`,`year`],book:[`author`,`date`,`title`,`year`],mvbook:[`author`,`date`,`title`,`year`],inbook:[`author`,`booktitle`,`date`,`title`,`year`],bookinbook:[`author`,`booktitle`,`date`,`title`,`year`],suppbook:[`author`,`booktitle`,`date`,`title`,`year`],booklet:[`author`,`date`,`editor`,`title`,`year`],collection:[`date`,`editor`,`title`,`year`],mvcollection:[`date`,`editor`,`title`,`year`],incollection:[`author`,`booktitle`,`date`,`title`,`year`],suppcollection:[`author`,`booktitle`,`date`,`title`,`year`],dataset:[`author`,`date`,`editor`,`title`,`year`],manual:[`author`,`date`,`editor`,`title`,`year`],misc:[`author`,`date`,`editor`,`title`,`year`],online:[`author`,`date`,`doi`,`editor`,`eprint`,`title`,`url`,`year`],patent:[`author`,`date`,`number`,`title`,`year`],periodical:[`date`,`editor`,`title`,`year`],suppperiodical:[`author`,`date`,`journaltitle`,`title`,`year`],proceedings:[`date`,`title`,`year`],mvproceedings:[`date`,`title`,`year`],inproceedings:[`author`,`booktitle`,`date`,`title`,`year`],reference:[`date`,`editor`,`title`,`year`],mvreference:[`date`,`editor`,`title`,`year`],inreference:[`author`,`booktitle`,`date`,`title`,`year`],report:[`author`,`date`,`institution`,`title`,`type`,`year`],software:[`author`,`date`,`editor`,`title`,`year`],thesis:[`author`,`date`,`institution`,`title`,`type`,`year`],unpublished:[`author`,`date`,`title`,`year`]}}));async function al(){let e=rl[await gs({title:`Choix du type de source`,label:`Type de la source (norme CSL)`,optionsdata:Object.fromEntries(Object.entries(rl).map(([e,t])=>[e,t.map(e=>({name:e,required:!1}))]))})],t=``;e.forEach(e=>{t+=`
-      <span class="bibliography-source-data-line flex items-center" style="margin-top:6px;width:75%;">
+        `,Xc(n,e),t.appendChild(n)}),t}async function Qc(){let e=document.createElement(`div`);e.appendChild(await Zc()),Y({title:`Historique des projets`,body:e,width:window.innerWidth<1e3?`75%`:`50%`,buttons:[{label:`Fermer`,primary:!0,onClick:e=>e()},{label:`Ajouter un projet`,primary:!1,onClick:async e=>{await Gc(),e()}}]})}function $c(){let e=document.querySelector(`.ide-modal-overlay`);e&&e.remove()}var el,tl,nl=e((()=>{_s(),us(),ps(),Ls(),{invoke:el}=window.__TAURI__.core,{join:tl}=window.__TAURI__.path})),rl,il=e((()=>{rl={article:[`author`,`date`,`journaltitle`,`title`,`year`],book:[`author`,`date`,`title`,`year`],mvbook:[`author`,`date`,`title`,`year`],inbook:[`author`,`booktitle`,`date`,`title`,`year`],bookinbook:[`author`,`booktitle`,`date`,`title`,`year`],suppbook:[`author`,`booktitle`,`date`,`title`,`year`],booklet:[`author`,`date`,`editor`,`title`,`year`],collection:[`date`,`editor`,`title`,`year`],mvcollection:[`date`,`editor`,`title`,`year`],incollection:[`author`,`booktitle`,`date`,`title`,`year`],suppcollection:[`author`,`booktitle`,`date`,`title`,`year`],dataset:[`author`,`date`,`editor`,`title`,`year`],manual:[`author`,`date`,`editor`,`title`,`year`],misc:[`author`,`date`,`editor`,`title`,`year`],online:[`author`,`date`,`doi`,`editor`,`eprint`,`title`,`url`,`year`],patent:[`author`,`date`,`number`,`title`,`year`],periodical:[`date`,`editor`,`title`,`year`],suppperiodical:[`author`,`date`,`journaltitle`,`title`,`year`],proceedings:[`date`,`title`,`year`],mvproceedings:[`date`,`title`,`year`],inproceedings:[`author`,`booktitle`,`date`,`title`,`year`],reference:[`date`,`editor`,`title`,`year`],mvreference:[`date`,`editor`,`title`,`year`],inreference:[`author`,`booktitle`,`date`,`title`,`year`],report:[`author`,`date`,`institution`,`title`,`type`,`year`],software:[`author`,`date`,`editor`,`title`,`year`],thesis:[`author`,`date`,`institution`,`title`,`type`,`year`],unpublished:[`author`,`date`,`title`,`year`]}}));async function al(){let e=await gs({title:`Choix du type de source`,label:`Type de la source (norme CSL)`,optionsdata:Object.fromEntries(Object.entries(rl).map(([e,t])=>[e,t.map(e=>({name:e,required:!1}))]))});if(!e)return;let t=rl[e],n=``;t.forEach(e=>{n+=`
+      <div class="bibliography-source-data-line flex items-center" style="margin-top:6px;width:75%;">
         <p>${e} :</p>
         <input class="flex-1" placeholder="${e}" id="input-${e}" style="font-family: ${G()};margin-left: 4pt;"/>
-      </span>
-      `});let n=document.createElement(`div`);n.innerHTML=`
-    <span class="flex gap-2">
+      </div>
+      `});let r=document.createElement(`div`);r.innerHTML=`
+    <div class="bibliography-source-entry-btn" id="bibliography-add-source">
       <div class="bibliography-source-add-btn">
-        <div class="bibliography-source-data-name flex items-center" style="margin-top:6px;width:75%";>
+        <div class="bibliography-source-data-name flex items-center" style="margin-top:6px;width:75%;">
           <p>ID de la source :</p>
           <input class="flex-1" placeholder="nom de variable" style="font-family: ${G()};margin-left: 4pt;"/>
         </div>
-        <div class="bibliography-source-data-name items-center" style="width:75%;">
-          <p style="font-size: 10px;">les espaces seront remplacé par des "_"</p>
-        </div>
-
-        ${t}
+        ${n}
       </div>
-    </span>
-  `,Y({title:`Ajout d'une source`,body:n,width:window.innerWidth<1e3?`75%`:`50%`,buttons:[{label:`Fermer`,primary:!0,onClick:e=>e()},{label:`Ajouter la source`,primary:!1,onClick:async e=>{await createBibliography(),e()}}]})}async function ol(e){let t=await sl(`parse_bib_file`,{filepath:await cl(X().path,e)}),n=document.createElement(`div`);t.forEach(async t=>{let r=``;Object.entries(t.data).forEach(([e,n])=>{r+=`
+    </div>
+  `,Y({title:`Ajout d'une source`,body:r,width:window.innerWidth<1e3?`75%`:`50%`,buttons:[{label:`Fermer`,primary:!0,onClick:e=>e()},{label:`Ajouter la source`,primary:!1,onClick:async e=>{e()}}]})}async function ol(e){let t=await sl(`parse_bib_file`,{filepath:await cl(X().path,e)}),n=document.createElement(`div`);t.forEach(async t=>{let r=``;Object.entries(t.data).forEach(([e,n])=>{r+=`
         <span class="bibliography-entry-data-line flex items-center" style="margin-top:6px;width:75%;">
           <p>${e} :</p>
           <input class="flex-1" value="${n}" data-key="${e}" style="font-family: ${G()};margin-left: 4pt;"/>
@@ -491,24 +487,24 @@ ${JSON.stringify(i,null,2)}`);return t.value}}async notify(e,t,n){if(!this.check
         </div>
       </span>
     `;let a=i.querySelectorAll(`.bibliography-entry-data-line`),o=i.querySelector(`.bibliography-source-title`).textContent?.trim(),s=await cl(X().path,e);a.forEach(async t=>{let n=t.querySelector(`p`)?.textContent?.replace(`:`,``).trim();t.querySelector(`#delete-${o}-${n}`).addEventListener(`click`,async()=>{sl(`delete_bib_source_value`,{filepath:s,citeKeyToEdit:o,keyToDelete:n}),closeBibliography(),await ol(e)})}),i.querySelector(`#delete-${t.cite_key}`).addEventListener(`click`,async()=>{await sl(`delete_whole_bib_source`,{filepath:s,citeKeyToDelete:t.cite_key}),closeBibliography(),await ol(e)}),i.querySelector(`#save-${t.cite_key}`).addEventListener(`click`,async()=>{let n={};document.querySelectorAll(`.bibliography-entry-data-line`).forEach(e=>{let t=e.querySelector(`p`)?.textContent?.replace(`:`,``).trim(),r=e.querySelector(`input`).value;t&&(n[t]=r)}),await sl(`replace_whole_bib_source`,{filepath:s,entry:{cite_key:t.cite_key,entry_type:t.entry_type,data:n}}),closeBibliography(),ol(e)}),n.appendChild(i)}),Y({title:`${e}`,body:n,width:window.innerWidth<1e3?`75%`:`50%`,buttons:[{label:`Fermer`,primary:!0,onClick:e=>e()},{label:`Ajouter une source`,primary:!1,onClick:async e=>{await al(),e()}}]})}var sl,cl,ll=e((()=>{us(),Ls(),_s(),il(),{invoke:sl}=window.__TAURI__.core,{join:cl}=window.__TAURI__.path}));async function ul(){let e=document.createElement(`div`);e.innerHTML=`
-<div class="bibliography-entry-form">
-    <div>
-      <p id="bibliography-entry-title">Titre de la bibliographie</p>
-      <input id="bibliography-entry-title-input" type="text" placeholder="Nom de la bib" style="width:100%;" required/>
-    </div>
+    <div class="bibliography-entry-form">
+        <div>
+          <p id="bibliography-entry-title">Titre de la bibliographie</p>
+          <input id="bibliography-entry-title-input" type="text" placeholder="Nom de la bib" style="width:100%;" required/>
+        </div>
 
-    <div class="flex gap-2 items-center">
-      <input id="bibliography-entry-full-input" type="checkbox" value="full" required/>
-      <label id="bibliography-entry-full">Afficher toute la bibliographie en entier</label>
-    </div>
+        <div class="flex gap-2 items-center">
+          <input id="bibliography-entry-full-input" type="checkbox" value="full" required/>
+          <label id="bibliography-entry-full">Afficher toute la bibliographie en entier</label>
+        </div>
 
-    <div>
-      <p id="bibliography-entry-style">Style de la bibliographie</p>
-      <select id="bibliography-entry-style-input" style="width:100%;" required>
-        <option value="ieee" selected>IEEE</option>
-      </select>
+        <div>
+          <p id="bibliography-entry-style">Style de la bibliographie</p>
+          <select id="bibliography-entry-style-input" style="width:100%;" required>
+            <option value="ieee" selected>IEEE</option>
+          </select>
+        </div>
     </div>
-</div>
   `,Y({title:`Ajouter une bibliographie`,body:e,width:`50%`,buttons:[{label:`Annuler`,primary:!1,onclick:e=>e()},{label:`Ajouter`,primary:!0,onClick:async t=>{e.querySelector(`#bibliography-entry-title-input`).value;let n=X().path;e.querySelector(`#bibliography-entry-full-input`).checked,e.querySelector(`#bibliography-entry-style-input`).value,J(`info`,`Path: ${n}`)}}]})}function dl(e,t){e.querySelector(`.bibliography-entry-btn`)?.addEventListener(`click`,async()=>{ml(),await ol(t)}),e.querySelector(`.delete-bibliography-entry-btn`),e.querySelector(`.edit-bibliography-entry-btn`),e.querySelector(`.raw-bibliography-entry-btn`)}async function fl(){let e=await hl(`get_all_bibs`,{projectpath:X()?.path});console.log(e);let t=document.createElement(`div`);return e.forEach(e=>{let n=document.createElement(`div`);n.className=`bibliography-entry`,n.innerHTML=`
       <div class="flex gap-2">
         <button class="bibliography-entry-btn" id="bibliography-${e}">

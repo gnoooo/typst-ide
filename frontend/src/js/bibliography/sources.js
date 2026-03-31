@@ -25,29 +25,30 @@ export async function addNewSource() {
 
   })
 
+  if (!entry_type) return;
   const chosen_entry_type_data = biblatex[entry_type]; // array
 
   let values = ""
   chosen_entry_type_data.forEach( field => {
     values += `
-      <span class="bibliography-source-data-line flex items-center" style="margin-top:6px;width:75%;">
+      <div class="bibliography-source-data-line flex items-center" style="margin-top:6px;width:75%;">
         <p>${field} :</p>
         <input class="flex-1" placeholder="${field}" id="input-${field}" style="font-family: ${getCurrentFontFamily()};margin-left: 4pt;"/>
-      </span>
+      </div>
       `;
   });
 
   const body = document.createElement("div");
   body.innerHTML = `
-    <span class="flex gap-2">
+    <div class="bibliography-source-entry-btn" id="bibliography-add-source">
       <div class="bibliography-source-add-btn">
-        <div class="bibliography-source-data-name flex items-center" style="margin-top:6px;width:75%";>
+        <div class="bibliography-source-data-name flex items-center" style="margin-top:6px;width:75%;">
           <p>ID de la source :</p>
           <input class="flex-1" placeholder="nom de variable" style="font-family: ${getCurrentFontFamily()};margin-left: 4pt;"/>
         </div>
         ${values}
       </div>
-    </span>
+    </div>
   `;
 
   openModal({
