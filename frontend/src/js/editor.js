@@ -7,6 +7,9 @@
  * - `zoomIn()` / `zoomOut()` / `zoomReset()` -> font-size zoom
  */
 
+import * as monaco from 'monaco-editor';
+import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
+
 const DEFAULT_FONT_SIZE = 14;
 const MIN_FONT_SIZE     = 8;
 const MAX_FONT_SIZE     = 32;
@@ -25,7 +28,6 @@ if (isNaN(_currentSize) || _currentSize < MIN_FONT_SIZE || _currentSize > MAX_FO
  * @param {HTMLElement} container
  * @returns {Promise<import('monaco-editor').editor.IStandaloneCodeEditor>}
  */
-import * as monaco from 'monaco-editor';
 export function createEditor(container) {
     registerTypstLanguage();
     const savedTheme = localStorage.getItem('theme') ?? 'light';
@@ -45,14 +47,25 @@ export function createEditor(container) {
         copyWithSyntaxHighlighting: false,
     });
 
-    // Suppress clipboard access errors from Monaco
+    // In the AppImage (tauri:// protocol), WebKitGTK denies navigator.clipboard.readText()
+    // because the context isn't considered "secure" (not HTTPS/localhost).
+    // Without this patch, Monaco would receive a permission error and paste nothing.
+    // We bridge to Tauri's native clipboard API so Monaco gets the real clipboard text.
     if (navigator.clipboard) {
-        const originalReadText = navigator.clipboard.readText;
-        navigator.clipboard.readText = function() {
-            return originalReadText.apply(this, arguments).catch(() => {
-                // Silently ignore clipboard read errors
+        const originalReadText = navigator.clipboard.readText.bind(navigator.clipboard);
+        navigator.clipboard.readText = async function() {
+            try {
+                return await originalReadText();
+            } catch {
+                if (window.__TAURI__) {
+                    try {
+                        return await tauriReadText();
+                    } catch {
+                        return tauriReadText();
+                    }
+                }
                 return '';
-            });
+            }
         };
     }
 

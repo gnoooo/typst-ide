@@ -19,7 +19,7 @@ import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
-import { readImage } from "@tauri-apps/plugin-clipboard-manager";
+import { readImage, readText } from "@tauri-apps/plugin-clipboard-manager";
 
 async function main() {
   if (!window.__TAURI__) {
@@ -54,7 +54,43 @@ async function main() {
     }
     if (!payload) {
       console.debug("[paste-image] no image payload found in clipboard");
-      writeToConsole("info", "Collage: aucune image détectée dans le presse-papiers.");
+
+      // In the AppImage (tauri:// protocol) WebKitGTK does not populate
+      // event.clipboardData for text pastes, so Monaco gets an empty string
+      // and inserts nothing. When clipboardData is empty, bridge via Tauri
+      // native IPC to read the real clipboard text and insert it ourselves.
+      if (window.__TAURI__) {
+        const webText = event.clipboardData?.getData("text/plain") ?? "";
+        if (!webText) {
+          event.preventDefault();
+          try {
+            const text = await readText();
+            if (text) {
+              const sel = editor.getSelection();
+              const pos = editor.getPosition();
+              if (pos) {
+                const range =
+                  sel && !sel.isEmpty()
+                    ? sel
+                    : new monaco.Range(
+                        pos.lineNumber,
+                        pos.column,
+                        pos.lineNumber,
+                        pos.column,
+                      );
+                editor.executeEdits("clipboard-paste", [
+                  { range, text, forceMoveMarkers: true },
+                ]);
+                editor.focus();
+              }
+            }
+          } catch (e) {
+            console.warn("[paste-text] native text fallback failed", e);
+          }
+          return;
+        }
+      }
+      // clipboardData has text — Monaco handles it natively
       return;
     }
 
