@@ -1,5 +1,6 @@
 use std::env;
 use std::fs;
+use std::time::Instant;
 
 use serde::Serialize;
 use typst::diag::{SourceDiagnostic, Severity};
@@ -88,12 +89,26 @@ pub struct JumpPos {
     pub y: f64,       // y coordinate in pt
 }
 
+/// Per-phase timing breakdown for a single compilation, in milliseconds.
+#[derive(Serialize, Clone)]
+pub struct CompileTimings {
+    /// Time to construct the Typst world (includes font cache warmup on first call)
+    pub world_ms: u64,
+    /// Time spent inside `typst::compile` (layout + rendering to document)
+    pub compile_ms: u64,
+    /// Time spent converting pages to SVG strings
+    pub svg_ms: u64,
+    /// Total wall-clock time for the whole function
+    pub total_ms: u64,
+}
+
 /// Result returned by compile_to_preview_html, bundling the HTML and an optional
 /// jump position so the frontend can scroll the preview to the current cursor.
 #[derive(Serialize)]
 pub struct PreviewResult {
     pub html: String,
     pub jump_pos: Option<JumpPos>,
+    pub timings: CompileTimings,
 }
 
 /// Formats a slice of Typst diagnostics into a single user-facing string
@@ -153,14 +168,20 @@ pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
 /// `root` should be the open project directory so that relative file paths
 /// (images, imports…) are resolved against it instead of the process cwd.
 pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option<(u32, u32)>) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
+    let t_total = Instant::now();
+
+    let t_world = Instant::now();
     let world = match root {
         Some(r) => create_world_with_root(r, content),
         None    => create_default_world(content),
     };
+    let world_ms = t_world.elapsed().as_millis() as u64;
 
+    let t_compile = Instant::now();
     let document: PagedDocument = typst::compile(&world)
         .output
         .map_err(|errors| collect_diagnostics(&errors, &world))?;
+    let compile_ms = t_compile.elapsed().as_millis() as u64;
 
     // Compute the preview jump position corresponding to the editor cursor
     let jump_pos = cursor.and_then(|(line, col)| {
@@ -177,12 +198,14 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
             })
     });
 
+    let t_svg = Instant::now();
     let pages_html: String = document
         .pages
         .iter()
         .map(|page| format!("<div class=\"page\">{}\n</div>", typst_svg::svg(page)))
         .collect::<Vec<_>>()
         .join("\n");
+    let svg_ms = t_svg.elapsed().as_millis() as u64;
 
     let html = format!(
         r#"<!DOCTYPE html>
@@ -216,7 +239,12 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
 "#
     );
 
-    Ok(PreviewResult { html, jump_pos })
+    let total_ms = t_total.elapsed().as_millis() as u64;
+    Ok(PreviewResult {
+        html,
+        jump_pos,
+        timings: CompileTimings { world_ms, compile_ms, svg_ms, total_ms },
+    })
 }
 
 /// Compiles Typst source to raw PDF bytes

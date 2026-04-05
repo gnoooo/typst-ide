@@ -6,6 +6,8 @@ use serde::Serialize;
 use std::sync::Mutex;
 use std::io::ErrorKind;
 use tauri::Manager;
+use tokio::sync::Semaphore;
+use std::sync::Arc;
 use typst_ide_core::compiler::{DiagnosticInfo, PreviewResult, compile_to_pdf, compile_to_preview_html};
 use typst_ide_core::database::{
     history_db::{self},
@@ -21,6 +23,12 @@ use serde_json::Value;
 pub struct NotesDbState(pub Mutex<rusqlite::Connection>);
 pub struct HistoryDbState(pub Mutex<rusqlite::Connection>);
 pub struct BibliographyDbState(pub Mutex<rusqlite::Connection>);
+
+/// Semaphore that limits preview compilation to one at a time.
+/// The JS scheduler already ensures at most one in-flight invoke, but this is a
+/// belt-and-suspenders guard at the Rust level — prevents concurrent CPU-bound
+/// compiles from piling up if multiple callers ever bypass the JS scheduler.
+pub struct CompileState(pub Arc<Semaphore>);
 
 /// Tauri-managed state for a second database (example)
 // pub struct OtherDbState(pub Mutex<rusqlite::Connection>);
@@ -39,13 +47,24 @@ struct CursorPos {
 }
 
 /// Compiles Typst source code to a preview HTML document (pages rendered as inline SVGs)
-/// Runs on a blocking thread pool to avoid freezing the UI during compilation
+/// At most one compilation runs at a time — the semaphore suspends excess callers
+/// asynchronously (zero thread cost) until the running compile finishes.
 #[tauri::command]
 async fn render_preview(
+    state: tauri::State<'_, CompileState>,
     source: String,
     root: Option<String>,
     cursor: Option<CursorPos>,
 ) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
+    // Acquire before spawning the blocking work: suspends (not blocks) extra callers
+    let _permit = state.0.acquire().await.map_err(|e| {
+        vec![DiagnosticInfo {
+            severity: "error".into(),
+            message: e.to_string(),
+            hints: vec![],
+            line: None, column: None, end_line: None, end_column: None,
+        }]
+    })?;
     tauri::async_runtime::spawn_blocking(move || {
         let cur = cursor.map(|c| (c.line_number, c.column));
         compile_to_preview_html(root.as_deref(), &source, cur)
@@ -514,6 +533,9 @@ fn main() {
             let history_conn = history_db::init_db(history_db_path.to_str().unwrap())
                 .expect("Failed to initialise history DB");
             app.manage(HistoryDbState(Mutex::new(history_conn)));
+
+            // Semaphore(1): at most one Typst compile at a time
+            app.manage(CompileState(Arc::new(Semaphore::new(1))));
 
             Ok(())
         })

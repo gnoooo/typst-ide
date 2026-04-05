@@ -130,8 +130,8 @@ export const STRUCT_ELEMENTS = [
 
 
               let cells = "";
-              for (let i = 0; i < cols; i++) {
-                for (let j = 0; j < rows; j++) {
+              for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
                   if (j === 0 && i === 0) cells += `\n\t`;
                   cells += `[],`;
                 }
@@ -279,8 +279,8 @@ export const STRUCT_ELEMENTS = [
 
 
               let cells = "";
-              for (let i = 0; i < cols; i++) {
-                for (let j = 0; j < rows; j++) {
+              for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
                   if (j === 0 && i === 0) cells += `\n\t`;
                   cells += `[],`;
                 }

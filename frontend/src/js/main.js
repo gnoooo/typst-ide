@@ -9,7 +9,7 @@ import * as monaco from 'monaco-editor';
 window.monaco = monaco;
 
 import { createEditor, setEditorTheme, editorZoomIn, editorZoomOut, editorZoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily, getEditor, insertImageAtCursor } from "./editor.js";
-import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth } from "./preview.js";
+import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth, forceCompile } from "./preview.js";
 import { initWebviewZoom, webviewZoomIn, webviewZoomOut, webviewZoomReset } from "./webview-zoom.js";
 import { initToolbar, initTheme, writeToConsole, showConsole } from "./toolbar.js";
 import { registerShortcuts } from "./shortcuts.js";
@@ -142,6 +142,7 @@ async function main() {
 
   initPreview({
     getSource: () => editor.getValue(),
+    getSourceLength: () => editor.getModel()?.getValueLength() ?? 0,
     onChange: (cb) => editor.onDidChangeModelContent(cb),
     getCursor: () => editor.getPosition(),
     preview,
@@ -149,25 +150,22 @@ async function main() {
     onDiagnostics: (diagnostics) => applyMonacoMarkers(editor, diagnostics),
     autoFit: true,
     onZoomChange: updateZoomPreview,
+    onSuccess: () => writeToConsole("success", "Compilation successful"),
+    onError: (_diagnostics, msg) => { writeToConsole("error", msg); showConsole(); },
   });
 
   // ## Autosave ###################################################
+  // Only mark as unsaved on keystroke — defer getValue() until the debounce fires
+  // to avoid blocking the input pipeline with a full-buffer serialization.
   editor.onDidChangeModelContent(() => {
     notifySaveIndicator(true);
-    scheduleAutosave(editor.getValue());
+    scheduleAutosave(() => editor.getValue());
   });
 
   // ## Shortcuts ##################################################
-  const compile = () => {
-    // Trigger a manual compile by forcing the preview to re-run immediately
-    const event = new Event("input", { bubbles: true });
-    // We call preview's compile directly by dispatching through the editor wrapper
-    frame.dispatchEvent(new CustomEvent("force-compile", { bubbles: true }));
-  };
-
   registerShortcuts({
     editor,
-    onCompile: () => triggerCompile(editor, preview, frame),
+    onCompile: forceCompile,
     onEditorZoomIn: () => editorZoomIn(),
     onEditorZoomOut: () => editorZoomOut(),
     onEditorZoomReset: () => editorZoomReset(),
@@ -241,7 +239,7 @@ async function main() {
 
   // Compile button
   document.getElementById("compile-btn")?.addEventListener("click", () => {
-    triggerCompile(editor, preview, frame);
+    forceCompile();
   });
 
   // Save PDF button
@@ -411,56 +409,6 @@ async function readNativeImagePayload() {
       console.warn("[paste-image] native fallback failed", error);
     }
     return null;
-  }
-}
-
-// Force an immediate preview compile by programmatically running the Tauri command
-async function triggerCompile(editor, preview, frame) {
-  const { invoke } = window.__TAURI__.core;
-  try {
-    const result = await invoke("render_preview", {
-      source: editor.getValue(),
-      root: getCurrentProject()?.path ?? null,
-      cursor: editor.getPosition(),
-    });
-    const { html, jump_pos: jumpPos } = result;
-    applyMonacoMarkers(editor, []);
-    preview.querySelector(".preview-error")?.remove();
-    frame.style.display = "";
-    const savedScroll = preview.scrollTop;
-    frame.contentDocument.open();
-    frame.contentDocument.write(html);
-    frame.contentDocument.close();
-    preview.scrollTop = savedScroll;
-    if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
-    writeToConsole("success", "Compilation successful");
-  } catch (err) {
-    const diagnostics = Array.isArray(err) ? err : [];
-    applyMonacoMarkers(editor, diagnostics);
-    const msg =
-      diagnostics.length > 0
-        ? diagnostics
-            .map((d) => {
-              const loc =
-                d.line != null ? ` (line ${d.line}, col ${d.column})` : "";
-              const hint = d.hints?.length
-                ? `\n  > ${d.hints.join("\n  > ")}`
-                : "";
-              return `${d.severity === "error" ? "Error" : "Warn"} ${d.message}${loc}${hint}`;
-            })
-            .join("\n")
-        : String(err);
-    writeToConsole("error", msg);
-    showConsole();
-    frame.style.display = "none";
-    preview.querySelector(".preview-error")?.remove();
-    const div = document.createElement("div");
-    div.className = "preview-error";
-    div.textContent =
-      diagnostics.length > 0
-        ? diagnostics.map((d) => d.message).join("\n")
-        : String(err);
-    preview.appendChild(div);
   }
 }
 

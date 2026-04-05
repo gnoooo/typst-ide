@@ -50,16 +50,28 @@ export function getCurrentProject() {
 
 let saveTimer = null;
 let pendingSave = false;
+/** @type {(() => string)|null} */
+let _pendingContentGetter = null;
 
 /**
- * Schedule an autosave (debounced, 800 ms)
- * @param {string} content - Current editor content
+ * Schedule an autosave (debounced, 800 ms).
+ * Accepts a getter function instead of the content string so that
+ * editor.getValue() is deferred to when the debounce actually fires.
+ * This prevents a full-buffer serialization on every keystroke.
+ * @param {(() => string)|string} contentOrGetter - Content getter or content string
  */
-export function scheduleAutosave(content) {
+export function scheduleAutosave(contentOrGetter) {
     if (!currentProject) return;
     pendingSave = true;
+    _pendingContentGetter = typeof contentOrGetter === 'function'
+        ? contentOrGetter
+        : () => contentOrGetter;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => flushSave(content), 800);
+    saveTimer = setTimeout(() => {
+        const content = _pendingContentGetter?.();
+        _pendingContentGetter = null;
+        if (content != null) flushSave(content);
+    }, 800);
 }
 
 async function flushSave(content) {

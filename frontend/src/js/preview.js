@@ -36,46 +36,210 @@
 const { invoke } = window.__TAURI__.core;
 import { getCurrentProject } from './project.js';
 
+// ─── Web Worker for off-thread Blob creation ──────────────────────────────────
+
+/** @type {Worker|null} */
+let _blobWorker = null;
+/** @type {Map<number, (url: string) => void>} */
+const _blobCallbacks = new Map();
+let _blobIdCounter = 0;
+
+function getBlobWorker() {
+    if (!_blobWorker) {
+        _blobWorker = new Worker(
+            new URL('./preview-worker.js', import.meta.url),
+            { type: 'module' }
+        );
+        _blobWorker.onmessage = (e) => {
+            if (e.data.type === 'blobReady') {
+                const cb = _blobCallbacks.get(e.data.id);
+                if (cb) {
+                    _blobCallbacks.delete(e.data.id);
+                    cb(e.data.url);
+                }
+            }
+        };
+    }
+    return _blobWorker;
+}
+
 /**
- * Initialises the preview panel
- * Wires the editor to the iframe and triggers an initial compilation
+ * Creates a Blob URL from HTML in a Web Worker, off the main thread.
+ * @param {string} html
+ * @returns {Promise<string>} blob URL
+ */
+function createBlobUrlAsync(html) {
+    return new Promise((resolve) => {
+        const id = ++_blobIdCounter;
+        _blobCallbacks.set(id, resolve);
+        getBlobWorker().postMessage({ type: 'createBlob', html, id });
+    });
+}
+
+// ─── Adaptive debounce ────────────────────────────────────────────────────────
+
+/** Base debounce in ms (small documents) */
+const DEBOUNCE_MIN = 100;
+/** Maximum debounce in ms (large documents) */
+const DEBOUNCE_MAX = 500;
+/** Characters threshold where debounce starts increasing */
+const DEBOUNCE_THRESHOLD = 5_000;
+/** Characters at which debounce reaches its max */
+const DEBOUNCE_CEIL = 50_000;
+/** Minimum gap between end of one compile and start of the next (ms) */
+const THROTTLE_GAP = 80;
+
+/**
+ * Returns a debounce delay that scales with document size.
+ * Small docs (< 5k chars) → 100ms. Large docs (50k+) → 500ms.
+ */
+function adaptiveDebounce(charCount) {
+    if (charCount <= DEBOUNCE_THRESHOLD) return DEBOUNCE_MIN;
+    if (charCount >= DEBOUNCE_CEIL) return DEBOUNCE_MAX;
+    const ratio = (charCount - DEBOUNCE_THRESHOLD) / (DEBOUNCE_CEIL - DEBOUNCE_THRESHOLD);
+    return Math.round(DEBOUNCE_MIN + ratio * (DEBOUNCE_MAX - DEBOUNCE_MIN));
+}
+
+/**
+ * Initialises the preview panel.
+ * Stores opts so that forceCompile() can be called from outside without arguments.
  *
  * @param {object} opts
- * @param {() => string}    opts.getSource Returns the current editor content
- * @param {(cb: () => void) => void} opts.onChange Calls `cb` whenever the content changes
- * @param {HTMLElement}     opts.preview
+ * @param {() => string}      opts.getSource      Current editor content
+ * @param {(cb) => void}      opts.onChange       Called on every editor change
+ * @param {HTMLElement}       opts.preview
  * @param {HTMLIFrameElement} opts.frame
- * @param {number}          [opts.debounceMs=100]
+ * @param {number}            [opts.debounceMs]   Base debounce (default: adaptive)
+ * @param {function}          [opts.onDiagnostics] Monaco marker callback
+ * @param {function}          [opts.getCursor]    Returns Monaco cursor position
+ * @param {boolean}           [opts.autoFit=true] Fit zoom on first render
+ * @param {function}          [opts.onZoomChange] Called after zoom changes
+ * @param {function}          [opts.getSourceLength] Returns char count without full serialization
+ * @param {function}          [opts.onSuccess]    Called after a successful compile
+ * @param {function}          [opts.onError]      Called with (diagnostics, message) on error
  */
-export function initPreview({ getSource, onChange, preview, frame, debounceMs = 100, onDiagnostics, getCursor, autoFit = true, onZoomChange }) {
-    let firstRender = true;
-
-    const run = async () => {
-        await compile(getSource(), preview, frame, onDiagnostics, getCursor);
-        if (firstRender && autoFit) {
-            firstRender = false;
-            fitPreviewToWidth(preview, frame);
-            onZoomChange?.();
-        }
-    };
+export function initPreview(opts) {
+    _opts = opts;
+    _firstRender = true;
+    _frameInitialized = false;
+    const { onChange, debounceMs } = opts;
 
     onChange(() => {
         const autoCompile = document.getElementById('auto-compile');
         if (autoCompile && !autoCompile.checked) return;
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(run, debounceMs);
-
+        clearTimeout(_debounceTimer);
+        // Use explicit debounceMs if provided, otherwise adapt to document size.
+        // getSourceLength() avoids a full getValue() serialization for the length.
+        const delay = debounceMs ?? adaptiveDebounce(
+            opts.getSourceLength ? opts.getSourceLength() : (_lastSourceLength ?? 0)
+        );
+        _debounceTimer = setTimeout(scheduleCompile, delay);
     });
 
-    // Initial render
-    run();
+    scheduleCompile();
 }
 
-/** @type {number} Incremented each time a new compilation is triggered */
-let currentGeneration = 0;
+/**
+ * Schedules an immediate compile, bypassing the debounce.
+ * Safe to call at any time — deduplicated if a compile is already running.
+ */
+export function forceCompile() {
+    scheduleCompile();
+}
+
+// ─── Module state ─────────────────────────────────────────────────────────────
+
+/** Stored options from initPreview */
+let _opts = null;
+
+/** Whether a compile is currently in flight */
+let _compileRunning = false;
+
+/**
+ * Whether a new compile request arrived while one was in flight.
+ * All intermediate requests collapse into a single re-run — only the latest
+ * source is compiled, preventing CPU pile-ups on fast typing.
+ */
+let _pendingRun = false;
+
+/** Whether the first render has happened (for autoFit) */
+let _firstRender = true;
+
+/** Cached source length for adaptive debounce (avoids getValue on every keystroke) */
+let _lastSourceLength = 0;
+
+/**
+ * True once the iframe has been loaded at least once via Blob URL.
+ * After that, all subsequent updates go through direct DOM injection
+ * (no frame.src change → no navigation → no scroll reset).
+ * Reset to false when initPreview() is called (project change).
+ */
+let _frameInitialized = false;
 
 /** @type {ReturnType<typeof setTimeout>|undefined} */
-let debounceTimer;
+let _debounceTimer;
+
+/** Timestamp of the last compile completion (for throttle gap) */
+let _lastCompileEnd = 0;
+
+// ─── Compile scheduler ────────────────────────────────────────────────────────
+
+function scheduleCompile() {
+    if (_compileRunning) {
+        _pendingRun = true;
+        return;
+    }
+    _runCompile();
+}
+
+/**
+ * Yields a frame to let Monaco flush its rendering pipeline.
+ * Uses requestAnimationFrame + setTimeout(0) to guarantee at least one
+ * paint cycle before the compile begins.
+ */
+function yieldToMainThread() {
+    return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
+async function _runCompile() {
+    if (!_opts) return;
+
+    // Enforce a minimum gap between compiles so Monaco can breathe
+    const sinceLast = performance.now() - _lastCompileEnd;
+    if (_lastCompileEnd > 0 && sinceLast < THROTTLE_GAP) {
+        setTimeout(_runCompile, THROTTLE_GAP - sinceLast);
+        return;
+    }
+
+    _compileRunning = true;
+    _pendingRun = false;
+    const { getSource, preview, frame, onDiagnostics, getCursor,
+            autoFit = true, onZoomChange, onSuccess, onError } = _opts;
+
+    // Yield a frame BEFORE reading the source so Monaco can flush buffered keystrokes.
+    // Reading the model (getSource / getValue) is synchronous and serialises the
+    // whole buffer — doing it right after a keystroke would block the input pipeline.
+    await yieldToMainThread();
+
+    const source = getSource();
+    _lastSourceLength = source.length;
+    try {
+        await _doCompile(source, preview, frame, onDiagnostics, getCursor, onSuccess, onError);
+        if (_firstRender && autoFit) {
+            _firstRender = false;
+            fitPreviewToWidth(preview, frame);
+            onZoomChange?.();
+        }
+    } finally {
+        _compileRunning = false;
+        _lastCompileEnd = performance.now();
+        if (_pendingRun) {
+            _pendingRun = false;
+            // Yield a frame so Monaco can render buffered keystrokes before next compile
+            setTimeout(_runCompile, 0);
+        }
+    }
+}
 
 /**
  * Shows an error message in the preview panel
@@ -112,31 +276,71 @@ function clearError(preview, frame) {
 let previewZoom = 100;
 let _lastHtml = '';
 let _lastJumpPos = null;
+/** Active blob URL for the initial iframe load — revoked on first replace */
+let _currentBlobUrl = null;
 
-// Scale width/height attributes on all <svg> tags — affects real layout, scroll works
-function scaleSvgs(html, scale) {
-    if (scale === 1) return html;
-    return html.replace(/<svg([^>]*)>/g, (_, attrs) => {
-        const scaled = attrs
-            .replace(/\bwidth="([\d.]+)(pt|px)?"/g,  (_, n, u = '') => `width="${parseFloat(n) * scale}${u}"`)
-            .replace(/\bheight="([\d.]+)(pt|px)?"/g,  (_, n, u = '') => `height="${parseFloat(n) * scale}${u}"`);
-        return `<svg${scaled}>`;
+/** Threshold (bytes) above which first-load Blob creation is delegated to the Web Worker */
+const WORKER_BLOB_THRESHOLD = 512_000;
+
+/**
+ * Writes compiled HTML into the preview iframe via a Blob URL.
+ *
+ * The key insight: the flash-to-page-1 bug was caused by resetting
+ * `frame.style.height = '100%'` before each navigation. That shrank the iframe
+ * from its full content height (e.g. 12 000 px) to the container height (600 px),
+ * which made the browser clamp `preview.scrollTop` to 0 — the flash.
+ *
+ * Fix: on reloads, the iframe dimensions are left at their current px values
+ * throughout the navigation. The parent container's scrollTop is never touched,
+ * so the preview stays exactly where the user was reading.
+ *
+ * Large payloads use the Web Worker to build the Blob off the main thread.
+ *
+ * @param {HTMLIFrameElement} frame
+ * @param {string} html
+ * @returns {Promise<void>} resolves once the new content is rendered
+ */
+function loadHtml(frame, html) {
+    return new Promise(async (resolve) => {
+        if (_currentBlobUrl) {
+            URL.revokeObjectURL(_currentBlobUrl);
+            _currentBlobUrl = null;
+        }
+
+        if (html.length > WORKER_BLOB_THRESHOLD) {
+            _currentBlobUrl = await createBlobUrlAsync(html);
+        } else {
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            _currentBlobUrl = URL.createObjectURL(blob);
+        }
+
+        // First load only: start at 100%/100% (no content to preserve).
+        // On reloads, intentionally keep the existing px dimensions so the
+        // parent container's scrollTop is never clamped while the iframe
+        // is navigating to the new content.
+        if (!_frameInitialized) {
+            frame.style.width  = '100%';
+            frame.style.height = '100%';
+        }
+
+        const onLoad = () => {
+            frame.removeEventListener('load', onLoad);
+            _frameInitialized = true;
+            requestAnimationFrame(() => {
+                if (frame.contentDocument?.body) {
+                    frame.contentDocument.body.style.zoom = previewZoom / 100;
+                    const doc = frame.contentDocument;
+                    frame.style.width  = doc.documentElement.scrollWidth  + 'px';
+                    frame.style.height = doc.documentElement.scrollHeight + 'px';
+                }
+                const zoomInput = document.getElementById('zoom-input');
+                if (zoomInput) zoomInput.value = previewZoom;
+                resolve();
+            });
+        };
+        frame.addEventListener('load', onLoad);
+        frame.src = _currentBlobUrl;
     });
-}
-
-function writeHtml(frame, html) {
-    // Reset so scrollWidth/scrollHeight are accurate
-    frame.style.width  = '100%';
-    frame.style.height = '100%';
-    frame.contentDocument.open();
-    frame.contentDocument.write(scaleSvgs(html, previewZoom / 100));
-    frame.contentDocument.close();
-    // Expand iframe to fit actual content so parent can scroll
-    const doc = frame.contentDocument;
-    frame.style.width  = doc.documentElement.scrollWidth  + 'px';
-    frame.style.height = doc.documentElement.scrollHeight + 'px';
-    const zoomInput = document.getElementById('zoom-input');
-    if (zoomInput) zoomInput.value = previewZoom;
 }
 
 /**
@@ -161,41 +365,48 @@ export function scrollToJumpPos(frame, previewContainer, jumpPos) {
     previewContainer.scrollTop = Math.max(0, scrollTarget);
 }
 
-async function compile(source, preview, frame, onDiagnostics, getCursor) {
-    const generation = ++currentGeneration;
+async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSuccess, onError) {
     const cursor = getCursor?.() ?? null;
+    const t0 = performance.now();
     try {
         const result = await invoke('render_preview', {
             source,
             root:   getCurrentProject()?.path ?? null,
             cursor,
         });
-        if (generation !== currentGeneration) return;
-        const { html, jump_pos: jumpPos } = result;
+        const ipcMs = Math.round(performance.now() - t0);
+        const { html, jump_pos: jumpPos, timings } = result;
         _lastHtml = html;
         _lastJumpPos = jumpPos ?? null;
-        const savedScroll = preview.scrollTop;
         clearError(preview, frame);
-        writeHtml(frame, html);
-        // Restore saved scroll synchronously to prevent flash to top,
-        // then override with jump position if available.
-        preview.scrollTop = savedScroll;
+        const tWrite = performance.now();
+        await loadHtml(frame, html);
+        const writeMs = Math.round(performance.now() - tWrite);
+        // Scroll sync: if Rust returned a cursor position, jump to it.
+        // Otherwise the parent scrollTop was never touched (no flash, no reset).
         if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
-        onDiagnostics?.([]); // clear markers on success
+        onDiagnostics?.([]);
+        onSuccess?.();
+        if (timings) {
+            console.log(
+                `[Profiling] monde: ${timings.world_ms}ms | compil: ${timings.compile_ms}ms` +
+                ` | SVG: ${timings.svg_ms}ms | total Rust: ${timings.total_ms}ms` +
+                ` | IPC: ${ipcMs}ms | écriture: ${writeMs}ms`
+            );
+        }
     } catch (error) {
-        if (generation !== currentGeneration) return;
         const diagnostics = Array.isArray(error) ? error : [];
         onDiagnostics?.(diagnostics);
         const msg = diagnostics.length > 0
             ? diagnostics.map(d => {
-                // const loc = d.line != null ? ` (ligne ${d.line}, col ${d.column})` : '';
+                const loc = d.line != null ? ` (ligne ${d.line}, col ${d.column})` : '';
                 return `${d.message}${loc}`;
               }).join('\n')
             : String(error);
         showError(preview, frame, msg);
+        onError?.(diagnostics, msg);
     }
 }
-
 
 export function zoomPreviewIn()    { setPreviewZoom(previewZoom + 10); }
 export function zoomPreviewOut()   { setPreviewZoom(previewZoom - 10); }
@@ -226,13 +437,16 @@ export function fitPreviewToWidth(previewEl, frameEl) {
 
 export function setPreviewZoom(value) {
     previewZoom = Math.min(400, Math.max(20, value));
-    const frame = document.getElementById('preview-frame');
+    const frame   = document.getElementById('preview-frame');
     const preview = document.getElementById('preview');
-    if (frame && preview && _lastHtml) {
-        const savedScroll = preview.scrollTop;
-        clearError(preview, frame);
-        writeHtml(frame, _lastHtml);
-        preview.scrollTop = savedScroll;
-        if (_lastJumpPos) scrollToJumpPos(frame, preview, _lastJumpPos);
-    }
+    if (!frame || !preview || !frame.contentDocument?.body) return;
+    const savedScroll = preview.scrollTop;
+    // Update CSS zoom only — no document.write(), no regex, instant
+    frame.contentDocument.body.style.zoom = previewZoom / 100;
+    frame.style.width  = frame.contentDocument.documentElement.scrollWidth  + 'px';
+    frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
+    preview.scrollTop = savedScroll;
+    if (_lastJumpPos) scrollToJumpPos(frame, preview, _lastJumpPos);
+    const zoomInput = document.getElementById('zoom-input');
+    if (zoomInput) zoomInput.value = previewZoom;
 }
