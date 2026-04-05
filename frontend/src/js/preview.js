@@ -192,15 +192,6 @@ function scheduleCompile() {
     _runCompile();
 }
 
-/**
- * Yields a frame to let Monaco flush its rendering pipeline.
- * Uses requestAnimationFrame + setTimeout(0) to guarantee at least one
- * paint cycle before the compile begins.
- */
-function yieldToMainThread() {
-    return new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
-}
-
 async function _runCompile() {
     if (!_opts) return;
 
@@ -216,11 +207,12 @@ async function _runCompile() {
     const { getSource, preview, frame, onDiagnostics, getCursor,
             autoFit = true, onZoomChange, onSuccess, onError } = _opts;
 
-    // Yield a frame BEFORE reading the source so Monaco can flush buffered keystrokes.
-    // Reading the model (getSource / getValue) is synchronous and serialises the
-    // whole buffer — doing it right after a keystroke would block the input pipeline.
-    await yieldToMainThread();
-
+    // No yield needed: the debounce (100–500ms) already ensures Monaco has
+    // processed all keystrokes before we reach here. Adding a
+    // requestAnimationFrame+setTimeout here was firing between GTK IME key
+    // events (e.g. between Shift keydown and a letter keydown), corrupting
+    // WebKitGTK's input method state and causing the first Shift+Letter after
+    // a selection to be silently dropped.
     const source = getSource();
     _lastSourceLength = source.length;
     try {

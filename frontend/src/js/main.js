@@ -19,7 +19,7 @@ import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
-import { readImage, readText } from "@tauri-apps/plugin-clipboard-manager";
+import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 
 async function main() {
   if (!window.__TAURI__) {
@@ -42,87 +42,73 @@ async function main() {
 
   // Image paste support: detect data:image/...;base64,... or binary clipboard images,
   // then store file in project images/
+  //
+  // Guard against re-entrant execution: onImagePaste is async, so if it were
+  // registered on multiple nested nodes (all capture), all handlers would start
+  // before any of them calls event.preventDefault() — causing double/triple paste
+  // and multiple editor.focus() calls that corrupt Monaco's GTK selection state.
+  // A single synchronous flag is the reliable fix.
+  let _pasteInFlight = false;
   const onImagePaste = async (event) => {
-    if (event.defaultPrevented) return;
-
-    console.debug("[paste-image] paste event captured");
-
-    let payload = await extractImagePayload(event);
-    if (!payload) {
-      console.debug("[paste-image] no web payload, trying native clipboard fallback");
-      payload = await readNativeImagePayload();
-    }
-    if (!payload) {
-      console.debug("[paste-image] no image payload found in clipboard");
-
-      // In the AppImage (tauri:// protocol) WebKitGTK does not populate
-      // event.clipboardData for text pastes, so Monaco gets an empty string
-      // and inserts nothing. When clipboardData is empty, bridge via Tauri
-      // native IPC to read the real clipboard text and insert it ourselves.
-      if (window.__TAURI__) {
-        const webText = event.clipboardData?.getData("text/plain") ?? "";
-        if (!webText) {
-          event.preventDefault();
-          try {
-            const text = await readText();
-            if (text) {
-              const sel = editor.getSelection();
-              const pos = editor.getPosition();
-              if (pos) {
-                const range =
-                  sel && !sel.isEmpty()
-                    ? sel
-                    : new monaco.Range(
-                        pos.lineNumber,
-                        pos.column,
-                        pos.lineNumber,
-                        pos.column,
-                      );
-                editor.executeEdits("clipboard-paste", [
-                  { range, text, forceMoveMarkers: true },
-                ]);
-                editor.focus();
-              }
-            }
-          } catch (e) {
-            console.warn("[paste-text] native text fallback failed", e);
-          }
-          return;
-        }
-      }
-      // clipboardData has text — Monaco handles it natively
-      return;
-    }
-
-    console.debug(`[paste-image] image payload detected (${payload.source})`);
-
-    const project = getCurrentProject();
-    if (!project?.path) {
-      event.preventDefault();
-      writeToConsole("error", "Ouvre un projet avant de coller une image.");
-      showConsole();
-      return;
-    }
-
+    if (_pasteInFlight) return;
+    _pasteInFlight = true;
     try {
-      if (payload.preventDefault) event.preventDefault();
-      const relativePath = await invoke("save_data_image", {
-        projectPath: project.path,
-        dataUrl: payload.dataUrl,
-      });
 
-      insertImageAtCursor(relativePath);
-      writeToConsole("info", `Image enregistrée: ${relativePath}`);
-      console.info(`[paste-image] saved to ${project.path}/${relativePath}`);
-    } catch (error) {
-      console.error("[paste-image] save_data_image failed", error);
-      writeToConsole("error", `Erreur collage image: ${String(error)}`);
-      showConsole();
+      console.debug("[paste-image] paste event captured");
+
+      let payload = await extractImagePayload(event);
+      if (!payload) {
+        console.debug("[paste-image] no web payload, trying native clipboard fallback");
+        payload = await readNativeImagePayload();
+      }
+      if (!payload) {
+        console.debug("[paste-image] no image payload found in clipboard");
+        // No image — let Monaco handle text paste natively.
+        // Monaco uses navigator.clipboard.readText() internally, which is
+        // patched in editor.js to fall back to Tauri on AppImage/WebKitGTK.
+        // A manual executeEdits fallback here would cause double-paste for
+        // text copied from Monaco (both paths would insert the same content).
+        return;
+      }
+
+      console.debug(`[paste-image] image payload detected (${payload.source})`);
+
+      const project = getCurrentProject();
+      if (!project?.path) {
+        event.preventDefault();
+        writeToConsole("error", "Ouvre un projet avant de coller une image.");
+        showConsole();
+        return;
+      }
+
+      try {
+        if (payload.preventDefault) event.preventDefault();
+        const relativePath = await invoke("save_data_image", {
+          projectPath: project.path,
+          dataUrl: payload.dataUrl,
+        });
+
+        insertImageAtCursor(relativePath);
+        writeToConsole("info", `Image enregistrée: ${relativePath}`);
+        console.info(`[paste-image] saved to ${project.path}/${relativePath}`);
+      } catch (error) {
+        console.error("[paste-image] save_data_image failed", error);
+        writeToConsole("error", `Erreur collage image: ${String(error)}`);
+        showConsole();
+      } finally {
+        _pasteInFlight = false;
+      }
+
+    } finally {
+      _pasteInFlight = false;
     }
   };
 
-  editorDomNode?.addEventListener("paste", onImagePaste, true);
-  editorTextarea?.addEventListener("paste", onImagePaste, true);
+  // Single capture-phase listener on the document.
+  // Using one listener avoids the triple-fire bug: the same async handler was
+  // registered on document + editorDomNode + editorTextarea, so all three started
+  // before any called event.preventDefault() — causing double/triple paste and
+  // multiple editor.focus() calls that corrupted Monaco's GTK selection state.
   document.addEventListener(
     "paste",
     (event) => {
