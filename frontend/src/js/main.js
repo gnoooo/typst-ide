@@ -45,9 +45,9 @@ async function main() {
   //
   // Guard against re-entrant execution: onImagePaste is async, so if it were
   // registered on multiple nested nodes (all capture), all handlers would start
-  // before any of them calls event.preventDefault() — causing double/triple paste
-  // and multiple editor.focus() calls that corrupt Monaco's GTK selection state.
-  // A single synchronous flag is the reliable fix.
+  // before any of them calls event.preventDefault(), causing double/triple paste
+  // and multiple editor.focus() calls that corrupt Monaco's GTK selection state
+  // A single synchronous flag is the reliable fix
   let _pasteInFlight = false;
   const onImagePaste = async (event) => {
     if (_pasteInFlight) return;
@@ -63,15 +63,12 @@ async function main() {
       }
       if (!payload) {
         console.debug("[paste-image] no image payload found in clipboard");
-        // No image — let Monaco handle text paste natively.
-        // Monaco uses navigator.clipboard.readText() internally, which is
-        // patched in editor.js to fall back to Tauri on AppImage/WebKitGTK.
-        // A manual executeEdits fallback here would cause double-paste for
-        // text copied from Monaco (both paths would insert the same content).
+        // No image, let Monaco handle text paste natively
+        // Monaco uses navigator.clipboard.readText() internally, which is patched in editor.js to fall back to Tauri on AppImage/WebKitGTK
         return;
       }
 
-      console.debug(`[paste-image] image payload detected (${payload.source})`);
+      // console.debug(`[paste-image] image payload detected (${payload.source})`);
 
       const project = getCurrentProject();
       if (!project?.path) {
@@ -90,9 +87,9 @@ async function main() {
 
         insertImageAtCursor(relativePath);
         writeToConsole("info", `Image enregistrée: ${relativePath}`);
-        console.info(`[paste-image] saved to ${project.path}/${relativePath}`);
+        // console.info(`[paste-image] saved to ${project.path}/${relativePath}`);
       } catch (error) {
-        console.error("[paste-image] save_data_image failed", error);
+        // console.error("[paste-image] save_data_image failed", error);
         writeToConsole("error", `Erreur collage image: ${String(error)}`);
         showConsole();
       } finally {
@@ -104,11 +101,7 @@ async function main() {
     }
   };
 
-  // Single capture-phase listener on the document.
-  // Using one listener avoids the triple-fire bug: the same async handler was
-  // registered on document + editorDomNode + editorTextarea, so all three started
-  // before any called event.preventDefault() — causing double/triple paste and
-  // multiple editor.focus() calls that corrupted Monaco's GTK selection state.
+  // Single capture-phase listener on the document
   document.addEventListener(
     "paste",
     (event) => {
@@ -141,8 +134,8 @@ async function main() {
   });
 
   // ## Autosave ###################################################
-  // Only mark as unsaved on keystroke — defer getValue() until the debounce fires
-  // to avoid blocking the input pipeline with a full-buffer serialization.
+  // Only mark as unsaved on keystroke, defer getValue() until the debounce fires
+  // to avoid blocking the input pipeline with a full-buffer serialization
   editor.onDidChangeModelContent(() => {
     notifySaveIndicator(true);
     scheduleAutosave(() => editor.getValue());
@@ -233,7 +226,7 @@ async function main() {
     savePdf(editor);
   });
 
-  // Auto-compile checkbox (persisted)
+  // Auto-compile checkbox
   const autoCompile = document.getElementById("auto-compile");
   if (autoCompile) {
     autoCompile.checked = localStorage.getItem("auto-compile") !== "false";
@@ -264,33 +257,9 @@ async function main() {
 
   unsavedBtnUpdate();
   openProjectBtnUpdate();
-
-  // TO DELETE : ONLY TO TEST MODALS
-  // link bold button to a modal example
-  // document.getElementById('bold-btn').addEventListener('click', () => {
-  //     import('./modal.js').then(({ openModal }) => {
-  //         openModal({
-  //             title: 'Example Modal',
-  //             width: '600px',
-  //             body: `
-  //                 <p>This is an example modal. You can put any content here.</p>
-  //                 <input class="w-full" placeholder="Type something..." />
-  //             `,
-  //             buttons: [
-  //                 { label: 'OK', primary: true, onClick: (close) => { alert('OK clicked'); close(); } },
-  //                 { label: 'Cancel', onClick: (close) => { alert('Cancel clicked'); close(); } },
-  //             ],
-  //         });
-  //     });
-  // });
-
-  // document.addEventListener("click", (e) => {
-  //   updateBtn();
-  // });
 }
 
 // ## Helpers #######################################################
-
 function bindMenuAction(id, fn) {
   document.getElementById(id)?.addEventListener("click", (e) => {
     e.preventDefault();

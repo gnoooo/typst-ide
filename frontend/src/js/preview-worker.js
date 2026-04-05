@@ -1,12 +1,11 @@
 /**
- * Preview Worker — runs Blob creation off the main thread
+ * Preview Worker
+ *  runs Blob creation off the main thread
  *
  * For large documents, the compiled HTML can be tens of megabytes of inline SVGs.
- * Creating a Blob and Object URL from that data on the main thread adds to
- * main-thread pressure and can cause input jank in Monaco.
+ * Creating a Blob and Object URL from that data on the main thread adds to main-thread pressure and can cause input jank in Monaco.
  *
- * This Worker receives the raw HTML string, creates the Blob + Object URL in a
- * separate thread, and posts back the ready-to-use URL.
+ * This Worker receives the raw HTML string, creates the Blob + Object URL in a separate thread, and posts back the ready-to-use URL.
  */
 
 /** @type {string|null} */
