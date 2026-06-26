@@ -8,13 +8,13 @@ use std::io::ErrorKind;
 use tauri::Manager;
 use tokio::sync::Semaphore;
 use std::sync::Arc;
-use typst_ide_core::compiler::{DiagnosticInfo, PreviewResult, compile_to_pdf, compile_to_preview_html};
+use typst_ide_core::compiler::{DiagnosticInfo, PreviewResult, compile_to_pdf, compile_to_preview_html, invalidate_preview_file_cache};
 use typst_ide_core::database::{
     history_db::{self},
     notes_db::{self, Note},
+    bibliography_db::{self},
 };
 use typst_ide_core::features::bibliography;
-use serde_json::Value;
 
 
 // ## Database state ############################################################
@@ -81,6 +81,14 @@ async fn render_preview(
             end_column: None,
         }]
     })?
+}
+
+/// Invalidates the file cache of the persistent preview world.
+/// Call this after saving a file that is imported by the main document so the
+/// next preview compilation picks up the changes from disk.
+#[tauri::command]
+fn invalidate_file_cache() {
+    invalidate_preview_file_cache();
 }
 
 // ###########################################################################
@@ -178,6 +186,11 @@ async fn save_file(path: String, content: String) -> Result<(), String> {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&path, &content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    std::fs::rename(&old_path, &new_path).map_err(|e| e.to_string())
 }
 
 /// Saves a `data:image/...;base64,...` payload as a file in `<project>/images/`
@@ -370,6 +383,51 @@ fn update_history_entry(
     history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| e.to_string())
 }
 
+/// ####################################################
+/// Bibliography DB
+
+#[tauri::command]
+fn add_bibliography_entry(
+    state: tauri::State<'_, BibliographyDbState>,
+    title: String,
+    style: String,
+    path: String,
+    project_path: String,
+    full: bool,
+) -> Result<bool, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    let inserted = bibliography_db::add_entry(&conn, &title, &style, &path, &project_path, full).map_err(|e| e.to_string())?;
+    Ok(inserted)
+}
+
+#[tauri::command]
+fn get_bibliography(
+    state: tauri::State<'_, BibliographyDbState>,
+    project_path: String,
+) -> Result<Vec<bibliography_db::BibliographyEntry>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    bibliography_db::get_bibliography(&conn, &project_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_bibliography_entry(state: tauri::State<'_, BibliographyDbState>, id: String) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    bibliography_db::delete_bibliography_entry(&conn, &id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_bibliography_entry(
+    state: tauri::State<'_, BibliographyDbState>,
+    id: String,
+    title: String,
+    style: String,
+    path: String,
+    full: bool,
+) -> Result<(), String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    bibliography_db::update_bibliography_entry(&conn, &id, &title, &style, &path, full).map_err(|e| e.to_string())
+}
+
 // ###########################################################################
 // Features
 // ###########################################################################
@@ -379,6 +437,7 @@ fn update_history_entry(
 #[tauri::command]
 fn create_bib_file_if_missing(filepath: &str) -> Result<bool, String> {
     let out = bibliography::create_bib_file_if_missing(filepath);
+    
     match out {
         Ok(_) => Ok(true),
         Err(ref e) if e.kind() == ErrorKind::AlreadyExists => Ok(false),
@@ -413,14 +472,14 @@ fn add_entry_to_bib(
 }
 
 #[tauri::command]
-fn get_all_bibs(projectpath: &str) -> Result<Vec<String>, String> {
-    bibliography::get_all_bibs(projectpath)
+fn get_all_bibs(project_path: &str) -> Result<Vec<String>, String> {
+    bibliography::get_all_bibs(project_path)
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn replace_whole_bib_source(filepath: &str, entry: serde_json::Value) -> Result<bool, String> {
-    let out = bibliography::replace_whole_bib_source(filepath, &entry);
+fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: serde_json::Value) -> Result<bool, String> {
+    let out = bibliography::replace_whole_bib_source(filepath, old_cite_key, &entry);
     match out {
         Ok(_) => Ok(true),
         Err(_) => Ok(false)
@@ -444,6 +503,46 @@ fn delete_bib_source_value(filepath: &str, cite_key_to_edit: &str, key_to_delete
         Err(_) => Ok(false)
     }
 }
+
+#[tauri::command]
+fn synchronize_bibliography_entries(
+    state: tauri::State<'_, BibliographyDbState>,
+    projectpath: &str
+) {
+    let conn = match state.0.lock() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("lock error: {e}");
+            return;
+        }
+    };
+
+    let bib_files = match get_all_bibs(projectpath) {
+        Ok(v) => v,
+        Err(e) => {
+            eprintln!("get_all_bibs error: {e}");
+            return;
+        }
+    };
+
+    for bib_file in bib_files {
+        let title = bib_file.trim_end_matches(".bib").to_string();
+        let path = format!("{}/{}", projectpath, bib_file);
+
+        // Update project_path for existing entries (e.g. from before the migration)
+        let _ = bibliography_db::set_entry_project_path(&conn, &path, projectpath);
+        // Insert new entries if they don't exist yet
+        let _ = bibliography_db::add_entry(
+            &conn,
+            &title,
+            "ieee",
+            &path,
+            projectpath,
+            false,
+        );
+    }
+}
+
 
 // ###########################################################################
 // PDF export
@@ -534,6 +633,11 @@ fn main() {
                 .expect("Failed to initialise history DB");
             app.manage(HistoryDbState(Mutex::new(history_conn)));
 
+            let bibliography_db_path = data_dir.join("bibliography.db");
+            let bibliography_conn = bibliography_db::init_db(bibliography_db_path.to_str().unwrap())
+                .expect("Failed to initialise bibliography DB");
+            app.manage(BibliographyDbState(Mutex::new(bibliography_conn)));
+
             // Semaphore(1): at most one Typst compile at a time
             app.manage(CompileState(Arc::new(Semaphore::new(1))));
 
@@ -541,10 +645,12 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             render_preview,
+            invalidate_file_cache,
             open_folder_dialog,
             create_project,
             open_project,
             save_file,
+            rename_file,
             save_data_image,
             pick_pdf_path,
             export_pdf,
@@ -565,6 +671,11 @@ fn main() {
             delete_history_entry,
             update_history_entry,
 
+            add_bibliography_entry,
+            get_bibliography,
+            delete_bibliography_entry,
+            update_bibliography_entry,
+
             create_bib_file_if_missing,
             parse_bib_file,
             add_entry_to_bib,
@@ -572,6 +683,7 @@ fn main() {
             replace_whole_bib_source,
             delete_whole_bib_source,
             delete_bib_source_value,
+            synchronize_bibliography_entries
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

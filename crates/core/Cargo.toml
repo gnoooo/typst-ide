@@ -9,6 +9,7 @@ typst-ide = "0.14.2"
 typst-as-library = { path = "../typst-as-library" }
 typst-pdf = "*"
 typst-svg = "*"
+typst-utils = "*"
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "*"

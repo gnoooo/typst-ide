@@ -1,14 +1,17 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use serde::Serialize;
 use typst::diag::{SourceDiagnostic, Severity};
-use typst::layout::PagedDocument;
+use typst::layout::{Frame, FrameItem, PagedDocument, Point};
+use typst::syntax::Source;
+use typst::syntax::{LinkedNode, Side, Span, SyntaxKind};
 use typst::World;
 use typst_as_library::TypstWrapperWorld;
 use typst_pdf::PdfOptions;
-use typst_ide;
 
 /// Returns the current working directory as a String, falling back to "."
 fn current_dir() -> String {
@@ -16,6 +19,31 @@ fn current_dir() -> String {
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
         .to_string_lossy()
         .to_string()
+}
+
+// ## Persistent world cache ####################################################
+//
+// Keeps the TypstWrapperWorld alive between preview compilations.
+// The world stores a HashMap of already-read files (imports, images, packages),
+// so reusing it avoids redundant disk reads on every keystroke.
+// When the project root changes the world is recreated from scratch.
+
+static PREVIEW_WORLD: OnceLock<Mutex<Option<(TypstWrapperWorld, String)>>> = OnceLock::new();
+
+fn preview_world_cache() -> &'static Mutex<Option<(TypstWrapperWorld, String)>> {
+    PREVIEW_WORLD.get_or_init(|| Mutex::new(None))
+}
+
+// ## SVG page cache ############################################################
+//
+// Maps a 128-bit hash of each compiled Page to its rendered SVG string.
+// On large documents with many static pages (title page, bibliography…),
+// only pages that actually changed since the last compile are re-rendered.
+
+static SVG_CACHE: OnceLock<Mutex<HashMap<u128, String>>> = OnceLock::new();
+
+fn svg_cache() -> &'static Mutex<HashMap<u128, String>> {
+    SVG_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 /// A single Typst diagnostic with resolved source position, ready to be
@@ -102,11 +130,24 @@ pub struct CompileTimings {
     pub total_ms: u64,
 }
 
-/// Result returned by compile_to_preview_html, bundling the HTML and an optional
-/// jump position so the frontend can scroll the preview to the current cursor.
+/// A single rendered page returned by `compile_to_preview_html`.
+/// The frontend uses `hash` to detect which pages actually changed between compilations
+/// and skips DOM updates for unchanged pages, avoiding redundant browser re-renders.
+#[derive(Serialize)]
+pub struct RenderedPage {
+    /// SVG markup for this page (just the `<svg>…</svg>` element, no wrapper div).
+    pub svg: String,
+    /// Hex-encoded 128-bit hash of the compiled `Page` struct.
+    /// Stable across compilations as long as the page content is identical.
+    pub hash: String,
+}
+
+/// Result returned by `compile_to_preview_html`.
 #[derive(Serialize)]
 pub struct PreviewResult {
-    pub html: String,
+    /// Individual rendered pages.  The frontend assembles the full HTML on first load
+    /// and performs targeted per-div DOM updates on subsequent compilations.
+    pub pages: Vec<RenderedPage>,
     pub jump_pos: Option<JumpPos>,
     pub timings: CompileTimings,
 }
@@ -122,7 +163,7 @@ fn format_diagnostics(diagnostics: &[SourceDiagnostic]) -> String {
 }
 
 /// Converts a Monaco-style cursor (1-based line, 1-based UTF-16 column) to a UTF-8 byte offset
-/// in `text`. This is what `typst_ide::jump_from_cursor` expects.
+/// in `text`.
 fn monaco_pos_to_byte(text: &str, line: u32, column: u32) -> usize {
     // Advance to the start of the target line (1-based)
     let mut current_line = 1u32;
@@ -161,90 +202,178 @@ pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(root.to_owned(), content.to_owned())
 }
 
+/// Jump to the exact glyph at `cursor` (byte offset) in the source.
+///
+/// Unlike `typst_ide::jump_from_cursor`, this matches the byte offset within the
+/// span (`glyph.span.1`), not just the span itself, giving precise cursor placement
+/// for multi-line text nodes.
+fn jump_from_cursor_exact(
+    document: &PagedDocument,
+    source: &Source,
+    cursor: usize,
+) -> Option<(usize, f64, f64)> {
+    let root = LinkedNode::new(source.root());
+
+    let node = root
+        .leaf_at(cursor, Side::Before)
+        .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
+        .or_else(|| {
+            root.leaf_at(cursor, Side::After)
+                .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
+        })?;
+
+    let span = node.span();
+    let range = node.range();
+    let offset_in_span = cursor.saturating_sub(range.start) as u16;
+
+    document
+        .pages
+        .iter()
+        .enumerate()
+        .find_map(|(page_idx, page)| {
+            find_glyph_in_frame(&page.frame, span, offset_in_span)
+                .map(|point| (page_idx, point.x.to_pt(), point.y.to_pt()))
+        })
+}
+
+/// Recursively search a `Frame` for a glyph matching both `span` and `target_offset`.
+/// Returns the position of the closest matching glyph within the span.
+fn find_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<Point> {
+    for &(mut pos, ref item) in frame.items() {
+        if let FrameItem::Group(group) = item {
+            if let Some(point) = find_glyph_in_frame(&group.frame, span, target_offset) {
+                return Some(pos + point.transform(group.transform));
+            }
+        }
+
+        if let FrameItem::Text(text) = item {
+            let mut best: Option<(u16, Point)> = None;
+
+            for glyph in &text.glyphs {
+                if glyph.span.0 == span {
+                    let dist = target_offset.abs_diff(glyph.span.1);
+                    if best.map_or(true, |(d, _)| dist < d) {
+                        best = Some((dist, pos));
+                    }
+                }
+                pos.x += glyph.x_advance.at(text.size);
+            }
+
+            if let Some((_, point)) = best {
+                return Some(point);
+            }
+        }
+    }
+    None
+}
+
 /// Compiles Typst source to a preview HTML document
 ///
 /// Returns structured diagnostics on error so the frontend can display
 /// squiggly underlines via Monaco's `setModelMarkers` API.
 /// `root` should be the open project directory so that relative file paths
 /// (images, imports…) are resolved against it instead of the process cwd.
+///
+/// ## Performance optimisations
+///
+/// 1. **Persistent world**: the `TypstWrapperWorld` (which caches imported files,
+///    package downloads, etc.) is kept alive in a global `Mutex` between calls.
+///    On the same project root it is reused — only the main source is swapped via
+///    `reset_source`.  When the root changes the world is recreated from scratch.
+///
+/// 2. **SVG page cache**: each compiled `Page` is hashed with `typst_utils::hash128`.
+///    The SVG string for unchanged pages is returned from the cache without
+///    calling `typst_svg::svg` again, which is the most expensive per-page step.
 pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option<(u32, u32)>) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
     let t_total = Instant::now();
 
+    let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
+
+    // 1. Acquire / update the persistent world 
     let t_world = Instant::now();
-    let world = match root {
-        Some(r) => create_world_with_root(r, content),
-        None    => create_default_world(content),
-    };
+    let mut world_guard = preview_world_cache().lock().unwrap();
+    match world_guard.as_mut() {
+        Some((world, cached_root)) if *cached_root == root_str => {
+            // Same project root: update only the source; keep file cache warm.
+            world.reset_source(content);
+        }
+        _ => {
+            // First compile or root changed: create a fresh world.
+            let new_world = create_world_with_root(&root_str, content);
+            *world_guard = Some((new_world, root_str));
+        }
+    }
+    let (world, _) = world_guard.as_mut().unwrap();
     let world_ms = t_world.elapsed().as_millis() as u64;
 
+    // 2. Compile
+    // comemo automatically memoizes internal typst functions (eval, layout…) using
+    // `Tracked<World>` access tracking. Because we reuse the same world with a stable
+    // FileId (via Source::replace), comemo can reuse results for unchanged parts of the
+    // document. evict(30) keeps the cache bounded: entries not hit in 30 compilations
+    // are evicted, preventing unbounded memory growth.
     let t_compile = Instant::now();
-    let document: PagedDocument = typst::compile(&world)
+    let document: PagedDocument = typst::compile(world as &_)
         .output
-        .map_err(|errors| collect_diagnostics(&errors, &world))?;
+        .map_err(|errors| collect_diagnostics(&errors, world))?;
+    typst::comemo::evict(30);
     let compile_ms = t_compile.elapsed().as_millis() as u64;
 
     // Compute the preview jump position corresponding to the editor cursor
     let jump_pos = cursor.and_then(|(line, col)| {
         let source = world.source(world.main()).ok()?;
         let offset = monaco_pos_to_byte(source.text(), line, col);
-        // jump_from_cursor returns a Vec; take the first result (most relevant)
-        typst_ide::jump_from_cursor(&document, &source, offset)
-            .into_iter()
-            .next()
-            .map(|pos| JumpPos {
-                page: pos.page.get(),
-                x:    pos.point.x.to_pt(),
-                y:    pos.point.y.to_pt(),
+        jump_from_cursor_exact(&document, &source, offset)
+            .map(|(page, x, y)| JumpPos {
+                page: page + 1,
+                x,
+                y,
             })
     });
 
+    // 3. Render pages to SVG (with per-page cache)
     let t_svg = Instant::now();
-    let pages_html: String = document
+    let mut svg_guard = svg_cache().lock().unwrap();
+    let pages: Vec<RenderedPage> = document
         .pages
         .iter()
-        .map(|page| format!("<div class=\"page\">{}\n</div>", typst_svg::svg(page)))
-        .collect::<Vec<_>>()
-        .join("\n");
+        .map(|page| {
+            let hash = typst_utils::hash128(page);
+            let svg = svg_guard
+                .entry(hash)
+                .or_insert_with(|| typst_svg::svg(page))
+                .clone();
+            RenderedPage { svg, hash: format!("{hash:032x}") }
+        })
+        .collect();
+    // Evict SVG cache entries for pages no longer in this document.
+    let current_hashes: std::collections::HashSet<u128> =
+        document.pages.iter().map(|p| typst_utils::hash128(p)).collect();
+    svg_guard.retain(|k, _| current_hashes.contains(k));
+    drop(svg_guard);
     let svg_ms = t_svg.elapsed().as_millis() as u64;
-
-    let html = format!(
-        r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-    body {{
-      background: #d8d8d8;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 1.5rem;
-      gap: 1.5rem;
-    }}
-    .page {{
-      background: white;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    }}
-    .page svg {{
-      display: block;
-    }}
-  </style>
-</head>
-<body>
-{pages_html}
-</body>
-</html>
-"#
-    );
 
     let total_ms = t_total.elapsed().as_millis() as u64;
     Ok(PreviewResult {
-        html,
+        pages,
         jump_pos,
         timings: CompileTimings { world_ms, compile_ms, svg_ms, total_ms },
     })
+}
+
+/// Clears the file cache of the persistent preview world.
+///
+/// Call this after the user saves a file that is imported by the main document
+/// (e.g. a `.typ` module, an image, a data file) so that the next compilation
+/// re-reads the updated content from disk.
+pub fn invalidate_preview_file_cache() {
+    if let Some(guard) = PREVIEW_WORLD.get() {
+        if let Ok(mut opt) = guard.lock() {
+            if let Some((world, _)) = opt.as_mut() {
+                world.reset_files();
+            }
+        }
+    }
 }
 
 /// Compiles Typst source to raw PDF bytes

@@ -36,6 +36,72 @@
 const { invoke } = window.__TAURI__.core;
 import { getCurrentProject } from './project.js';
 
+// ### Preview CSS (injected into the iframe on first load) #####################
+
+const _PREVIEW_CSS = `
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #d8d8d8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem;
+  gap: 1.5rem;
+}
+.page {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.page svg { display: block; }
+`;
+
+/**
+ * Builds a full preview HTML document from an array of RenderedPage objects.
+ * Used for the initial iframe load only.
+ * @param {Array<{svg: string, hash: string}>} pages
+ * @returns {string}
+ */
+function _buildPreviewHtml(pages) {
+    const body = pages.map(p => `<div class="page">${p.svg}\n</div>`).join('\n');
+    return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <style>${_PREVIEW_CSS}</style>\n</head>\n<body>\n${body}\n</body>\n</html>`;
+}
+
+/**
+ * Applies an incremental DOM update to the preview iframe.
+ * Only updates `<div class="page">` elements whose hash has changed.
+ * Adds or removes page divs as needed when the page count changes.
+ * @param {HTMLIFrameElement} frame
+ * @param {Array<{svg: string, hash: string}>} pages
+ */
+function _applyIncrementalUpdate(frame, pages) {
+    const doc = frame.contentDocument;
+    if (!doc?.body) return;
+
+    const existingDivs = Array.from(doc.querySelectorAll('.page'));
+
+    for (let i = 0; i < pages.length; i++) {
+        const { svg, hash } = pages[i];
+        if (i < existingDivs.length) {
+            // Update only if the page content changed
+            if (hash !== _pageHashes[i]) {
+                existingDivs[i].innerHTML = svg + '\n';
+            }
+        } else {
+            // New page (document grew)
+            const div = doc.createElement('div');
+            div.className = 'page';
+            div.innerHTML = svg + '\n';
+            doc.body.appendChild(div);
+        }
+    }
+    // Remove pages that no longer exist (document shrank)
+    for (let i = pages.length; i < existingDivs.length; i++) {
+        existingDivs[i].remove();
+    }
+
+    _pageHashes = pages.map(p => p.hash);
+}
+
 // ### Web Worker for off-thread Blob creation ##################################
 
 /** @type {Worker|null} */
@@ -124,6 +190,7 @@ export function initPreview(opts) {
     _opts = opts;
     _firstRender = true;
     _frameInitialized = false;
+    _pageHashes = [];
     const { onChange, debounceMs } = opts;
 
     onChange(() => {
@@ -139,6 +206,28 @@ export function initPreview(opts) {
     });
 
     scheduleCompile();
+
+    // Auto-fit preview zoom to pane width when the pane is resized.
+    // A debounce prevents loops when zoom changes slightly affect the pane width.
+    // A 20px threshold filters out scrollbar-width changes (~15px) from zoom-induced scrollbar toggling.
+    if (window.ResizeObserver) {
+        let fitTimer;
+        let lastFitWidth = 0;
+        const fitObserver = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            const width = entry.contentBoxSize?.[0]?.inlineSize ?? entry.contentRect?.width;
+            if (width && Math.abs(width - lastFitWidth) < 20) return;
+            lastFitWidth = width;
+            clearTimeout(fitTimer);
+            fitTimer = setTimeout(() => {
+                if (_frameInitialized) {
+                    fitPreviewToWidth(opts.preview, opts.frame);
+                    opts.onZoomChange?.();
+                }
+            }, 300);
+        });
+        fitObserver.observe(opts.preview);
+    }
 }
 
 /**
@@ -268,6 +357,8 @@ let _lastHtml = '';
 let _lastJumpPos = null;
 /** Active blob URL for the initial iframe load, revoked on first replace */
 let _currentBlobUrl = null;
+/** Page hashes from the last successful compile, used for incremental DOM updates */
+let _pageHashes = [];
 
 /** Threshold (bytes) above which first-load Blob creation is delegated to the Web Worker */
 const WORKER_BLOB_THRESHOLD = 512_000;
@@ -317,9 +408,10 @@ function loadHtml(frame, html) {
             requestAnimationFrame(() => {
                 if (frame.contentDocument?.body) {
                     frame.contentDocument.body.style.zoom = previewZoom / 100;
-                    const doc = frame.contentDocument;
-                    frame.style.width  = doc.documentElement.scrollWidth  + 'px';
-                    frame.style.height = doc.documentElement.scrollHeight + 'px';
+                    // Width is handled by CSS (100% of .preview-content).
+                    // Height must be inline so the iframe wraps the content exactly.
+                    frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
+                    frame.style.width  = '';
                 }
                 const zoomInput = document.getElementById('zoom-input');
                 if (zoomInput) zoomInput.value = previewZoom;
@@ -363,16 +455,37 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
             cursor,
         });
         const ipcMs = Math.round(performance.now() - t0);
-        const { html, jump_pos: jumpPos, timings } = result;
-        _lastHtml = html;
+        const { pages, jump_pos: jumpPos, timings } = result;
         _lastJumpPos = jumpPos ?? null;
         clearError(preview, frame);
+
         const tWrite = performance.now();
-        await loadHtml(frame, html);
+        if (_frameInitialized && frame.contentDocument?.body) {
+            // ## Incremental update ##########################################
+            // Only touch page divs whose hash has changed.
+            // No iframe navigation → no full SVG re-parse → much faster for
+            // large documents where only a few pages actually changed.
+            _applyIncrementalUpdate(frame, pages);
+            // Resize the iframe shell to fit potentially new content height.
+            // Must happen before scrollToJumpPos so the parent container's
+            // scroll range reflects the new content height; otherwise the
+            // scrollTop is clamped to the stale range and the preview appears
+            // to jump to the end of the document.
+            requestAnimationFrame(() => {
+                // Width is handled by CSS (100% of .preview-content).
+                frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
+                if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+            });
+        } else {
+            // ## First load ##################################################
+            // Assemble full HTML from page array and load via Blob URL.
+            const html = _buildPreviewHtml(pages);
+            _lastHtml = html;
+            _pageHashes = pages.map(p => p.hash);
+            await loadHtml(frame, html);
+            if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+        }
         const writeMs = Math.round(performance.now() - tWrite);
-        // Scroll sync: if Rust returned a cursor position, jump to it
-        // Otherwise the parent scrollTop was never touched
-        if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
         onDiagnostics?.([]);
         onSuccess?.();
         if (timings) {
@@ -408,14 +521,17 @@ export function getPreviewZoom() { return previewZoom; }
 export function fitPreviewToWidth(previewEl, frameEl) {
     const preview = previewEl ?? document.getElementById('preview');
     const frame   = frameEl   ?? document.getElementById('preview-frame');
-    if (!frame || !preview || !_lastHtml) return;
+    if (!frame || !preview || !_frameInitialized) return;
 
-    // frame.offsetWidth is the content width at the current previewZoom.
-    // Dividing back gives the natural (zoom=100) width in CSS px.
-    const contentWidth = frame.offsetWidth;
-    if (contentWidth === 0) return;
+    // Measure the first page's rendered width inside the iframe.
+    // This is the actual content width at the current zoom level.
+    const firstPage = frame.contentDocument?.querySelector?.('.page');
+    if (!firstPage) return;
+    const pageWidth = firstPage.getBoundingClientRect().width;
+    if (pageWidth === 0) return;
 
-    const naturalWidth = contentWidth / (previewZoom / 100);
+    // Divide by current zoom to get the natural (unzoomed) page width.
+    const naturalWidth = pageWidth / (previewZoom / 100);
     // Leave a small margin so the page doesn't clip against the scrollbar
     const available = preview.clientWidth - 16;
     if (available <= 0) return;
@@ -431,7 +547,7 @@ export function setPreviewZoom(value) {
     const savedScroll = preview.scrollTop;
     // Update CSS zoom only
     frame.contentDocument.body.style.zoom = previewZoom / 100;
-    frame.style.width  = frame.contentDocument.documentElement.scrollWidth  + 'px';
+    // Width is handled by CSS (100% of .preview-content).
     frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
     preview.scrollTop = savedScroll;
     if (_lastJumpPos) scrollToJumpPos(frame, preview, _lastJumpPos);

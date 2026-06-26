@@ -52,7 +52,7 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
         const closeBtn = document.createElement('button');
         closeBtn.className = 'ide-modal-close-btn';
         closeBtn.innerHTML = '&times;';
-        closeBtn.addEventListener('click', () => close());
+        closeBtn.addEventListener('click', () => closeAll());
         header.appendChild(closeBtn);
     }
     modal.appendChild(header);
@@ -90,6 +90,15 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
     function close() {
         overlay.classList.remove('ide-modal-overlay--visible');
         overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+        onClose?.();
+        document.removeEventListener('keydown', onKeyDown);
+    }
+
+    function closeAll() {
+        document.querySelectorAll('.ide-modal-overlay').forEach(el => {
+            el.classList.remove('ide-modal-overlay--visible');
+            el.addEventListener('transitionend', () => el.remove(), { once: true });
+        });
         onClose?.();
         document.removeEventListener('keydown', onKeyDown);
     }

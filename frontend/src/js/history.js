@@ -1,7 +1,6 @@
 
 
 const { invoke } = window.__TAURI__.core;
-const { join } = window.__TAURI__.path;
 
 
 import { openModal, showConfirm } from './modal.js';
@@ -141,8 +140,13 @@ async function viewHistoryEntry(entry) {
         minute: '2-digit',
     });
 
-    const typ_path = await join(entry.path, 'main.typ');
-    const content = await invoke('read_file', { path: typ_path });
+    let content;
+    try {
+      const info = await invoke('open_project', { dirPath: entry.path });
+      content = info.content;
+    } catch (err) {
+      content = "(Impossible de lire le fichier source : " + err + ")";
+    }
 
     const body = document.createElement('div');
     body.innerHTML = `

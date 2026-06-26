@@ -72,6 +72,30 @@ impl TypstWrapperWorld {
         }
     }
 
+    /// Replaces the main source content, keeping all other state (file cache, fonts, etc.).
+    ///
+    /// Uses `Source::replace` to update the text **in-place**, preserving the `FileId`.
+    /// This is critical for comemo: because the `FileId` stays stable, comemo can detect
+    /// which parts of the document actually changed and reuse memoized layout/eval results
+    /// for the unchanged parts. Creating a new `Source::detached()` would assign a fresh
+    /// random `FileId` every call, breaking comemo's ability to do incremental work.
+    pub fn reset_source(&mut self, content: &str) {
+        self.source.replace(content);
+        self.time = time::OffsetDateTime::now_utc();
+    }
+
+    /// Resets the file cache (imported files).
+    /// Call this when the project root changes or when files on disk may have changed.
+    pub fn reset_files(&mut self) {
+        *self.files.lock().unwrap() = HashMap::new();
+    }
+
+    /// Changes the root path and clears the file cache.
+    pub fn set_root(&mut self, root: &str) {
+        self.root = PathBuf::from(root);
+        self.reset_files();
+    }
+
     /// Creates a world configured for HTML export.
     /// This enables the `Feature::Html` flag in the standard library,
     /// which is required to compile to `HtmlDocument` via `typst::compile`.

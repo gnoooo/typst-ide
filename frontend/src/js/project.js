@@ -227,7 +227,7 @@ export async function openProject(setEditorContent) {
         loadProject(info, setEditorContent);
         showToast('success', `Projet "${info.name}" ouvert.`);
     } catch (err) {
-        showToast('error', String(err));
+        showToast('error', `Erreur lors de l'ouverture : ${err}`);
     }
 }
 
@@ -237,6 +237,6 @@ export async function openProjectFromPath(dirPath, setEditorContent) {
         loadProject(info, setEditorContent);
         showToast('success', `Projet "${info.name}" ouvert.`);
     } catch (err) {
-        showToast('error', String(err));
+        showToast('error', `Erreur lors de l'ouverture de "${dirPath}" : ${err}`);
     }
 }

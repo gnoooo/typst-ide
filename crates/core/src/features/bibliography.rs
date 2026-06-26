@@ -1,5 +1,5 @@
 use std::{
-    cell::Ref, collections::HashMap, fmt::Write as FmtWrite, fs::{self, File, OpenOptions, read_dir}, io::{BufRead, BufReader, Error, ErrorKind, Result, Write as IoWrite}
+    collections::HashMap, fmt::Write as FmtWrite, fs::{self, File, OpenOptions, read_dir}, io::{BufRead, BufReader, Error, ErrorKind, Result, Write as IoWrite}
 };
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
@@ -178,11 +178,17 @@ pub fn get_all_bibs(
     Ok(files)
 }
 
-pub fn replace_whole_bib_source(filepath: &str, entry: &Value) -> Result<()> {
+pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Value) -> Result<()> {
     let content = fs::read_to_string(filepath)?;
-    let re = Regex::new(r"@(\w+)\{([^,]+),([\s\S]*?)\}")
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
 
+    let new_entry_type = entry
+        .get("entry_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let new_cite_key = entry
+        .get("cite_key")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let new_data = entry
         .get("data")
         .and_then(|v| v.as_object())
@@ -194,13 +200,18 @@ pub fn replace_whole_bib_source(filepath: &str, entry: &Value) -> Result<()> {
         })
         .unwrap_or_default();
 
+    let re = Regex::new(r"@(\w+)\{([^,]+),([\s\S]*?)\}")
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
     let new_content = re.replace_all(&content, |caps: &regex::Captures| {
-        let entry_type = &caps[1];
         let cite_key = &caps[2];
+        if cite_key != old_cite_key {
+            return caps[0].to_string();
+        }
         format!(
             "@{}{{{},\n{}\n}}",
-            entry_type,
-            cite_key,
+            new_entry_type,
+            new_cite_key,
             new_data
         )
     });
@@ -268,3 +279,4 @@ pub fn delete_bib_source_value(filepath: &str, cite_key_to_edit: &str, key_to_de
     fs::write(filepath, new_content.as_bytes())?;
     Ok(())
 }
+
