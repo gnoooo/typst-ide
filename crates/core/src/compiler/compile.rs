@@ -7,10 +7,10 @@ use std::time::Instant;
 use serde::Serialize;
 use typst::diag::{SourceDiagnostic, Severity};
 use typst::layout::{Frame, FrameItem, PagedDocument, Point};
-use typst::syntax::Source;
 use typst::syntax::{LinkedNode, Side, Span, SyntaxKind};
 use typst::World;
 use typst_as_library::TypstWrapperWorld;
+use typst_ide::{jump_from_click, Jump};
 use typst_pdf::PdfOptions;
 
 /// Returns the current working directory as a String, falling back to "."
@@ -187,6 +187,91 @@ fn monaco_pos_to_byte(text: &str, line: u32, column: u32) -> usize {
     byte_pos
 }
 
+/// Search a single frame for the glyph whose `glyph.span.1` (offset within span)
+/// is closest to `target_offset`. Returns the distance and the position.
+fn best_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<(u16, Point)> {
+    let mut best_global: Option<(u16, Point)> = None;
+
+    for &(mut pos, ref item) in frame.items() {
+        if let FrameItem::Group(group) = item {
+            if let Some((dist, point)) =
+                best_glyph_in_frame(&group.frame, span, target_offset)
+            {
+                let candidate = (dist, pos + point.transform(group.transform));
+                if best_global.as_ref().map_or(true, |(d, _)| dist < *d) {
+                    best_global = Some(candidate);
+                }
+            }
+        } else if let FrameItem::Text(text) = item {
+            for glyph in &text.glyphs {
+                if glyph.span.0 == span {
+                    let dist = target_offset.abs_diff(glyph.span.1);
+                    if best_global.as_ref().map_or(true, |(d, _)| dist < *d) {
+                        best_global = Some((dist, pos));
+                    }
+                }
+                pos.x += glyph.x_advance.at(text.size);
+            }
+        }
+    }
+
+    best_global
+}
+
+/// Find the exact rendered position of the cursor in the document.
+///
+/// Unlike `typst_ide::jump_from_cursor` which matches by span identity only,
+/// this function also matches the byte offset *within* the span (`glyph.span.1`),
+/// giving precise cursor placement for multi-line text nodes that wrap across pages.
+///
+/// Critically, it examines ALL pages and picks the *closest* glyph match by
+/// `glyph.span.1` distance — not the first page that happens to contain the span.
+fn find_precise_cursor_position(
+    document: &PagedDocument,
+    source: &typst::syntax::Source,
+    cursor: usize,
+) -> Option<JumpPos> {
+    let root = LinkedNode::new(source.root());
+
+    let node = root
+        .leaf_at(cursor, Side::Before)
+        .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
+        .or_else(|| {
+            root.leaf_at(cursor, Side::After)
+                .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
+        })?;
+
+    let span = node.span();
+    let range = node.range();
+    let target_offset = cursor.saturating_sub(range.start) as u16;
+
+    // Search ALL pages, pick the one with the smallest glyph offset distance.
+    let mut best: Option<(u16, usize, Point)> = None;
+
+    for (page_idx, page) in document.pages.iter().enumerate() {
+        if let Some((dist, point)) = best_glyph_in_frame(&page.frame, span, target_offset) {
+            let is_better = best.as_ref().map_or(true, |(d, ..)| dist < *d);
+            if is_better {
+                best = Some((dist, page_idx, point));
+            }
+        }
+    }
+
+    let (_, page_idx, point) = best?;
+    eprintln!(
+        "[cursor_jump] found at page={} x={:.1} y={:.1} (target_offset={})",
+        page_idx + 1,
+        point.x.to_pt(),
+        point.y.to_pt(),
+        target_offset,
+    );
+    Some(JumpPos {
+        page: page_idx + 1,
+        x: point.x.to_pt(),
+        y: point.y.to_pt(),
+    })
+}
+
 /// Creates a default world (paged target) with the given content
 pub fn create_default_world(content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(current_dir(), content.to_owned())
@@ -200,71 +285,6 @@ pub fn create_html_world(content: &str) -> TypstWrapperWorld {
 /// Creates a world rooted at a custom path
 pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(root.to_owned(), content.to_owned())
-}
-
-/// Jump to the exact glyph at `cursor` (byte offset) in the source.
-///
-/// Unlike `typst_ide::jump_from_cursor`, this matches the byte offset within the
-/// span (`glyph.span.1`), not just the span itself, giving precise cursor placement
-/// for multi-line text nodes.
-fn jump_from_cursor_exact(
-    document: &PagedDocument,
-    source: &Source,
-    cursor: usize,
-) -> Option<(usize, f64, f64)> {
-    let root = LinkedNode::new(source.root());
-
-    let node = root
-        .leaf_at(cursor, Side::Before)
-        .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
-        .or_else(|| {
-            root.leaf_at(cursor, Side::After)
-                .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
-        })?;
-
-    let span = node.span();
-    let range = node.range();
-    let offset_in_span = cursor.saturating_sub(range.start) as u16;
-
-    document
-        .pages
-        .iter()
-        .enumerate()
-        .find_map(|(page_idx, page)| {
-            find_glyph_in_frame(&page.frame, span, offset_in_span)
-                .map(|point| (page_idx, point.x.to_pt(), point.y.to_pt()))
-        })
-}
-
-/// Recursively search a `Frame` for a glyph matching both `span` and `target_offset`.
-/// Returns the position of the closest matching glyph within the span.
-fn find_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<Point> {
-    for &(mut pos, ref item) in frame.items() {
-        if let FrameItem::Group(group) = item {
-            if let Some(point) = find_glyph_in_frame(&group.frame, span, target_offset) {
-                return Some(pos + point.transform(group.transform));
-            }
-        }
-
-        if let FrameItem::Text(text) = item {
-            let mut best: Option<(u16, Point)> = None;
-
-            for glyph in &text.glyphs {
-                if glyph.span.0 == span {
-                    let dist = target_offset.abs_diff(glyph.span.1);
-                    if best.map_or(true, |(d, _)| dist < d) {
-                        best = Some((dist, pos));
-                    }
-                }
-                pos.x += glyph.x_advance.at(text.size);
-            }
-
-            if let Some((_, point)) = best {
-                return Some(point);
-            }
-        }
-    }
-    None
 }
 
 /// Compiles Typst source to a preview HTML document
@@ -323,12 +343,8 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
     let jump_pos = cursor.and_then(|(line, col)| {
         let source = world.source(world.main()).ok()?;
         let offset = monaco_pos_to_byte(source.text(), line, col);
-        jump_from_cursor_exact(&document, &source, offset)
-            .map(|(page, x, y)| JumpPos {
-                page: page + 1,
-                x,
-                y,
-            })
+        eprintln!("[cursor_jump] line={line} col={col} offset={offset}");
+        find_precise_cursor_position(&document, &source, offset)
     });
 
     // 3. Render pages to SVG (with per-page cache)
@@ -359,6 +375,70 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
         jump_pos,
         timings: CompileTimings { world_ms, compile_ms, svg_ms, total_ms },
     })
+}
+
+/// Result of resolving a click in the preview back to a source position.
+#[derive(Serialize)]
+pub struct ClickResult {
+    pub line: u32,
+    pub column: u32,
+}
+
+/// Resolves a click on the rendered preview to a source position.
+///
+/// Uses the persistent preview world (same cache as `compile_to_preview_html`).
+/// The source is re-compiled to find the exact glyph under `(page, x, y)`;
+/// comemo's memoization makes this near-instant when the source hasn't changed.
+pub fn resolve_click(
+    root: Option<&str>,
+    content: &str,
+    page: usize,
+    x: f64,
+    y: f64,
+) -> Option<ClickResult> {
+    let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
+    let mut world_guard = preview_world_cache().lock().ok()?;
+    let (world, cached_root) = world_guard.as_mut()?;
+
+    // Ensure the world has the correct root and source.
+    if *cached_root != root_str {
+        eprintln!("[resolve_click] root mismatch: cached={cached_root}, requested={root_str}");
+        return None;
+    }
+    world.reset_source(content);
+
+    let document: PagedDocument = match typst::compile(world as &_).output {
+        Ok(doc) => doc,
+        Err(_) => {
+            eprintln!("[resolve_click] compilation failed");
+            return None;
+        }
+    };
+    let page_obj = document.pages.get(page.checked_sub(1)?)?;
+    let click = Point::new(typst::layout::Abs::pt(x), typst::layout::Abs::pt(y));
+    eprintln!("[resolve_click] page={page}, click=({x:.1}, {y:.1})pt, frame items={}", page_obj.frame.items().len());
+    let jump = jump_from_click(world, &document, &page_obj.frame, click)?;
+    let (file_id, offset) = match jump {
+        Jump::File(id, off) => (id, off),
+        Jump::Url(_url) => {
+            eprintln!("[resolve_click] got Jump::Url, ignoring");
+            return None;
+        }
+        Jump::Position(_pos) => {
+            eprintln!("[resolve_click] got Jump::Position, ignoring");
+            return None;
+        }
+    };
+    let source = match world.source(file_id) {
+        Ok(s) => s,
+        Err(_) => {
+            eprintln!("[resolve_click] source not found for file_id");
+            return None;
+        }
+    };
+    let (line, column) = byte_to_line_col(source.text(), offset);
+    eprintln!("[resolve_click] resolved to ({line}, {column})");
+    Some(ClickResult { line, column })
 }
 
 /// Clears the file cache of the persistent preview world.

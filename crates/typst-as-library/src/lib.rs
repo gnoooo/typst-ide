@@ -238,6 +238,12 @@ impl TypstWrapperWorld {
 /// This is the interface we have to implement such that `typst` can compile it.
 ///
 /// I have tried to keep it as minimal as possible
+impl typst_ide::IdeWorld for TypstWrapperWorld {
+    fn upcast(&self) -> &dyn typst::World {
+        self
+    }
+}
+
 impl typst::World for TypstWrapperWorld {
     /// Standard library.
     fn library(&self) -> &LazyHash<Library> {

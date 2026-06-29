@@ -40,6 +40,7 @@ import { getCurrentProject } from './project.js';
 
 const _PREVIEW_CSS = `
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { overflow-y: auto; }
 body {
   background: #d8d8d8;
   display: flex;
@@ -52,7 +53,7 @@ body {
   background: white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
-.page svg { display: block; }
+.page svg { display: block; cursor: pointer; }
 `;
 
 /**
@@ -185,11 +186,13 @@ function adaptiveDebounce(charCount) {
  * @param {function}          [opts.getSourceLength] Returns char count without full serialization
  * @param {function}          [opts.onSuccess]    Called after a successful compile
  * @param {function}          [opts.onError]      Called with (diagnostics, message) on error
+ * @param {function}          [opts.onClickRegion] Called with ({ line, column }) when user clicks a text region
  */
 export function initPreview(opts) {
     _opts = opts;
     _firstRender = true;
     _frameInitialized = false;
+    _clickHandlerSetup = false;
     _pageHashes = [];
     const { onChange, debounceMs } = opts;
 
@@ -363,6 +366,9 @@ let _pageHashes = [];
 /** Threshold (bytes) above which first-load Blob creation is delegated to the Web Worker */
 const WORKER_BLOB_THRESHOLD = 512_000;
 
+/** Whether the click-to-source handler has been set up on the iframe contentDocument */
+let _clickHandlerSetup = false;
+
 /**
  * Writes compiled HTML into the preview iframe via a Blob URL.
  *
@@ -408,9 +414,9 @@ function loadHtml(frame, html) {
             requestAnimationFrame(() => {
                 if (frame.contentDocument?.body) {
                     frame.contentDocument.body.style.zoom = previewZoom / 100;
-                    // Width is handled by CSS (100% of .preview-content).
-                    // Height must be inline so the iframe wraps the content exactly.
-                    frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
+                    const parent = frame.parentElement;
+                    if (parent) frame.style.height = parent.clientHeight + 'px';
+                    frame.style.overflow = 'hidden auto';
                     frame.style.width  = '';
                 }
                 const zoomInput = document.getElementById('zoom-input');
@@ -435,14 +441,97 @@ export function scrollToJumpPos(frame, previewContainer, jumpPos) {
     if (!jumpPos || !frame.contentDocument) return;
     const { page, y } = jumpPos;
     const pages = frame.contentDocument.querySelectorAll('.page');
-    if (!pages || page < 1 || page > pages.length) return;
+    if (!pages || page < 1 || page > pages.length) {
+        console.debug(`[scroll] page ${page} out of range`);
+        return;
+    }
     const pageEl = pages[page - 1];
-    // Standard CSS pt = px: 1pt = 96/72 CSS px. The zoom scale is applied on top.
     const PX_PER_PT = 96 / 72;
     const scale = previewZoom / 100;
     const yPx = y * PX_PER_PT * scale;
-    const scrollTarget = pageEl.offsetTop + yPx - previewContainer.clientHeight * 0.3;
-    previewContainer.scrollTop = Math.max(0, scrollTarget);
+    const docEl = frame.contentDocument.documentElement;
+    // offsetTop est en coordonnées LAYOUT (non zoomées), mais scrollTop
+    // est dans le système du viewport qui tient compte du zoom CSS sur <body>.
+    // Formule vérifiée : rect.top = offsetTop × scale − scrollTop.
+    const target = pageEl.offsetTop * scale + yPx - previewContainer.clientHeight * 0.3;
+    console.debug(
+        `[scroll] page=${page} y=${y.toFixed(1)}pt ` +
+        `offsetTop=${pageEl.offsetTop} yPx=${yPx.toFixed(1)} ` +
+        `clientH=${previewContainer.clientHeight} ` +
+        `docEl.scrollTop=${docEl.scrollTop} target=${target.toFixed(0)}`
+    );
+    docEl.scrollTop = Math.max(0, target);
+
+    // Vérification fiable : après paint, rect.top devrait être ~0 si le scroll est correct
+    requestAnimationFrame(() => {
+        const d = frame.contentDocument;
+        const rect = pageEl.getBoundingClientRect();
+        console.debug(
+            `[scroll-verify] rect.top=${rect.top.toFixed(0)} ` +
+            `body.scrollTop=${d.body.scrollTop} ` +
+            `html.scrollTop=${d.documentElement.scrollTop} ` +
+            `html.scrollHeight=${d.documentElement.scrollHeight} ` +
+            `scrollH=${d.documentElement.scrollHeight} ` +
+            `clientH=${d.documentElement.clientHeight}`
+        );
+    });
+}
+
+/**
+ * Sets up a click handler on the iframe contentDocument that maps click positions
+ * to source cursor positions via the typst-ide `jump_from_click` function.
+ * @param {HTMLIFrameElement} frame
+ */
+function setupClickHandler(frame) {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    doc.addEventListener('click', (event) => {
+        // Prevent the iframe from claiming focus away from the parent editor.
+        event.preventDefault();
+
+        const svg = event.target.closest('svg');
+        if (!svg) return;
+        const pageDiv = svg.closest('.page');
+        if (!pageDiv) return;
+        const pages = doc.querySelectorAll('.page');
+        const pageIndex = Array.from(pages).indexOf(pageDiv);
+        if (pageIndex < 0) return;
+
+        const rect = svg.getBoundingClientRect();
+        const viewBox = svg.getAttribute('viewBox');
+        if (!viewBox) return;
+        const parts = viewBox.trim().split(/\s+/).map(Number);
+        if (parts.length !== 4) return;
+        const [, , vbW, vbH] = parts;
+
+        const x = ((event.clientX - rect.left) / rect.width) * vbW;
+        const y = ((event.clientY - rect.top) / rect.height) * vbH;
+
+        const page = pageIndex + 1;
+        const source = _opts.getSource();
+        const root = getCurrentProject()?.path ?? null;
+
+        console.debug(`[click] page=${page} x=${x.toFixed(1)} y=${y.toFixed(1)}`);
+        // Defer so the browser finishes processing the iframe click before we
+        // send the IPC and potentially move focus to the parent editor.
+        setTimeout(async () => {
+            try {
+                const result = await invoke('resolve_preview_click', {
+                    source,
+                    root,
+                    page,
+                    x,
+                    y,
+                });
+                console.debug('[click] result:', result);
+                if (result) {
+                    _opts.onClickRegion?.(result);
+                }
+            } catch (_) {
+                console.warn('[click] resolve_preview_click threw', _);
+            }
+        }, 0);
+    });
 }
 
 async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSuccess, onError) {
@@ -457,6 +546,7 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
         const ipcMs = Math.round(performance.now() - t0);
         const { pages, jump_pos: jumpPos, timings } = result;
         _lastJumpPos = jumpPos ?? null;
+        console.debug('[compile] jumpPos:', jumpPos);
         clearError(preview, frame);
 
         const tWrite = performance.now();
@@ -472,9 +562,19 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
             // scrollTop is clamped to the stale range and the preview appears
             // to jump to the end of the document.
             requestAnimationFrame(() => {
-                // Width is handled by CSS (100% of .preview-content).
-                frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
+                const doc = frame.contentDocument;
+                const beforeHeight = frame.style.height;
+                const scrollH = doc.documentElement.scrollHeight;
+                const beforeScroll = preview.scrollTop;
+                const beforeClientH = preview.clientHeight;
+                // Make iframe fit container height so it scrolls internally
+                frame.style.height = beforeClientH + 'px';
+                frame.style.overflow = 'hidden auto';
                 if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+                console.debug(
+                    `[rAF] beforeHeight=${beforeHeight} frameH=${frame.clientHeight} ` +
+                    `scrollH=${scrollH} docEl.scrollTop=${doc.documentElement.scrollTop}`
+                );
             });
         } else {
             // ## First load ##################################################
@@ -484,6 +584,10 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
             _pageHashes = pages.map(p => p.hash);
             await loadHtml(frame, html);
             if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+        }
+        if (!_clickHandlerSetup && frame.contentDocument) {
+            setupClickHandler(frame);
+            _clickHandlerSetup = true;
         }
         const writeMs = Math.round(performance.now() - tWrite);
         onDiagnostics?.([]);
@@ -544,13 +648,8 @@ export function setPreviewZoom(value) {
     const frame   = document.getElementById('preview-frame');
     const preview = document.getElementById('preview');
     if (!frame || !preview || !frame.contentDocument?.body) return;
-    const savedScroll = preview.scrollTop;
-    // Update CSS zoom only
     frame.contentDocument.body.style.zoom = previewZoom / 100;
-    // Width is handled by CSS (100% of .preview-content).
-    frame.style.height = frame.contentDocument.documentElement.scrollHeight + 'px';
-    preview.scrollTop = savedScroll;
+    frame.style.height = preview.clientHeight + 'px';
+    frame.style.overflow = 'hidden auto';
     if (_lastJumpPos) scrollToJumpPos(frame, preview, _lastJumpPos);
-    const zoomInput = document.getElementById('zoom-input');
-    if (zoomInput) zoomInput.value = previewZoom;
 }

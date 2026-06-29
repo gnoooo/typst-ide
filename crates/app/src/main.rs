@@ -8,7 +8,7 @@ use std::io::ErrorKind;
 use tauri::Manager;
 use tokio::sync::Semaphore;
 use std::sync::Arc;
-use typst_ide_core::compiler::{DiagnosticInfo, PreviewResult, compile_to_pdf, compile_to_preview_html, invalidate_preview_file_cache};
+use typst_ide_core::compiler::{ClickResult, DiagnosticInfo, PreviewResult, compile_to_pdf, compile_to_preview_html, invalidate_preview_file_cache, resolve_click};
 use typst_ide_core::database::{
     history_db::{self},
     notes_db::{self, Note},
@@ -89,6 +89,25 @@ async fn render_preview(
 #[tauri::command]
 fn invalidate_file_cache() {
     invalidate_preview_file_cache();
+}
+
+/// Resolves a click on the rendered preview to a source position (line, column).
+///
+/// Runs on the blocking thread pool so it never freezes the UI even if
+/// the preview world lock is temporarily held by a concurrent compile.
+#[tauri::command]
+async fn resolve_preview_click(
+    source: String,
+    root: Option<String>,
+    page: usize,
+    x: f64,
+    y: f64,
+) -> Option<ClickResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        resolve_click(root.as_deref(), &source, page, x, y)
+    })
+    .await
+    .ok()?
 }
 
 // ###########################################################################
@@ -646,6 +665,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             render_preview,
             invalidate_file_cache,
+            resolve_preview_click,
             open_folder_dialog,
             create_project,
             open_project,

@@ -18,6 +18,9 @@ zune-inflate = { version = "0.2", default-features = false, features = [
 tar = "0.4"
 ureq = "3.2.0"
 
+# IDE support
+typst-ide = { version = "0.14.2", default-features = false }
+
 # utils
 time = "*"
 ttf-parser = "*"

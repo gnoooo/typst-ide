@@ -161,6 +161,7 @@ export async function exportPDF(content) {
  */
 function loadProject(info, setEditorContent) {
     currentProject = { name: info.name, path: info.path, typFile: info.typ_file };
+    sessionStorage.removeItem("pdf-export-path");
     // addToHistory(currentProject);
 
     // Update UI

@@ -131,6 +131,12 @@ async function main() {
     onZoomChange: updateZoomPreview,
     onSuccess: () => writeToConsole("success", "Compilation successful"),
     onError: (_diagnostics, msg) => { writeToConsole("error", msg); showConsole(); },
+    onClickRegion: (region) => {
+      editor.setPosition({ lineNumber: region.line, column: region.column });
+      editor.revealPositionInCenter({ lineNumber: region.line, column: region.column });
+      // Defer focus to let the browser finish processing the iframe click
+      setTimeout(() => editor.focus(), 0);
+    },
   });
 
   // ## Autosave ###################################################
