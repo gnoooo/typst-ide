@@ -620,6 +620,43 @@ fn font_exists(name: String) -> bool {
         .is_ok()
 }
 
+/// Returns the closest matching font family name for a given input,
+/// using Levenshtein distance. Returns `None` if no close match is found
+/// (edit distance > 5 after normalisation).
+#[tauri::command]
+fn suggest_font(name: String) -> Option<String> {
+    use std::collections::BTreeSet;
+    use std::sync::OnceLock;
+    use font_kit::source::SystemSource;
+
+    static FAMILIES: OnceLock<Vec<String>> = OnceLock::new();
+    let families = FAMILIES.get_or_init(|| {
+        let mut set = BTreeSet::new();
+        if let Ok(handles) = SystemSource::new().all_fonts() {
+            for handle in &handles {
+                if let Ok(font) = handle.load() {
+                    set.insert(font.family_name().to_string());
+                }
+            }
+        }
+        set.into_iter().collect()
+    });
+
+    let normalise = |s: &str| s.to_lowercase().replace([' ', '-', '_'], "");
+
+    let input = normalise(&name);
+
+    families
+        .iter()
+        .map(|f| {
+            let dist = strsim::levenshtein(&input, &normalise(f));
+            (f, dist)
+        })
+        .filter(|(_, d)| *d <= 5)
+        .min_by_key(|(_, d)| *d)
+        .map(|(fam, _)| fam.clone())
+}
+
 // ###########################################################################
 // Entry point
 // ###########################################################################
@@ -675,6 +712,7 @@ fn main() {
             pick_pdf_path,
             export_pdf,
             font_exists,
+            suggest_font,
             set_webview_zoom,
             read_file,
 

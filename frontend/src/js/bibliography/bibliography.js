@@ -130,6 +130,10 @@ async function createBibliographyList() {
 }
 
 export async function openBibliography() {
+  if (!getCurrentProject()) {
+    showToast("warning", "Vous devez ouvrir un projet pour gérer les bibliographies.");
+    return;
+  }
   const body = document.createElement("div");
   body.appendChild(await createBibliographyList());
 

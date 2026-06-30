@@ -9,7 +9,7 @@ import * as monaco from 'monaco-editor';
 window.monaco = monaco;
 
 import { createEditor, setEditorTheme, editorZoomIn, editorZoomOut, editorZoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily, getEditor, insertImageAtCursor } from "./editor.js";
-import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth, forceCompile } from "./preview.js";
+import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, setPreviewZoom, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth, forceCompile } from "./preview.js";
 import { initWebviewZoom, webviewZoomIn, webviewZoomOut, webviewZoomReset } from "./webview-zoom.js";
 import { initToolbar, initTheme, writeToConsole, showConsole } from "./toolbar.js";
 import { registerShortcuts } from "./shortcuts.js";
@@ -222,6 +222,14 @@ async function main() {
     updateZoomPreview();
   });
 
+  document.getElementById("zoom-preview-input")?.addEventListener("change", (e) => {
+    const val = parseInt(e.target.value, 10);
+    if (!isNaN(val)) {
+      setPreviewZoom(val);
+      updateZoomPreview();
+    }
+  });
+
   // Compile button
   document.getElementById("compile-btn")?.addEventListener("click", () => {
     forceCompile();
@@ -252,7 +260,12 @@ async function main() {
       placeholder: current || "Fira Code",
       validate: async (v) => {
         const exists = await invoke("font_exists", { name: v });
-        return exists || `Police "${v}" introuvable sur cette machine.`;
+        if (exists) return true;
+        const suggestion = await invoke("suggest_font", { name: v });
+        if (suggestion) {
+          return `Police "${v}" introuvable. Vouliez-vous dire "${suggestion}" ?`;
+        }
+        return `Police "${v}" introuvable sur cette machine.`;
       },
     });
     if (newFont !== null) {
