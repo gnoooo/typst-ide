@@ -249,11 +249,19 @@ fn find_precise_cursor_position(
         .or_else(|| {
             root.leaf_at(cursor, Side::After)
                 .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
-        })?;
+        });
+    if node.is_none() {
+        eprintln!("[cursor_jump] no Text/MathText leaf at cursor={cursor}");
+    }
+    let node = node?;
 
     let span = node.span();
     let range = node.range();
     let target_offset = cursor.saturating_sub(range.start) as u16;
+    eprintln!(
+        "[cursor_jump] node range={:?}, cursor={cursor}, target_offset={target_offset}",
+        range
+    );
 
     // Search ALL pages, pick the one with the smallest glyph offset distance.
     let mut best: Option<(u16, usize, Point)> = None;
@@ -267,7 +275,10 @@ fn find_precise_cursor_position(
         }
     }
 
-    let (_, page_idx, point) = best?;
+    let (_, page_idx, point) = best.or_else(|| {
+        eprintln!("[cursor_jump] no glyph found (span={span:?}, target_offset={target_offset})");
+        None
+    })?;
     eprintln!(
         "[cursor_jump] found at page={} x={:.1} y={:.1} (target_offset={})",
         page_idx + 1,
@@ -419,20 +430,31 @@ pub fn resolve_click(
 
     let document: PagedDocument = match typst::compile(world as &_).output {
         Ok(doc) => doc,
-        Err(_) => {
-            eprintln!("[resolve_click] compilation failed");
+        Err(errors) => {
+            eprintln!(
+                "[resolve_click] compilation failed with {} errors",
+                errors.len()
+            );
             return None;
         }
     };
+    let page_count = document.pages().len();
     let pos = PagedPosition {
         page: NonZeroUsize::new(page).or_else(|| {
-            eprintln!("[resolve_click] invalid page {page}");
+            eprintln!("[resolve_click] invalid page {page} (page_count={page_count})");
             None
         })?,
         point: Point::new(typst::layout::Abs::pt(x), typst::layout::Abs::pt(y)),
     };
-    eprintln!("[resolve_click] page={page}, click=({x:.1}, {y:.1})pt");
-    let jump = jump_from_click(world, &document, &pos)?;
+    eprintln!("[resolve_click] page={page}/{page_count}, click=({x:.1}, {y:.1})pt");
+    let jump = match jump_from_click(world, &document, &pos) {
+        Some(j) => j,
+        None => {
+            eprintln!("[resolve_click] jump_from_click returned None");
+            return None;
+        }
+    };
+    eprintln!("[resolve_click] jump_from_click returned Jump::File");
     let (file_id, offset) = match jump {
         Jump::File(id, off) => (id, off),
         Jump::Url(_url) => {
