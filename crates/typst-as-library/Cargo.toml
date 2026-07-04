@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 # typst essentials
-typst = "*"
-comemo = "*"
+typst = "0.15"
+comemo = "0.5"
 
 # Fetching and unzipping packages
 zune-inflate = { version = "0.2", default-features = false, features = [
@@ -19,15 +19,15 @@ tar = "0.4"
 ureq = "3.2.0"
 
 # IDE support
-typst-ide = { version = "0.14.2", default-features = false }
+typst-ide = { version = "0.15", default-features = false }
 
 # utils
-time = "*"
-ttf-parser = "*"
-typst-kit = { version = "*", features = ["embed-fonts"] }
+time = "0.3"
+ttf-parser = "0.21"
+typst-kit = { version = "0.15", features = ["embedded-fonts", "scan-fonts"] }
 
 [lib]
 name = "typst_as_library"
 
 [dev-dependencies]
-typst-pdf = "*"
+typst-pdf = "0.15"

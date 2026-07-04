@@ -6,7 +6,11 @@ use std::time::Instant;
 
 use serde::Serialize;
 use typst::diag::{SourceDiagnostic, Severity};
-use typst::layout::{Frame, FrameItem, PagedDocument, Point};
+use std::num::NonZeroUsize;
+
+use typst::introspection::PagedPosition;
+use typst::layout::{Frame, FrameItem, Point};
+use typst_layout::PagedDocument;
 use typst::syntax::{LinkedNode, Side, Span, SyntaxKind};
 use typst::World;
 use typst_as_library::TypstWrapperWorld;
@@ -86,13 +90,19 @@ fn collect_diagnostics(
             }
             .to_string();
             let message = d.message.to_string();
-            let hints: Vec<String> = d.hints.iter().map(|h| h.to_string()).collect();
+            let hints: Vec<String> = d.hints.iter().map(|h| h.v.to_string()).collect();
 
             // Attempt to resolve the span to a line/column in the source file
             let positions = (|| -> Option<(u32, u32, u32, u32)> {
                 let id = d.span.id()?;
                 let source = world.source(id).ok()?;
-                let range = source.range(d.span)?;
+                let range = match d.span.get() {
+                    typst::syntax::DiagSpanKind::Number { num, sub_range, .. } => {
+                        source.range(num, sub_range)?
+                    }
+                    typst::syntax::DiagSpanKind::Range { range, .. } => range,
+                    typst::syntax::DiagSpanKind::Detached => return None,
+                };
                 let text = source.text();
                 let (l, c) = byte_to_line_col(text, range.start);
                 let (el, ec) = byte_to_line_col(text, range.end);
@@ -248,7 +258,7 @@ fn find_precise_cursor_position(
     // Search ALL pages, pick the one with the smallest glyph offset distance.
     let mut best: Option<(u16, usize, Point)> = None;
 
-    for (page_idx, page) in document.pages.iter().enumerate() {
+    for (page_idx, page) in document.pages().iter().enumerate() {
         if let Some((dist, point)) = best_glyph_in_frame(&page.frame, span, target_offset) {
             let is_better = best.as_ref().map_or(true, |(d, ..)| dist < *d);
             if is_better {
@@ -351,20 +361,20 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
     let t_svg = Instant::now();
     let mut svg_guard = svg_cache().lock().unwrap();
     let pages: Vec<RenderedPage> = document
-        .pages
+        .pages()
         .iter()
         .map(|page| {
             let hash = typst_utils::hash128(page);
             let svg = svg_guard
                 .entry(hash)
-                .or_insert_with(|| typst_svg::svg(page))
+                .or_insert_with(|| typst_svg::svg(page, &typst_svg::SvgOptions { render_bleed: false, pretty: false }))
                 .clone();
             RenderedPage { svg, hash: format!("{hash:032x}") }
         })
         .collect();
     // Evict SVG cache entries for pages no longer in this document.
     let current_hashes: std::collections::HashSet<u128> =
-        document.pages.iter().map(|p| typst_utils::hash128(p)).collect();
+        document.pages().iter().map(|p| typst_utils::hash128(p)).collect();
     svg_guard.retain(|k, _| current_hashes.contains(k));
     drop(svg_guard);
     let svg_ms = t_svg.elapsed().as_millis() as u64;
@@ -414,10 +424,15 @@ pub fn resolve_click(
             return None;
         }
     };
-    let page_obj = document.pages.get(page.checked_sub(1)?)?;
-    let click = Point::new(typst::layout::Abs::pt(x), typst::layout::Abs::pt(y));
-    eprintln!("[resolve_click] page={page}, click=({x:.1}, {y:.1})pt, frame items={}", page_obj.frame.items().len());
-    let jump = jump_from_click(world, &document, &page_obj.frame, click)?;
+    let pos = PagedPosition {
+        page: NonZeroUsize::new(page).or_else(|| {
+            eprintln!("[resolve_click] invalid page {page}");
+            None
+        })?,
+        point: Point::new(typst::layout::Abs::pt(x), typst::layout::Abs::pt(y)),
+    };
+    eprintln!("[resolve_click] page={page}, click=({x:.1}, {y:.1})pt");
+    let jump = jump_from_click(world, &document, &pos)?;
     let (file_id, offset) = match jump {
         Jump::File(id, off) => (id, off),
         Jump::Url(_url) => {

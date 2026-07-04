@@ -9,17 +9,21 @@ use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Feature, Features, Library, LibraryExt};
-use typst_kit::fonts::{FontSearcher, FontSlot};
+use typst_kit::fonts::FontStore;
 
 /// Cached font search result — computed once at first compilation, reused afterwards.
 /// On Linux with many system fonts, this scan can take hundreds of milliseconds.
-static FONT_CACHE: OnceLock<(typst::text::FontBook, Arc<Vec<FontSlot>>)> = OnceLock::new();
+static FONT_STORE: OnceLock<Arc<FontStore>> = OnceLock::new();
 
-fn get_fonts() -> &'static (typst::text::FontBook, Arc<Vec<FontSlot>>) {
-    FONT_CACHE.get_or_init(|| {
-        let result = FontSearcher::new().include_system_fonts(true).search();
-        (result.book, Arc::new(result.fonts))
-    })
+fn get_fonts() -> Arc<FontStore> {
+    FONT_STORE
+        .get_or_init(|| {
+            let mut store = FontStore::new();
+            store.extend(typst_kit::fonts::embedded());
+            store.extend(typst_kit::fonts::system());
+            Arc::new(store)
+        })
+        .clone()
 }
 
 /// Main interface that determines the environment for Typst.
@@ -33,11 +37,8 @@ pub struct TypstWrapperWorld {
     /// The standard library.
     library: LazyHash<Library>,
 
-    /// Metadata about all known fonts.
-    book: LazyHash<FontBook>,
-
-    /// Metadata about all known fonts.
-    fonts: Arc<Vec<FontSlot>>,
+    /// Font store (book + lazy-loaded font data).
+    font_store: Arc<FontStore>,
 
     /// Map of all known files.
     files: Arc<Mutex<HashMap<FileId, FileEntry>>>,
@@ -55,13 +56,12 @@ pub struct TypstWrapperWorld {
 impl TypstWrapperWorld {
     pub fn new(root: String, source: String) -> Self {
         let root = PathBuf::from(root);
-        let (book, fonts) = get_fonts();
+        let font_store = get_fonts();
 
         Self {
             library: LazyHash::new(Library::default()),
-            book: LazyHash::new(book.clone()),
             root,
-            fonts: Arc::clone(fonts),
+            font_store: font_store.clone(),
             source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
@@ -101,15 +101,14 @@ impl TypstWrapperWorld {
     /// which is required to compile to `HtmlDocument` via `typst::compile`.
     pub fn new_for_html(root: String, source: String) -> Self {
         let root = PathBuf::from(root);
-        let (book, fonts) = get_fonts();
+        let font_store = get_fonts();
         let features: Features = [Feature::Html].into_iter().collect();
         let library = Library::builder().with_features(features).build();
 
         Self {
             library: LazyHash::new(library),
-            book: LazyHash::new(book.clone()),
             root,
-            fonts: Arc::clone(fonts),
+            font_store: font_store.clone(),
             source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
@@ -158,15 +157,19 @@ impl TypstWrapperWorld {
         if let Some(entry) = files.get(&id) {
             return Ok(entry.clone());
         }
-        let path = if let Some(package) = id.package() {
-            // Fetching file from package
-            let package_dir = self.download_package(package)?;
-            id.vpath().resolve(&package_dir)
-        } else {
-            // Fetching file from disk
-            id.vpath().resolve(&self.root)
-        }
-        .ok_or(FileError::AccessDenied)?;
+        let path = match id.root() {
+            typst::syntax::VirtualRoot::Package(package) => {
+                // Fetching file from package
+                let package_dir = self.download_package(package)?;
+                id.vpath().realize(&package_dir)
+                    .map_err(|_| FileError::AccessDenied)?
+            }
+            typst::syntax::VirtualRoot::Project => {
+                // Fetching file from disk
+                id.vpath().realize(&self.root)
+                    .map_err(|_| FileError::AccessDenied)?
+            }
+        };
 
         let content = std::fs::read(&path).map_err(|error| FileError::from_io(error, &path))?;
         Ok(files
@@ -252,7 +255,7 @@ impl typst::World for TypstWrapperWorld {
 
     /// Metadata about all known Books.
     fn book(&self) -> &LazyHash<FontBook> {
-        &self.book
+        self.font_store.book()
     }
 
     /// Accessing the main source file.
@@ -276,16 +279,22 @@ impl typst::World for TypstWrapperWorld {
 
     /// Accessing a specified font per index of font book.
     fn font(&self, id: usize) -> Option<Font> {
-        self.fonts[id].get()
+        self.font_store.font(id)
     }
 
     /// Get the current date.
     ///
-    /// Optionally, an offset in hours is given.
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let offset = offset.unwrap_or(0);
-        let offset = time::UtcOffset::from_hms(offset.try_into().ok()?, 0, 0).ok()?;
-        let time = self.time.checked_to_offset(offset)?;
+    /// Optionally, a timezone offset is given.
+    fn today(&self, offset: Option<typst::foundations::Duration>) -> Option<Datetime> {
+        let time = match offset {
+            Some(dur) => {
+                let td: time::Duration = dur.into();
+                let secs = td.whole_seconds();
+                let utc_offset = time::UtcOffset::from_whole_seconds(secs.try_into().ok()?).ok()?;
+                self.time.checked_to_offset(utc_offset)?
+            }
+            None => self.time,
+        };
         Some(Datetime::Date(time.date()))
     }
 }

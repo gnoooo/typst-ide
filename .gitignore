@@ -15,6 +15,9 @@ frontend/dist/vendor/
 # Tauri generated schemas
 crates/app/gen/
 
+# Build artifact mirror (ancien bug de build)
+frontend/home/
+
 # Fichiers système
 .DS_Store
 Thumbs.db
