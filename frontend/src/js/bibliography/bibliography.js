@@ -7,6 +7,88 @@ import { showToast } from '../toast.js';
 import { getCurrentProject } from "../project.js";
 import { openSources, addNewSource } from "./sources.js";
 
+let _bibEntries = [];
+let _bibContainer = null;
+
+function createSearchBar() {
+  const container = document.createElement("div");
+  container.style.display = "flex";
+  container.style.alignItems = "center";
+  container.style.gap = "6px";
+  container.style.padding = "4px 6px";
+  container.style.border = "1px solid var(--border)";
+  container.style.borderRadius = "var(--radius-sm)";
+  container.style.background = "var(--bg-input)";
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.textContent = "search";
+  icon.style.fontSize = "18px";
+  icon.style.color = "var(--text-muted)";
+  container.appendChild(icon);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Rechercher une bibliographie…";
+  input.style.flex = "1";
+  input.style.border = "none";
+  input.style.background = "transparent";
+  input.style.color = "var(--text)";
+  input.style.outline = "none";
+  input.style.fontSize = "13px";
+  container.appendChild(input);
+
+  input.addEventListener("input", () => {
+    const text = input.value.trim().toLowerCase();
+    rebuildBibList(text);
+  });
+
+  return container;
+}
+
+function rebuildBibList(filterText) {
+  const container = _bibContainer;
+  if (!container) return;
+
+  container.innerHTML = "";
+  const filtered = filterText
+    ? _bibEntries.filter(e => e.title.toLowerCase().includes(filterText))
+    : _bibEntries;
+
+  if (filtered.length === 0) {
+    container.innerHTML = filterText
+      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
+      : '<p style="color:var(--text-muted)">Aucune bibliographie.</p>';
+    return;
+  }
+
+  filtered.forEach(entry => {
+    const entryEl = document.createElement('div');
+    entryEl.className = 'bibliography-entry';
+    entryEl.innerHTML = `
+      <div class="flex gap-2">
+        <button class="bibliography-entry-btn" id="bibliography-${entry.title}">
+            <div class="bibliography-entry-btn-title">${entry.title}</div>
+        </button>
+        <div class="flex items-center gap-1 ml-2">
+          <button class="action-btn delete-bibliography-entry-btn self-center" id="delete-${entry.title}">
+            <span class="material-symbols-outlined delete-bibliography-entry-icon">delete</span>
+          </button>
+          <button class="action-btn edit-bibliography-entry-btn self-center" id="edit-${entry.title}">
+            <span class="material-symbols-outlined edit-bibliography-entry-icon">edit</span>
+          </button>
+          <button class="action-btn raw-bibliography-entry-btn self-center" id="raw-${entry.title}">
+            <span class="material-symbols-outlined raw-bibliography-entry-icon">code</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    attachBibliographyListeners(entryEl, entry);
+    container.appendChild(entryEl);
+  });
+}
+
 async function createBibliography() {
   const body = document.createElement("div");
   body.innerHTML = `
@@ -84,49 +166,9 @@ function attachBibliographyListeners(entryEl, entry) {
   rawtBtn?.addEventListener('click', () => rawBibliographyEntry(entry));
 }
 
-async function createBibliographyList() {
-  //   // Call function to get all .bib files in the current project path
-  // const entries = await invoke("get_all_bibs", { 
-  //   projectPath: getCurrentProject()?.path 
-  // });
-  // console.log(entries);
-
-  // First, synchronize the bibliography entries (files) with the database
+async function fetchBibEntries() {
   await invoke("synchronize_bibliography_entries", { projectpath: getCurrentProject()?.path });
-  console.log("Bibliography entries synchronized with the database.");
-  // Then, retrieve the bibliography entries from the database
-  const entries = await invoke("get_bibliography", { projectPath: getCurrentProject()?.path });
-
-
-  const container = document.createElement('div');
-
-  // MODIFIER POUR BIEN PARSER LE JSON RECUPÉRÉ, NOTAMMENT DATA
-  entries.forEach(entry => {
-    const entryEl = document.createElement('div');
-    entryEl.className = 'bibliography-entry';
-    entryEl.innerHTML = `
-      <div class="flex gap-2">
-        <button class="bibliography-entry-btn" id="bibliography-${entry.title}">
-            <div class="bibliography-entry-btn-title">${entry.title}</div>
-        </button>
-        <div class="flex items-center gap-1 ml-2">
-          <button class="action-btn delete-bibliography-entry-btn self-center" id="delete-${entry.title}">
-            <span class="material-symbols-outlined delete-bibliography-entry-icon">delete</span>
-          </button>
-          <button class="action-btn edit-bibliography-entry-btn self-center" id="edit-${entry.title}">
-            <span class="material-symbols-outlined edit-bibliography-entry-icon">edit</span>
-          </button>
-          <button class="action-btn raw-bibliography-entry-btn self-center" id="raw-${entry.title}">
-            <span class="material-symbols-outlined raw-bibliography-entry-icon">code</span>
-          </button>
-        </div>
-      </div>
-    `;
-
-    attachBibliographyListeners(entryEl, entry);
-    container.appendChild(entryEl);
-  });
-  return container;
+  _bibEntries = await invoke("get_bibliography", { projectPath: getCurrentProject()?.path });
 }
 
 export async function openBibliography() {
@@ -134,15 +176,29 @@ export async function openBibliography() {
     showToast("warning", "Vous devez ouvrir un projet pour gérer les bibliographies.");
     return;
   }
+
+  await fetchBibEntries();
+
   const body = document.createElement("div");
-  body.appendChild(await createBibliographyList());
+  body.style.display = "flex";
+  body.style.flexDirection = "column";
+  body.style.gap = "8px";
+
+  body.appendChild(createSearchBar());
+
+  const listContainer = document.createElement("div");
+  listContainer.id = "bib-list-container";
+  _bibContainer = listContainer;
+  body.appendChild(listContainer);
+
+  rebuildBibList("");
 
   openModal({
     title: "Bibliothèques du projet",
     body: body,
     width: window.innerWidth < 1000 ? "75%" : "50%",
     buttons: [
-      { label: "Fermer", primary: true, onClick: (close) => close() },
+      { label: "Tout fermer", primary: true, onClick: (close, closeAll) => closeAll() },
       { label: "Ajouter une bibliothèque", primary: false, onClick: async (close) => {
           await createBibliography();
           close();
@@ -196,7 +252,6 @@ async function editBibliographyEntry(entry) {
           const oldPath = entry.path;
           const newPath = `${projectPath}/${newTitle}.bib`;
 
-          // Rename the .bib file if the title changed
           if (newTitle !== entry.title) {
             await invoke("rename_file", { oldPath: oldPath, newPath: newPath });
           }
@@ -229,8 +284,6 @@ async function rawBibliographyEntry(entry) {
   textarea.style.padding = "8px";
   textarea.style.border = "1px solid var(--border-color, #ddd)";
   textarea.style.borderRadius = "4px";
-  // textarea.style.background = "var(--bg-color, #1e1e1e)";
-  // textarea.style.color = "var(--text-color, #ddd)";
   textarea.style.resize = "vertical";
   textarea.style.whiteSpace = "pre";
   textarea.style.tabSize = "2";

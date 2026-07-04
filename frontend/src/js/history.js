@@ -8,6 +8,91 @@ import { getCurrentFontFamily } from './editor.js';
 import { showToast } from './toast.js';
 import { openProjectFromPath } from './project.js';
 
+let _historyEntries = [];
+let _historyContainer = null;
+
+function createSearchBar() {
+  const container = document.createElement("div");
+  container.style.display = "flex";
+  container.style.alignItems = "center";
+  container.style.gap = "6px";
+  container.style.padding = "4px 6px";
+  container.style.border = "1px solid var(--border)";
+  container.style.borderRadius = "var(--radius-sm)";
+  container.style.background = "var(--bg-input)";
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.textContent = "search";
+  icon.style.fontSize = "18px";
+  icon.style.color = "var(--text-muted)";
+  container.appendChild(icon);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Rechercher un projet…";
+  input.style.flex = "1";
+  input.style.border = "none";
+  input.style.background = "transparent";
+  input.style.color = "var(--text)";
+  input.style.outline = "none";
+  input.style.fontSize = "13px";
+  container.appendChild(input);
+
+  input.addEventListener("input", () => {
+    const text = input.value.trim().toLowerCase();
+    rebuildHistoryList(text);
+  });
+
+  return container;
+}
+
+function rebuildHistoryList(filterText) {
+  const container = _historyContainer;
+  if (!container) return;
+
+  container.innerHTML = "";
+  const filtered = filterText
+    ? _historyEntries.filter(e =>
+        e.name.toLowerCase().includes(filterText) ||
+        e.path.toLowerCase().includes(filterText)
+      )
+    : _historyEntries;
+
+  if (filtered.length === 0) {
+    container.innerHTML = filterText
+      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
+      : '<p style="color:var(--text-muted)">Aucun projet dans l\'historique.</p>';
+    return;
+  }
+
+  filtered.forEach(entry => {
+    const entryEl = document.createElement('div');
+    entryEl.className = 'history-entry';
+    entryEl.innerHTML = `
+<span class="flex gap-2">
+    <button class="history-entry-btn" id="history-${entry.id}">
+        <div class="history-entry-btn-title">${entry.name}</div>
+        <div class="history-entry-btn-content" style="font-family: ${getCurrentFontFamily()};">${entry.path}</div>
+    </button>
+    <div class="flex items-center gap-1">
+        <button class="action-btn delete-history-entry-btn" id="delete-${entry.id}">
+            <span class="material-symbols-outlined delete-history-entry-icon">delete</span>
+        </button>
+        <button class="action-btn edit-history-entry-btn" id="edit-${entry.id}">
+            <span class="material-symbols-outlined edit-history-entry-icon">edit</span>
+        </button>
+        <button class="action-btn view-history-entry-btn" id="view-${entry.id}">
+            <span class="material-symbols-outlined view-history-entry-icon">visibility</span>
+        </button>
+    </div>
+</span>
+    `;
+
+    attachHistoryEntryListeners(entryEl, entry);
+    container.appendChild(entryEl);
+  });
+}
 
 async function createHistoryEntry() {
     const body = document.createElement('div');
@@ -36,7 +121,6 @@ async function createHistoryEntry() {
                 if (!path) return;
 
                 const name = path.split(/[/\\]/).pop();
-                // console.log('Adding history entry:', { name, path });
                 if (!name || !path) {
                     showToast("error", "Veuillez un chemin valide.");
                     return;
@@ -168,7 +252,6 @@ async function viewHistoryEntry(entry) {
 
 async function openProject(entry) {
     await openProjectFromPath(entry.path, (content) => {
-        // setEditorContent is provided by main.js at init — forward via project module
         const editor = window.__typstEditor;
         if (editor) editor.setValue(content);
     });
@@ -189,48 +272,29 @@ function attachHistoryEntryListeners(entryEl, entry) {
     viewBtn?.addEventListener('click', () => viewHistoryEntry(entry));
 }
 
-async function createHistoryList() {
-    const entries = await invoke('get_history');
-    const container = document.createElement('div');
-    entries.forEach(entry => {
-        const entryEl = document.createElement('div');
-        entryEl.className = 'history-entry';
-        entryEl.innerHTML = `
-<span class="flex gap-2">
-    <button class="history-entry-btn" id="history-${entry.id}">
-        <div class="history-entry-btn-title">${entry.name}</div>
-        <div class="history-entry-btn-content" style="font-family: ${getCurrentFontFamily()};">${entry.path}</div>
-    </button>
-    <div class="flex items-center gap-1">
-        <button class="action-btn delete-history-entry-btn" id="delete-${entry.id}">
-            <span class="material-symbols-outlined delete-history-entry-icon">delete</span>
-        </button>
-        <button class="action-btn edit-history-entry-btn" id="edit-${entry.id}">
-            <span class="material-symbols-outlined edit-history-entry-icon">edit</span>
-        </button>
-        <button class="action-btn view-history-entry-btn" id="view-${entry.id}">
-            <span class="material-symbols-outlined view-history-entry-icon">visibility</span>
-        </button>
-    </div>
-</span>
-        `;
-
-        attachHistoryEntryListeners(entryEl, entry);
-        container.appendChild(entryEl);
-    });
-    return container;
-}
-
 export async function openHistory() {
+    _historyEntries = await invoke('get_history');
+
     const body = document.createElement('div');
-    body.appendChild(await createHistoryList());
+    body.style.display = "flex";
+    body.style.flexDirection = "column";
+    body.style.gap = "8px";
+
+    body.appendChild(createSearchBar());
+
+    const listContainer = document.createElement('div');
+    listContainer.id = "history-list-container";
+    _historyContainer = listContainer;
+    body.appendChild(listContainer);
+
+    rebuildHistoryList("");
 
     openModal({
         title: "Historique des projets",
         body: body,
         width: window.innerWidth < 1000 ? '75%' : '50%',
         buttons: [
-            { label: 'Fermer', primary: true, onClick: (c) => c() },
+            { label: 'Tout fermer', primary: true, onClick: (close, closeAll) => closeAll() },
             { label: 'Ajouter un projet', primary: false, onClick: async (c) => {
                 await createHistoryEntry();
                 c();

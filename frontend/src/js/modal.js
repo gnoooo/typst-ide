@@ -52,7 +52,7 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
         const closeBtn = document.createElement('button');
         closeBtn.className = 'ide-modal-close-btn';
         closeBtn.innerHTML = '&times;';
-        closeBtn.addEventListener('click', () => closeAll());
+        closeBtn.addEventListener('click', () => close());
         header.appendChild(closeBtn);
     }
     modal.appendChild(header);
@@ -75,7 +75,7 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
             const btn = document.createElement('button');
             btn.className = primary ? 'btn' : 'btn';
             btn.textContent = label;
-            btn.addEventListener('click', () => onClick?.(close));
+            btn.addEventListener('click', () => onClick?.(close, closeAll));
             footer.appendChild(btn);
         });
         modal.appendChild(footer);

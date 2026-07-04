@@ -82,21 +82,101 @@ But as you can see, on the top left, there are two buttons blinking:
 - The blue one on the left, will prompt you to create a new project, by entering a name and a path. No worries, what you have typed so far will be saved in the created project.
 - The orange one on the right, will prompt you to open an existing project. 
 
-
 When a project is opened, or saved, the buttons will stop blinking (and the project creation button will be hidden), it's just a reminder so you open or create your project, so the auto-save feature works correctly.
 
-As you may have noticed, another button is also visible: the notepad button. This button will open a notepad windows, where you can write snippets of text that you can reuse in your Typst documents.
+### Toolbar overview
 
+The toolbar provides several tools (from left to right):
+
+| Button | Action |
+|--------|--------|
+| Disk (blinking blue) | Create a new project |
+| Opened folder (blinking orange) | Open a project in history |
+| Notepad and pencil | Open the note-bloc |
+| Folder with cog | Manage files of project |
+| **B I U** | Formatting (bold, italic, underline) |
+| **#** | Insert a struture (table, grid, rect, figure) |
+| **− 100% +** | Preview zoom |
+| **Compile** | Force recompile |
+| **Save** | Export in PDF |
+
+
+### Project file manager
+
+Accessible from the `folder_managed` button in the toolbar or via **`Edit, Manage project files`**.
+
+Displays the complete directory tree of the current project, with:
+- **Collapsible folders**: click the `>` chevron to expand or collapse folders
+- **Search bar**: filters files by name while preserving parent folders
+- **Drag & drop**: drag and drop a file or folder into another folder to move it (confirmation required)
+- **Import file**: opens the native file picker and copies the selected files into the project
+- **New folder**: creates a folder at the project root
+- **Delete**: removes a file or folder (confirmation required)
+
+Context actions (shown when hovering over a file):
+- **Images** (`.png`, `.jpg`, `.gif`, `.svg`, `.webp`): 
+    - **Insert** button (inserts `#image("path")` into the editor), 
+    - **Hover preview** (image tooltip displayed if static)
+- **Bibliographies** (`.bib`): 
+    - **Bibliography** button (opens the bibliography manager for that file)
 
 ## Notepad
 
-The notepad is a simple text editor where you can write snippets of text that you can reuse in your Typst documents.
+Accessible from the `sticky_note_2` toolbar button or via **`Edit, Open notepad`**.
 
-The notes have to scopes:
-- **Global**: notes that are available across all projects.
-- **Project**: notes that are only available in the current project.
+The Notepad lets you write reusable text snippets for your Typst documents.
 
-You can delete, edit and preview a entire note using the buttons on the right side of each note.
+Notes can have two scopes:
+- **Global**: available across all projects
+- **Project**: available only in the current project
+
+Each note provides the following actions: insert into the editor, edit, preview, and delete. 
+
+A **search bar** lets you filter notes by title or content.
+
+## Bibliography
+
+Accessible via **`Edit, Manage bibliographies`**.
+
+Lists all `.bib` files in the current project, with the following actions:
+- **Add bibliography**: creates a new `.bib` file
+- **Edit**: modify the title, style, or path
+- **Code**: edit the raw contents of the `.bib` file
+- **Delete**: remove the bibliography (confirmation required)
+
+Clicking on a bibliography opens its **references** (individual entries), where you can:
+- Add, edit, or delete references
+- Modify each reference's fields
+- Use the **search bar** to filter references by key or value
+
+## Project history
+
+Accessible from the `folder_open` toolbar button.
+
+Lists previously opened projects, with the following actions:
+- Click a project to open it in the editor
+- **Eye**: preview the `.typ` file
+- **Edit**: change the project's path
+- **Delete**: remove it from the history
+
+A **search bar** lets you filter projects by name or path.
+
+## Keyboard shortcuts
+
+| Shortcut               | Action              |
+| ---------------------- | ------------------- |
+| `Ctrl + Shift + N`     | New project         |
+| `Ctrl + Shift + O`     | Open project        |
+| `Ctrl + S`             | Save                |
+| `Ctrl + Z`             | Undo                |
+| `Ctrl + Y`             | Redo                |
+| `Ctrl + F`             | Find                |
+| `Ctrl + H`             | Replace             |
+| `Ctrl + G`             | Go to line          |
+| `Ctrl + /`             | Toggle line comment |
+| `Ctrl + E`             | Toggle console      |
+| `Ctrl + Shift + +/-/0` | Window zoom         |
+| `Ctrl + Alt + +/-/0`   | Editor zoom         |
 
 
 # Philosophy

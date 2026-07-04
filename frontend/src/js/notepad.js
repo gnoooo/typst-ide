@@ -37,6 +37,118 @@ import { openModal, showPrompt, showConfirm } from './modal.js';
 import { getCurrentFontFamily, getEditor } from './editor.js';
 import { getCurrentProject } from './project.js';
 
+let _globalNotes = [];
+let _projectNotes = [];
+let _notesContainer = null;
+
+function createSearchBar() {
+  const container = document.createElement("div");
+  container.style.display = "flex";
+  container.style.alignItems = "center";
+  container.style.gap = "6px";
+  container.style.padding = "4px 6px";
+  container.style.border = "1px solid var(--border)";
+  container.style.borderRadius = "var(--radius-sm)";
+  container.style.background = "var(--bg-input)";
+
+  const icon = document.createElement("span");
+  icon.className = "material-symbols-outlined";
+  icon.textContent = "search";
+  icon.style.fontSize = "18px";
+  icon.style.color = "var(--text-muted)";
+  container.appendChild(icon);
+
+  const input = document.createElement("input");
+  input.type = "text";
+  input.placeholder = "Rechercher une note…";
+  input.style.flex = "1";
+  input.style.border = "none";
+  input.style.background = "transparent";
+  input.style.color = "var(--text)";
+  input.style.outline = "none";
+  input.style.fontSize = "13px";
+  container.appendChild(input);
+
+  input.addEventListener("input", () => {
+    const text = input.value.trim().toLowerCase();
+    rebuildNotesList(text);
+  });
+
+  return container;
+}
+
+function rebuildNotesList(filterText) {
+  const container = _notesContainer;
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const filterNote = (note) => !filterText ||
+    note.title.toLowerCase().includes(filterText) ||
+    note.content.toLowerCase().includes(filterText);
+
+  const hasGlobal = _globalNotes.some(filterNote);
+  const hasProject = _projectNotes.some(filterNote);
+
+  if (!hasGlobal && !hasProject) {
+    container.innerHTML = filterText
+      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
+      : '<p>Aucune note pour le moment.</p>';
+    return;
+  }
+
+  if (hasGlobal) {
+    const globalTitle = document.createElement('h2');
+    globalTitle.textContent = 'Notes globales';
+    globalTitle.style.fontSize = '1rem';
+    globalTitle.style.fontWeight = 'bold';
+    container.appendChild(globalTitle);
+    _globalNotes.filter(filterNote).forEach(note => {
+      const noteEl = buildNoteElement(note);
+      attachNoteListeners(noteEl, note);
+      container.appendChild(noteEl);
+    });
+  }
+
+  if (hasProject) {
+    const projectTitle = document.createElement('h2');
+    projectTitle.textContent = 'Notes du projet';
+    projectTitle.style.fontSize = '1rem';
+    projectTitle.style.fontWeight = 'bold';
+    container.appendChild(projectTitle);
+    _projectNotes.filter(filterNote).forEach(note => {
+      const noteEl = buildNoteElement(note);
+      attachNoteListeners(noteEl, note);
+      container.appendChild(noteEl);
+    });
+  }
+}
+
+function buildNoteElement(note) {
+  const noteEl = document.createElement('div');
+  noteEl.className = 'note-item';
+  noteEl.innerHTML = `
+<span class="flex gap-2">
+    <button class="note-btn" id="note-${note.id}">
+        <div class="note-btn-title">${note.title}</div>
+        <div class="note-btn-content" style="font-family: ${getCurrentFontFamily()};">${note.content}</div>
+    </button>
+    <div class="flex items-center gap-1">
+        <button class="action-btn delete-note-btn" id="delete-${note.id}">
+            <span class="material-symbols-outlined delete-note-icon">delete</span>
+        </button>
+        <button class="action-btn edit-note-btn" id="edit-${note.id}">
+            <span class="material-symbols-outlined edit-note-icon">edit</span>
+        </button>
+        <button class="action-btn view-note-btn" id="view-${note.id}">
+            <span class="material-symbols-outlined view-note-icon">visibility</span>
+        </button>
+    </div>
+</span>
+  `;
+  return noteEl;
+}
+
 /**
  * Open the note creation modal
  */
@@ -213,112 +325,34 @@ function attachNoteListeners(noteEl, note) {
     viewBtn.addEventListener('click', () => viewNote(note));
 }
 
-async function createNotesList() {
-    // const notes = await invoke('get_all_notes');
-    let globalNotes = await invoke('get_global_notes');
-    let projectNotes = [];
-    const currentProject = getCurrentProject();
-    if (currentProject !== null) {
-        projectNotes = await invoke('get_project_notes', { projectPath: currentProject.path });
-    }
-    const container = document.createElement('div');
-    if (globalNotes.length + projectNotes.length === 0) {
-        container.innerHTML = '<p>Aucune note pour le moment.</p>';
-    } else {
-        if (globalNotes.length > 0) {
-            const globalTitle = document.createElement('h2');
-            globalTitle.textContent = 'Notes globales';
-            globalTitle.style.fontSize = '1rem';
-            globalTitle.style.fontWeight = 'bold';
-            container.appendChild(globalTitle);
-            globalNotes.forEach(note => {
-                const noteEl = document.createElement('div');
-                noteEl.className = 'note-item';
-                // noteEl.innerHTML = `
-                //     <h3>${note.title}</h3>
-                //     <p>${note.content}</p>
-                //     <small>Portée: ${note.scope}</small>
-                // `;
-                noteEl.innerHTML = `
-<span class="flex gap-2">
-    <button class="note-btn" id="note-${note.id}">
-        <div class="note-btn-title">${note.title}</div>
-        <div class="note-btn-content" style="font-family: ${getCurrentFontFamily()};">${note.content}</div>
-    </button>
-    <div class="flex items-center gap-1">
-        <button class="action-btn delete-note-btn" id="delete-${note.id}">
-            <span class="material-symbols-outlined delete-note-icon">delete</span>
-        </button>
-        <button class="action-btn edit-note-btn" id="edit-${note.id}">
-            <span class="material-symbols-outlined edit-note-icon">edit</span>
-        </button>
-        <button class="action-btn view-note-btn" id="view-${note.id}">
-            <span class="material-symbols-outlined view-note-icon">visibility</span>
-        </button>
-    </div>
-</span>
-                `;
-                // Attach event listeners
-                attachNoteListeners(noteEl, note);
-                container.appendChild(noteEl);
-            });
-        }
-
-        if(currentProject !== null) {
-            if (projectNotes.length > 0) {
-                const projectTitle = document.createElement('h2');
-                projectTitle.textContent = 'Notes du projet';
-                projectTitle.style.fontSize = '1rem';
-                projectTitle.style.fontWeight = 'bold';
-                container.appendChild(projectTitle);
-                projectNotes.forEach(note => {
-                    const noteEl = document.createElement('div');
-                    noteEl.className = 'note-item';
-                    // noteEl.innerHTML = `
-                    //     <h3>${note.title}</h3>
-                    //     <p>${note.content}</p>
-                    //     <small>Portée: ${note.scope}</small>
-                    // `;
-                    noteEl.innerHTML = `
-<span class="flex gap-2">
-    <button class="note-btn" id="note-${note.id}">
-        <div class="note-btn-title">${note.title}</div>
-        <div class="note-btn-content" style="font-family: ${getCurrentFontFamily()};">${note.content}</div>
-    </button>
-    <div class="flex items-center gap-1">
-        <button class="delete-note-btn" id="delete-${note.id}">
-            <span class="material-symbols-outlined delete-note-icon">delete</span>
-        </button>
-        <button class="edit-note-btn" id="edit-${note.id}">
-            <span class="material-symbols-outlined edit-note-icon">edit</span>
-        </button>
-        <button class="view-note-btn" id="view-${note.id}">
-            <span class="material-symbols-outlined view-note-icon">visibility</span>
-        </button>
-    </div>
-</span>
-                    `;
-                    // Attach event listeners
-                    attachNoteListeners(noteEl, note);
-
-                    container.appendChild(noteEl);
-                });
-            }
-        }
-    }
-    return container;
-}
-
 /**
  * Open a modal to show all the notes
  */
 export async function openNotepad() {
-    const content = document.createElement('div');
-    content.appendChild(await createNotesList());
+    _globalNotes = await invoke('get_global_notes');
+    _projectNotes = [];
+    const currentProject = getCurrentProject();
+    if (currentProject !== null) {
+        _projectNotes = await invoke('get_project_notes', { projectPath: currentProject.path });
+    }
+
+    const body = document.createElement('div');
+    body.style.display = "flex";
+    body.style.flexDirection = "column";
+    body.style.gap = "8px";
+
+    body.appendChild(createSearchBar());
+
+    const listContainer = document.createElement('div');
+    listContainer.id = "notes-list-container";
+    _notesContainer = listContainer;
+    body.appendChild(listContainer);
+
+    rebuildNotesList("");
 
     openModal({
         title: 'Bloc-notes',
-        body: content,
+        body: body,
         width: window.innerWidth < 1000 ? '75%' : '50%',
         buttons: [
             { label: 'Ajouter une note', primary: true, onClick: (close) => {

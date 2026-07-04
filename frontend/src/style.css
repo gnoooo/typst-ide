@@ -1271,7 +1271,79 @@ div.flex.items-center.gap-1>button.action-btn:first-child {
 }
 
 /* #################################################################
-   13. Generic Buttons (Modals, etc.)
+   13. File Tree
+   ################################################################# */
+.file-tree-root {
+    font-size: 13px;
+    user-select: none;
+}
+
+.file-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    border-radius: var(--radius-sm);
+    cursor: default;
+    transition: background var(--transition-fast);
+}
+.file-tree-row:hover {
+    background: var(--bg-hover);
+}
+
+.file-tree-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.file-tree-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.file-tree-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-fast), background var(--transition-fast);
+}
+.file-tree-action-btn:hover {
+    color: var(--text);
+    background: var(--bg-hover);
+}
+.file-tree-action-btn[title="Supprimer"]:hover {
+    color: var(--error-text);
+}
+.file-tree-action-btn[title="Insérer"]:hover {
+    color: var(--success-text);
+}
+
+.file-tree-children {
+    margin-left: 4px;
+    border-left: 1px solid var(--border);
+}
+
+#manage-files-btn {
+    padding: 2px 6px 0 6px;
+}
+#manage-files-icon {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+/* #################################################################
+   14. Generic Buttons (Modals, etc.)
    ################################################################# */
 .btn {
     padding: 6px 14px;

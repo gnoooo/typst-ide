@@ -18,6 +18,7 @@ import { openModal, showPrompt } from "./modal.js";
 import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
+import { openFileManager } from './manage_files/manage_files.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 
@@ -190,9 +191,12 @@ async function main() {
   bindMenuAction("open-project-btn", () => openHistory());
 
   // Notepad buttons
-  bindMenuAction("notepad-btn", () => {
-    openNotepad();
-  });
+  bindMenuAction("open-notepad", () => openNotepad());
+  bindMenuAction("notepad-btn", () => openNotepad());
+
+  // File manager buttons
+  bindMenuAction("manage-files-btn", () => openFileManager());
+  bindMenuAction("manage-project-files", () => openFileManager());
 
   // Change style of text
   bindMenuAction("bold-btn", () => getEditor().getAction("typst-bold")?.run());

@@ -212,6 +212,150 @@ fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
     std::fs::rename(&old_path, &new_path).map_err(|e| e.to_string())
 }
 
+#[derive(Serialize)]
+struct FileEntry {
+    name: String,
+    /// Relative path from the project root (e.g. "images/photo.png")
+    relative_path: String,
+    is_dir: bool,
+    size: u64,
+    extension: String,
+}
+
+/// Lists all files and directories recursively inside `dir_path`.
+/// Returns a flat list; the frontend builds the tree from relative paths.
+#[tauri::command]
+fn list_directory(dir_path: String) -> Result<Vec<FileEntry>, String> {
+    let root = std::path::PathBuf::from(&dir_path);
+    if !root.is_dir() {
+        return Err("Le chemin n'est pas un dossier.".to_string());
+    }
+    let mut entries = Vec::new();
+    collect_entries(&root, &root, &mut entries)?;
+    // Sort: directories first, then alphabetical
+    entries.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            b.is_dir.cmp(&a.is_dir)
+        } else {
+            a.name.cmp(&b.name)
+        }
+    });
+    Ok(entries)
+}
+
+fn collect_entries(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<FileEntry>) -> Result<(), String> {
+    let read_dir = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
+    for entry in read_dir {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+        let name = entry
+            .file_name()
+            .to_string_lossy()
+            .into_owned();
+        // Skip hidden files/dirs that start with '.'
+        if name.starts_with('.') {
+            continue;
+        }
+        let relative = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .into_owned();
+        let ext = if path.is_file() {
+            path.extension()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned()
+        } else {
+            String::new()
+        };
+        out.push(FileEntry {
+            name,
+            relative_path: relative,
+            is_dir: path.is_dir(),
+            size: metadata.len(),
+            extension: ext,
+        });
+        if path.is_dir() {
+            collect_entries(root, &path, out)?;
+        }
+    }
+    Ok(())
+}
+
+/// Creates a directory (including parents if needed)
+#[tauri::command]
+fn create_dir(dir_path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&dir_path).map_err(|e| e.to_string())
+}
+
+/// Deletes a file or directory (recursively)
+#[tauri::command]
+fn delete_file_or_dir(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if p.is_dir() {
+        std::fs::remove_dir_all(&path).map_err(|e| e.to_string())
+    } else {
+        std::fs::remove_file(&path).map_err(|e| e.to_string())
+    }
+}
+
+/// Reads an image file and returns it as a base64 data URL
+#[tauri::command]
+fn read_image_as_base64(path: String) -> Result<String, String> {
+    use base64::Engine;
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    // Infer MIME type from extension
+    let ext = std::path::Path::new(&path)
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_lowercase();
+    let mime = match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "svg" | "svgz" => "image/svg+xml",
+        "webp" => "image/webp",
+        "bmp" => "image/bmp",
+        "ico" => "image/x-icon",
+        _ => "image/png",
+    };
+    let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+    Ok(format!("data:{mime};base64,{b64}"))
+}
+
+/// Opens a native file picker (multi-select), copies selected files into `dest_dir`.
+/// Returns the list of filenames that were copied.
+#[tauri::command]
+async fn import_file_dialog(dest_dir: String) -> Result<Vec<String>, String> {
+    let files = tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Importer des fichiers")
+            .pick_files()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Aucun fichier sélectionné.".to_string())?;
+
+    let dest = std::path::PathBuf::from(&dest_dir);
+    let mut imported = Vec::new();
+    for src_path in &files {
+        let name = src_path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        let dest_path = dest.join(&name);
+        std::fs::copy(src_path, &dest_path).map_err(|e| {
+            format!("Impossible de copier {} : {}", name, e)
+        })?;
+        imported.push(name);
+    }
+    Ok(imported)
+}
+
 /// Saves a `data:image/...;base64,...` payload as a file in `<project>/images/`
 /// Returns the relative path to use in Typst (e.g. `images/pasted-123.png`)
 #[tauri::command]
@@ -708,6 +852,11 @@ fn main() {
             open_project,
             save_file,
             rename_file,
+            list_directory,
+            create_dir,
+            delete_file_or_dir,
+            import_file_dialog,
+            read_image_as_base64,
             save_data_image,
             pick_pdf_path,
             export_pdf,
