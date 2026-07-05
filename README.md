@@ -14,10 +14,11 @@ A modern local Typst editor (not a lie anymore, since Electron has been replaced
 ## Users
 Check out the [releases](https://github.com/gnoooo/typst-ide/releases) page for the latest version.
 
-Currently, there is two versions available: 
-- Linux with AppImage (may not work well, there can be compatibility issues due to graphical backends)
-- Windows with setup executable
-- Maybe MacOS in the future? 
+Currently, there are 4 versions available:
+- **Debian/Ubuntu**: `.deb` file
+- **Fedora/Red Hat**: `.rpm` file
+- **ArchLinux**: PKGBUILD (clone the repo + `makepkg -si`)
+- **Other**: AppImage **DOES NOT WORK, PROBLEM WITH WEBKIT BUNDLED** 
 
 ## Developers
 ### Prerequisites
