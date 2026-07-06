@@ -14,16 +14,38 @@ depends=(
   'glib2'
   'gtk3'
   'hicolor-icon-theme'
-  'libsoup'
+  'libsoup3'
   'pango'
-  'webkit2gtk-4.1'
+  'webkit2gtk'
 )
-options=('!strip' '!emptydirs')
-source_x86_64=("${url}/releases/download/v${pkgver}/typst-ide_${pkgver}_amd64.deb")
-sha256sums_x86_64=('SKIP')
+makedepends=(
+  'cargo'
+  'nodejs'
+  'npm'
+  'pkg-config'
+)
+options=('!strip')
+source=("${url}/archive/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "${srcdir}/${pkgname}-v${pkgver}"
+
+  cd frontend
+  npm ci
+  npm run build
+  cd ..
+
+  cd crates/app
+  cargo build --release --frozen
+}
 
 package() {
-  tar -xf data.tar.zst -C "${pkgdir}" 2>/dev/null \
-    || tar -xf data.tar.xz -C "${pkgdir}" 2>/dev/null \
-    || tar -xf data.tar.gz -C "${pkgdir}"
+  cd "${srcdir}/${pkgname}-v${pkgver}"
+
+  install -Dm755 "crates/app/target/release/app" "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm644 "typst-ide.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
+  install -Dm644 "crates/app/icons/32x32.png" "${pkgdir}/usr/share/icons/hicolor/32x32/apps/${pkgname}.png"
+  install -Dm644 "crates/app/icons/128x128.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/${pkgname}.png"
+  install -Dm644 "crates/app/icons/128x128@2x.png" "${pkgdir}/usr/share/icons/hicolor/256x256/apps/${pkgname}.png"
 }
