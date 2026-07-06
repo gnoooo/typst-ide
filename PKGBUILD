@@ -29,7 +29,7 @@ source=("${url}/archive/v${pkgver}.tar.gz")
 sha256sums=('SKIP')
 
 build() {
-  cd "${srcdir}/${pkgname}-v${pkgver}"
+  cd "${srcdir}/${pkgname}-${pkgver}"
 
   cd frontend
   npm ci
@@ -41,7 +41,7 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/${pkgname}-v${pkgver}"
+  cd "${srcdir}/${pkgname}-${pkgver}"
 
   install -Dm755 "crates/app/target/release/app" "${pkgdir}/usr/bin/${pkgname}"
   install -Dm644 "typst-ide.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
