@@ -16,7 +16,6 @@ depends=(
   'hicolor-icon-theme'
   'libsoup3'
   'pango'
-  'webkit2gtk'
 )
 makedepends=(
   'cargo'
@@ -37,7 +36,7 @@ build() {
   cd ..
 
   cd crates/app
-  cargo build --release --frozen
+  cargo build --release
 }
 
 package() {
