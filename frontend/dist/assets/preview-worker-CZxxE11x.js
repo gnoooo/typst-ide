@@ -1,1 +1,0 @@
-(function(){let e=null;self.onmessage=function(t){let{type:n,html:r,id:i}=t.data;if(n===`createBlob`){e&&=(URL.revokeObjectURL(e),null);let t=new Blob([r],{type:`text/html;charset=utf-8`});e=URL.createObjectURL(t),self.postMessage({type:`blobReady`,url:e,id:i})}n===`revoke`&&(e&&=(URL.revokeObjectURL(e),null))}})();

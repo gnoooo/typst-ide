@@ -42,8 +42,8 @@ build() {
   npm run build
   cd ..
 
-  export CFLAGS="${CFLAGS}/-flto=auto"
-  export RUSTFLAGS="${RUSTFLAGS}/-C linker=cc -C link-arg=-Wl,--no-as-needed"
+  export CFLAGS="${CFLAGS/-flto=auto}"
+  export RUSTFLAGS="${RUSTFLAGS:-} -C linker=cc -C link-arg=-Wl,--no-as-needed"
 
   cargo build --release -p app
 }
