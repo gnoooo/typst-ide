@@ -1,6 +1,7 @@
 
 
 const { invoke } = window.__TAURI__.core;
+import { t } from '../../i18n/index.js';
 
 import { openModal, showConfirm } from "../modal.js";
 import { showToast } from '../toast.js';
@@ -29,7 +30,7 @@ function createSearchBar() {
 
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "Rechercher une bibliographie…";
+  input.placeholder = t('bib.search');
   input.style.flex = "1";
   input.style.border = "none";
   input.style.background = "transparent";
@@ -57,8 +58,8 @@ function rebuildBibList(filterText) {
 
   if (filtered.length === 0) {
     container.innerHTML = filterText
-      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
-      : '<p style="color:var(--text-muted)">Aucune bibliographie.</p>';
+      ? `<p style="color:var(--text-muted)">${t('bib.no_results')}</p>`
+      : `<p style="color:var(--text-muted)">${t('bib.no_entries')}</p>`;
     return;
   }
 
@@ -94,17 +95,17 @@ async function createBibliography() {
   body.innerHTML = `
     <div class="bibliography-entry-form">
         <div>
-          <p id="bibliography-entry-title">Titre de la bibliographie</p>
-          <input id="bibliography-entry-title-input" type="text" placeholder="Nom de la bib" style="width:100%;" required/>
+          <p id="bibliography-entry-title">${t('bib.title_label')}</p>
+          <input id="bibliography-entry-title-input" type="text" placeholder="${t('bib.title_placeholder')}" style="width:100%;" required/>
         </div>
 
         <div class="flex gap-2 items-center">
           <input id="bibliography-entry-full-input" type="checkbox" value="full" required/>
-          <label id="bibliography-entry-full">Afficher toute la bibliographie en entier</label>
+          <label id="bibliography-entry-full">${t('bib.full_checkbox')}</label>
         </div>
 
         <div>
-          <p id="bibliography-entry-style">Style de la bibliographie</p>
+          <p id="bibliography-entry-style">${t('bib.style_label')}</p>
           <select id="bibliography-entry-style-input" style="width:100%;" required>
             <option value="ieee" selected>IEEE</option>
           </select>
@@ -112,12 +113,12 @@ async function createBibliography() {
     </div>
   `;
   openModal({
-    title: "Ajouter une bibliographie",
+    title: t('bib.add_title'),
     body: body,
     width: "50%",
     buttons: [
-      { label: "Annuler", primary: false, onclick: (close) => close() },
-      { label: "Ajouter", primary: true, onClick: async (close) => {
+      { label: t('modal.cancel'), primary: false, onclick: (close) => close() },
+      { label: t('modal.add'), primary: true, onClick: async (close) => {
         const title = body.querySelector("#bibliography-entry-title-input").value;
         const projectPath = getCurrentProject().path;
         const filepath = `${projectPath}/${title}.bib`;
@@ -128,20 +129,20 @@ async function createBibliography() {
           const created = await invoke("create_bib_file_if_missing", { filepath });
           let inserted = false;
           if (!created) {
-            showToast("error", "Erreur lors de la création du fichier .bib.");
+            showToast("error", t('bib.create_file_error'));
             return;
           } else {
             inserted = await invoke("add_bibliography_entry", { title, path: filepath, projectPath, full, style })
           }
 
           if (inserted) {
-            showToast("success", "Bibliothèque créée !");
+            showToast("success", t('bib.created'));
             close();
           } else {
-            showToast("error", "Cette bibliothèque existe déjà.");
+            showToast("error", t('bib.exists'));
           }
         } catch (err) {
-          showToast("error", "Erreur lors de la création de la bibliothèque : " + err);
+          showToast("error", t('bib.create_error', { error: err }));
         }
       }}
     ]
@@ -173,7 +174,7 @@ async function fetchBibEntries() {
 
 export async function openBibliography() {
   if (!getCurrentProject()) {
-    showToast("warning", "Vous devez ouvrir un projet pour gérer les bibliographies.");
+    showToast("warning", t('bib.no_project'));
     return;
   }
 
@@ -194,12 +195,12 @@ export async function openBibliography() {
   rebuildBibList("");
 
   openModal({
-    title: "Bibliothèques du projet",
+    title: t('bib.title'),
     body: body,
     width: window.innerWidth < 1000 ? "75%" : "50%",
     buttons: [
-      { label: "Tout fermer", primary: true, onClick: (close, closeAll) => closeAll() },
-      { label: "Ajouter une bibliothèque", primary: false, onClick: async (close) => {
+      { label: t('modal.close_all'), primary: true, onClick: (close, closeAll) => closeAll() },
+      { label: t('bib.add_title'), primary: false, onClick: async (close) => {
           await createBibliography();
           close();
         }},
@@ -221,28 +222,28 @@ async function editBibliographyEntry(entry) {
   body.innerHTML = `
     <div class="bibliography-entry-form">
         <div>
-          <p id="bibliography-entry-title">Titre de la bibliographie</p>
-          <input id="bibliography-entry-title-input" type="text" placeholder="Nom de la bib" style="width:100%;" value="${entry.title}" required/>
+          <p id="bibliography-entry-title">${t('bib.title_label')}</p>
+          <input id="bibliography-entry-title-input" type="text" placeholder="${t('bib.title_placeholder')}" style="width:100%;" value="${entry.title}" required/>
         </div>
 
         <div class="flex gap-2 items-center">
           <input id="bibliography-entry-full-input" type="checkbox" value="full" ${entry.full ? 'checked' : ''}/>
-          <label id="bibliography-entry-full">Afficher toute la bibliographie en entier</label>
+          <label id="bibliography-entry-full">${t('bib.full_checkbox')}</label>
         </div>
 
         <div>
-          <p id="bibliography-entry-style">Style de la bibliographie</p>
-          <input id="bibliography-entry-style-input" type="text" placeholder="Style" style="width:100%;" value="${entry.style}" required/>
+          <p id="bibliography-entry-style">${t('bib.style_label')}</p>
+          <input id="bibliography-entry-style-input" type="text" placeholder="${t('bib.style_placeholder')}" style="width:100%;" value="${entry.style}" required/>
         </div>
     </div>
   `;
   openModal({
-    title: "Modifier une bibliographie",
+    title: t('bib.edit_title'),
     body: body,
     width: "50%",
     buttons: [
-      { label: "Annuler", primary: false, onClick: (close) => close() },
-      { label: "Modifier", primary: true, onClick: async (close) => {
+      { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
+      { label: t('modal.edit'), primary: true, onClick: async (close) => {
         const newTitle = body.querySelector("#bibliography-entry-title-input").value;
         const full = body.querySelector("#bibliography-entry-full-input").checked ? true : false;
         const style = body.querySelector("#bibliography-entry-style-input").value;
@@ -264,10 +265,10 @@ async function editBibliographyEntry(entry) {
             full
           });
 
-          showToast("success", "Bibliographie modifiée !");
+          showToast("success", t('bib.updated'));
           close();
         } catch (err) {
-          showToast("error", "Erreur lors de la modification : " + err);
+          showToast("error", t('bib.update_error', { error: err }));
         }
       }}
     ]
@@ -292,25 +293,25 @@ async function rawBibliographyEntry(entry) {
     const content = await invoke("read_file", { path: entry.path });
     textarea.value = content;
   } catch (err) {
-    showToast("error", "Erreur lors de la lecture du fichier : " + err);
+    showToast("error", t('bib.read_error', { error: err }));
     return;
   }
 
   body.appendChild(textarea);
 
   openModal({
-    title: `Édition brute — ${entry.path.split('/').pop()}`,
+    title: t('bib.raw_edit_title', { name: entry.path.split('/').pop() }),
     body: body,
     width: "80%",
     buttons: [
-      { label: "Annuler", primary: false, onClick: (close) => close() },
-      { label: "Enregistrer", primary: true, onClick: async (close) => {
+      { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
+      { label: t('modal.save'), primary: true, onClick: async (close) => {
         try {
           await invoke("save_file", { path: entry.path, content: textarea.value });
-          showToast("success", "Fichier enregistré.");
+          showToast("success", t('bib.file_saved'));
           close();
         } catch (err) {
-          showToast("error", "Erreur lors de l'enregistrement : " + err);
+          showToast("error", t('bib.file_save_error', { error: err }));
         }
       }}
     ],
@@ -319,13 +320,13 @@ async function rawBibliographyEntry(entry) {
 
 async function deleteBibliographyEntry(entryId) {
     const confirmed = await showConfirm({
-        title: "Supprimer l'entrée",
-        message: "Êtes-vous sûr de vouloir supprimer cette bibliographie ? Cette action est irréversible.",
+        title: t('bib.delete_title'),
+        message: t('bib.delete_message'),
     });
     if (confirmed) {
         await invoke('delete_bibliography_entry', { id: entryId });
         closeBibliography();
-        showToast("success", "Bibliographie supprimée.");
+        showToast("success", t('bib.deleted'));
         openBibliography();
     };
 }

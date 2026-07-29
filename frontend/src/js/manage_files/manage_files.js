@@ -1,6 +1,7 @@
 
 const { invoke } = window.__TAURI__.core;
 
+import { t } from '../../i18n/index.js'
 import { openModal, showConfirm, showPrompt } from "../modal.js";
 import { showToast } from "../toast.js";
 import { getCurrentProject } from "../project.js";
@@ -13,7 +14,7 @@ let _dragRelativePath = "";
 
 export async function openFileManager() {
   if (!getCurrentProject()) {
-    showToast("warning", "Vous devez ouvrir un projet pour gérer les fichiers.");
+    showToast("warning", t('file.no_project'));
     return;
   }
 
@@ -37,14 +38,14 @@ export async function openFileManager() {
   await refreshTree(treeContainer);
 
   openModal({
-    title: "Fichiers du projet",
+    title: t('file.title'),
     body,
     width: "65%",
     height: "70%",
     buttons: [
-      { label: "Tout fermer", primary: true, onClick: (close, closeAll) => closeAll() },
-      { label: "Importer un fichier", primary: false, onClick: () => handleImport(treeContainer) },
-      { label: "Nouveau dossier", primary: false, onClick: () => handleCreateFolder(treeContainer) },
+      { label: t('modal.close_all'), primary: true, onClick: (close, closeAll) => closeAll() },
+      { label: t('modal.import_file'), primary: false, onClick: () => handleImport(treeContainer) },
+      { label: t('modal.new_folder'), primary: false, onClick: () => handleCreateFolder(treeContainer) },
     ],
   });
 }
@@ -68,7 +69,7 @@ function createSearchBar() {
 
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "Rechercher un fichier…";
+  input.placeholder = t('file.search');
   input.style.flex = "1";
   input.style.border = "none";
   input.style.background = "transparent";
@@ -92,7 +93,7 @@ async function refreshTree(container) {
 
   container.innerHTML = "";
   const loading = document.createElement("p");
-  loading.textContent = "Chargement...";
+  loading.textContent = t('file.loading');
   loading.style.color = "var(--text-muted)";
   container.appendChild(loading);
 
@@ -100,7 +101,7 @@ async function refreshTree(container) {
     _projectFiles = await invoke("list_directory", { dirPath: project.path });
     rebuildTreeView(container);
   } catch (err) {
-    container.innerHTML = `<p style="color:var(--error-text)">Erreur : ${err}</p>`;
+    container.innerHTML = `<p style="color:var(--error-text)">${t('file.error', { error: err })}</p>`;
   }
 }
 
@@ -123,8 +124,8 @@ function rebuildTreeView(container) {
 
   if (files.length === 0) {
     container.innerHTML = _filterText
-      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
-      : '<p style="color:var(--text-muted)">Le projet est vide.</p>';
+      ? `<p style="color:var(--text-muted)">${t('file.no_results')}</p>`
+      : `<p style="color:var(--text-muted)">${t('file.empty_project')}</p>`;
     return;
   }
 
@@ -242,7 +243,7 @@ function renderNode(node, allFiles, depth, container) {
 
     const actions = document.createElement("span");
     actions.className = "file-tree-actions";
-    actions.appendChild(createActionBtn("delete", "Supprimer", () => handleDelete(node.relative_path, li, row, container)));
+    actions.appendChild(createActionBtn("delete", t('modal.delete'), () => handleDelete(node.relative_path, li, row, container)));
     actions.style.visibility = "hidden";
     actions.style.pointerEvents = "none";
 
@@ -270,7 +271,7 @@ function renderNode(node, allFiles, depth, container) {
           });
         } else {
           const empty = document.createElement("p");
-          empty.textContent = "(dossier vide)";
+          empty.textContent = t('file.empty_folder');
           empty.style.color = "var(--text-muted)";
           empty.style.marginLeft = `${(depth + 1) * 20}px`;
           empty.style.fontSize = "12px";
@@ -314,21 +315,21 @@ function renderNode(node, allFiles, depth, container) {
 
     const imageExts = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
     if (imageExts.includes(node.extension)) {
-      actions.appendChild(createActionBtn("add_photo_alternate", "Insérer", (e) => {
+      actions.appendChild(createActionBtn("add_photo_alternate", t('modal.insert'), (e) => {
         e.stopPropagation();
         insertImageAtCursor(node.relative_path);
-        showToast("success", `Image insérée : ${node.relative_path}`);
+        showToast("success", t('file.insert_image', { path: node.relative_path }));
       }));
       setupImagePreview(row, node.relative_path);
     }
     if (node.extension === "bib") {
-      actions.appendChild(createActionBtn("menu_book", "Bibliographie", (e) => {
+      actions.appendChild(createActionBtn("menu_book", t('bib.title'), (e) => {
         e.stopPropagation();
         const project = getCurrentProject();
         if (project) openSources(`${project.path}/${node.relative_path}`);
       }));
     }
-    actions.appendChild(createActionBtn("delete", "Supprimer", () => handleDelete(node.relative_path, li, row, container)));
+    actions.appendChild(createActionBtn("delete", t('modal.delete'), () => handleDelete(node.relative_path, li, row, container)));
 
     row.appendChild(icon);
     row.appendChild(nameSpan);
@@ -446,10 +447,10 @@ async function handleDrop(relPath, targetRelPath, container) {
   if (relPath === newRelPath) return;
 
   const confirmed = await showConfirm({
-    title: "Déplacer",
-    message: `Déplacer "${relPath}" vers "${newRelPath}" ?`,
-    confirmLabel: "Déplacer",
-    cancelLabel: "Annuler",
+    title: t('modal.move'),
+    message: t('file.move_message', { source: relPath, dest: newRelPath }),
+    confirmLabel: t('modal.move'),
+    cancelLabel: t('modal.cancel'),
   });
   if (!confirmed) return;
 
@@ -459,10 +460,10 @@ async function handleDrop(relPath, targetRelPath, container) {
       newPath: `${project.path}/${newRelPath}`,
     });
     await invoke("invalidate_file_cache");
-    showToast("success", `"${relPath}" déplacé.`);
+    showToast("success", t('file.moved', { name: relPath }));
     await refreshTree(container);
   } catch (err) {
-    showToast("error", `Erreur lors du déplacement : ${err}`);
+    showToast("error", t('file.move_error', { error: err }));
   }
 }
 
@@ -474,12 +475,12 @@ async function handleImport(container) {
     const imported = await invoke("import_file_dialog", { destDir: project.path });
     if (imported && imported.length > 0) {
       await invoke("invalidate_file_cache");
-      showToast("success", `${imported.length} fichier(s) importé(s).`);
+      showToast("success", t('file.imported', { count: imported.length }));
       await refreshTree(container);
     }
   } catch (err) {
     if (!err.includes("Aucun fichier sélectionné")) {
-      showToast("error", `Erreur d'import : ${err}`);
+      showToast("error", t('file.import_error', { error: err }));
     }
   }
 }
@@ -489,20 +490,20 @@ async function handleCreateFolder(container) {
   if (!project) return;
 
   const name = await showPrompt({
-    title: "Nouveau dossier",
-    label: "Nom du dossier",
-    placeholder: "images",
-    validate: (v) => /[<>:"/\\|?*]/.test(v) ? "Le nom contient des caractères invalides." : true,
+    title: t('file.new_folder_title'),
+    label: t('file.new_folder_label'),
+    placeholder: t('file.new_folder_placeholder'),
+    validate: (v) => /[<>:"/\\|?*]/.test(v) ? t('file.new_folder_invalid') : true,
   });
   if (!name) return;
 
   try {
     await invoke("create_dir", { dirPath: `${project.path}/${name}` });
     await invoke("invalidate_file_cache");
-    showToast("success", `Dossier "${name}" créé.`);
+    showToast("success", t('file.folder_created', { name }));
     await refreshTree(container);
   } catch (err) {
-    showToast("error", `Erreur : ${err}`);
+    showToast("error", t('file.folder_error', { error: err }));
   }
 }
 
@@ -511,20 +512,20 @@ async function handleDelete(relativePath, li, row, container) {
   if (!project) return;
 
   const confirmed = await showConfirm({
-    title: "Supprimer",
-    message: `Supprimer "${relativePath}" ? Cette action est irréversible.`,
-    confirmLabel: "Supprimer",
-    cancelLabel: "Annuler",
+    title: t('file.delete_title'),
+    message: t('file.delete_message', { name: relativePath }),
+    confirmLabel: t('modal.delete'),
+    cancelLabel: t('modal.cancel'),
   });
   if (!confirmed) return;
 
   try {
     await invoke("delete_file_or_dir", { path: `${project.path}/${relativePath}` });
     await invoke("invalidate_file_cache");
-    showToast("success", `"${relativePath}" supprimé.`);
+    showToast("success", t('file.deleted', { name: relativePath }));
     _projectFiles = _projectFiles.filter(f => f.relative_path !== relativePath && !f.relative_path.startsWith(relativePath + "/"));
     li.remove();
   } catch (err) {
-    showToast("error", `Erreur : ${err}`);
+    showToast("error", t('file.delete_error', { error: err }));
   }
 }

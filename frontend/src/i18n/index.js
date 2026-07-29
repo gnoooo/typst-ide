@@ -23,6 +23,7 @@ export function setLang(lang) {
   if (!locales[lang]) return
   currentLang = lang
   localStorage.setItem('lang', lang)
+  document.documentElement.lang = lang
   applyI18n()
 }
 
@@ -55,5 +56,6 @@ export function applyI18n(root = document) {
 export function initI18n() {
   currentLang = localStorage.getItem('lang') || 'fr'
   if (!locales[currentLang]) currentLang = 'fr'
+  document.documentElement.lang = currentLang
   applyI18n()
 }

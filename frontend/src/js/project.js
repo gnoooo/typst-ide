@@ -5,6 +5,7 @@
  * saving to disk, and exposing the current project state to the app
  */
 
+import { t } from '../i18n/index.js'
 import { showToast } from './toast.js';
 import { showPrompt } from './modal.js';
 
@@ -82,7 +83,7 @@ async function flushSave(content) {
         pendingSave = false;
         notifySaveIndicator(false);
     } catch (err) {
-        showToast('error', `Erreur de sauvegarde : ${err}`);
+        showToast('error', t('project.save_error', { error: err }));
     }
 }
 
@@ -126,11 +127,11 @@ export function notifySaveIndicator(unsaved) {
     if (unsaved) {
         el.textContent = '●';
         el.classList.add('unsaved');
-        el.title = 'Non sauvegardé';
+        el.title = t('toolbar.unsaved');
     } else {
         el.textContent = '✓';
         el.classList.remove('unsaved');
-        el.title = 'Sauvegardé';
+        el.title = t('toolbar.saved');
     }
 }
 
@@ -149,7 +150,7 @@ export async function exportPDF(content) {
         a.remove();
         URL.revokeObjectURL(url);
     } catch (err) {
-        showToast('error', `Erreur lors de l'export PDF : ${err}`);
+        showToast('error', t('project.pdf_error', { error: err }));
     }
 }
 
@@ -182,7 +183,7 @@ function loadProject(info, setEditorContent) {
 const INVALID_NAME = /[<>:"/\\|?*]/;
 function validateName(v) {
     return INVALID_NAME.test(v)
-        ? 'Le nom ne peut pas contenir : < > : " / \\ | ? *'
+        ? t('project.name_invalid')
         : true;
 }
 
@@ -193,9 +194,9 @@ function validateName(v) {
  */
 export async function createNewProject(setEditorContent, content = '') {
     const name = await showPrompt({
-        title: 'Nouveau projet',
-        label: 'Nom du projet',
-        placeholder: 'Mon projet',
+        title: t('project.new_title'),
+        label: t('project.name_label'),
+        placeholder: t('project.name_placeholder'),
         validate: validateName,
     });
     if (!name) return;
@@ -209,9 +210,9 @@ export async function createNewProject(setEditorContent, content = '') {
             { name, path: projectPath, typ_file: 'main.typ', content: content },
             setEditorContent,
         );
-        showToast('success', `Projet "${name}" créé.`);
+        showToast('success', t('project.created', { name }));
     } catch (err) {
-        showToast('error', `Impossible de créer le projet : ${err}`);
+        showToast('error', t('project.create_error', { error: err }));
     }
 }
 
@@ -226,9 +227,9 @@ export async function openProject(setEditorContent) {
     try {
         const info = await invoke('open_project', { dirPath });
         loadProject(info, setEditorContent);
-        showToast('success', `Projet "${info.name}" ouvert.`);
+        showToast('success', t('project.opened', { name: info.name }));
     } catch (err) {
-        showToast('error', `Erreur lors de l'ouverture : ${err}`);
+        showToast('error', t('project.open_error', { error: err }));
     }
 }
 
@@ -236,8 +237,8 @@ export async function openProjectFromPath(dirPath, setEditorContent) {
     try {
         const info = await invoke('open_project', { dirPath });
         loadProject(info, setEditorContent);
-        showToast('success', `Projet "${info.name}" ouvert.`);
+        showToast('success', t('project.opened', { name: info.name }));
     } catch (err) {
-        showToast('error', `Erreur lors de l'ouverture de "${dirPath}" : ${err}`);
+        showToast('error', t('project.open_error_path', { path: dirPath, error: err }));
     }
 }

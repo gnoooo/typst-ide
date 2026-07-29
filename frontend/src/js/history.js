@@ -3,6 +3,7 @@
 const { invoke } = window.__TAURI__.core;
 
 
+import { t, getLang } from '../i18n/index.js'
 import { openModal, showConfirm } from './modal.js';
 import { getCurrentFontFamily } from './editor.js';
 import { showToast } from './toast.js';
@@ -30,7 +31,7 @@ function createSearchBar() {
 
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "Rechercher un projet…";
+  input.placeholder = t('history.search');
   input.style.flex = "1";
   input.style.border = "none";
   input.style.background = "transparent";
@@ -61,8 +62,8 @@ function rebuildHistoryList(filterText) {
 
   if (filtered.length === 0) {
     container.innerHTML = filterText
-      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
-      : '<p style="color:var(--text-muted)">Aucun projet dans l\'historique.</p>';
+      ? `<p style="color:var(--text-muted)">${t('history.no_results')}</p>`
+      : `<p style="color:var(--text-muted)">${t('history.no_history')}</p>`;
     return;
   }
 
@@ -98,9 +99,9 @@ async function createHistoryEntry() {
     const body = document.createElement('div');
     body.innerHTML = `
 <div class="history-entry-form>
-    <p id="history-entry-name">Veuillez choisir le chemin du projet</p>
-    <button id="history-entry-path-btn" class="ide-button tool-btn">Choisir un dossier</button>
-    <div><sub class="history-entry-path"><input id="history-entry-path-input" type="text" placeholder="Aucun chemin sélectionné" style="width:100%;"/></sub></div>
+    <p id="history-entry-name">${t('history.select_path')}</p>
+    <button id="history-entry-path-btn" class="ide-button tool-btn">${t('modal.choose_folder')}</button>
+    <div><sub class="history-entry-path"><input id="history-entry-path-input" type="text" placeholder="${t('history.no_path')}" style="width:100%;"/></sub></div>
 </div>
     `;
     let path;
@@ -112,30 +113,30 @@ async function createHistoryEntry() {
     });
 
     openModal({
-        title: "Ajouter un projet",
+        title: t('history.add_title'),
         body: body,
         width: '50%',
         buttons: [
-            { label: 'Annuler',    primary: false, onClick: (c) => c() },
-            { label: 'Ajouter', primary: true,  onClick: async (c) => {
+            { label: t('modal.cancel'),    primary: false, onClick: (c) => c() },
+            { label: t('modal.add'), primary: true,  onClick: async (c) => {
                 if (!path) return;
 
                 const name = path.split(/[/\\]/).pop();
                 if (!name || !path) {
-                    showToast("error", "Veuillez un chemin valide.");
+                    showToast("error", t('history.invalid_path'));
                     return;
                 }
 
                 try {
                     const inserted = await invoke('add_history_entry', { name, path });
                     if (inserted) {
-                        showToast("success", "Projet ajouté à l'historique !");
+                        showToast("success", t('history.added'));
                         c();
                     } else {
-                        showToast("error", "Ce projet existe déjà dans l'historique.");
+                        showToast("error", t('history.exists'));
                     }
                 } catch (err) {
-                    showToast("error", "Erreur lors de l'ajout à l'historique : " + err);
+                    showToast("error", t('history.add_error', { error: err }));
                 }
             }}
         ],
@@ -144,13 +145,13 @@ async function createHistoryEntry() {
 
 async function deleteHistoryEntry(entryId) {
     const confirmed = await showConfirm({
-        title: "Supprimer l'entrée",
-        message: "Êtes-vous sûr de vouloir supprimer cette entrée de l'historique ? Cette action est irréversible.",
+        title: t('history.delete_title'),
+        message: t('history.delete_message'),
     });
     if (confirmed) {
         await invoke('delete_history_entry', { id: entryId });
         closeHistory();
-        showToast("success", "Entrée supprimée de l'historique.");
+        showToast("success", t('history.deleted'));
         openHistory();
     };
 }
@@ -159,9 +160,9 @@ async function editHistoryEntry(entry) {
     const body = document.createElement('div');
     body.innerHTML = `
 <div class="history-entry-form>
-    <p id="history-entry-name">Veuillez choisir le chemin du projet</p>
-    <button id="history-entry-path-btn" class="ide-button tool-btn">Choisir un dossier</button>
-    <div><sub class="history-entry-path"><input id="history-entry-path-input" type="text" value="${entry.path}" placeholder="Aucun chemin sélectionné" style="width:100%;"/></sub></div>
+    <p id="history-entry-name">${t('history.select_path')}</p>
+    <button id="history-entry-path-btn" class="ide-button tool-btn">${t('modal.choose_folder')}</button>
+    <div><sub class="history-entry-path"><input id="history-entry-path-input" type="text" value="${entry.path}" placeholder="${t('history.no_path')}" style="width:100%;"/></sub></div>
 </div>
     `;
     let newPath;
@@ -173,15 +174,15 @@ async function editHistoryEntry(entry) {
     });
 
     openModal({
-        title: "Modifier l'entrée",
+        title: t('history.edit_title'),
         body: body,
         width: '50%',
         buttons: [
-            { label: 'Annuler',    primary: false, onClick: (c) => c() },
-            { label: 'Enregistrer', primary: true,  onClick: async (close) => {
+            { label: t('modal.cancel'),    primary: false, onClick: (c) => c() },
+            { label: t('modal.save'), primary: true,  onClick: async (close) => {
                 const newName = body.querySelector('#history-entry-path-input').value.trim();
                 if (!newName || !newPath) {
-                    showToast("error", "Le nom et le chemin ne peuvent pas être vides.");
+                    showToast("error", t('history.empty_fields'));
                     return;
                 }
                 try {
@@ -190,12 +191,12 @@ async function editHistoryEntry(entry) {
                         name: newName,
                         path: newPath
                     });
-                    showToast("success", "Entrée de l'historique mise à jour !");
+                    showToast("success", t('history.updated'));
                     close();
                     closeHistory();
                     openHistory();
                 } catch (err) {
-                    showToast("error", "Erreur lors de la mise à jour de l'entrée : " + err);
+                    showToast("error", t('history.update_error', { error: err }));
                 }
             }}
         ],
@@ -203,23 +204,24 @@ async function editHistoryEntry(entry) {
 }
 
 async function viewHistoryEntry(entry) {
+    const locale = getLang() === 'fr' ? 'fr-FR' : 'en-US'
     const createdAt = new Date(entry.created_at);
-    const createdAtDate = createdAt.toLocaleDateString("fr-FR", {
+    const createdAtDate = createdAt.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
     });
-    const createdAtTime = createdAt.toLocaleTimeString("fr-FR", {
+    const createdAtTime = createdAt.toLocaleTimeString(locale, {
         hour: '2-digit',
         minute: '2-digit',
     });
     const updatedAt = new Date(entry.updated_at);
-    const updatedAtDate = updatedAt.toLocaleDateString("fr-FR", {
+    const updatedAtDate = updatedAt.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
     });
-    const updatedAtTime = updatedAt.toLocaleTimeString("fr-FR", {
+    const updatedAtTime = updatedAt.toLocaleTimeString(locale, {
         hour: '2-digit',
         minute: '2-digit',
     });
@@ -229,21 +231,21 @@ async function viewHistoryEntry(entry) {
       const info = await invoke('open_project', { dirPath: entry.path });
       content = info.content;
     } catch (err) {
-      content = "(Impossible de lire le fichier source : " + err + ")";
+      content = t('history.preview_unreadable', { error: err });
     }
 
     const body = document.createElement('div');
     body.innerHTML = `
 <div id="note-preview-metadata">
-    <p>Chemin : ${entry.path}</p>
-    <p>Nom : ${entry.name}</p>
-    <p>Crée le ${createdAtDate} à ${createdAtTime}</p>
-    <p>Dernière modification le ${updatedAtDate} à ${updatedAtTime}</p>
+    <p>${t('history.path_label', { path: entry.path })}</p>
+    <p>${t('history.name_label', { name: entry.name })}</p>
+    <p>${t('notepad.created_at', { date: createdAtDate, time: createdAtTime })}</p>
+    <p>${t('notepad.updated_at', { date: updatedAtDate, time: updatedAtTime })}</p>
 </div>
 <div id="note-preview-content" style="font-family:${getCurrentFontFamily()};">${content}</div>
     `;
     openModal({
-        title: "Aperçu du projet",
+        title: t('history.preview_title'),
         body: body,
         width: '75%',
         buttons: [],
@@ -290,12 +292,12 @@ export async function openHistory() {
     rebuildHistoryList("");
 
     openModal({
-        title: "Historique des projets",
+        title: t('history.title'),
         body: body,
         width: window.innerWidth < 1000 ? '75%' : '50%',
         buttons: [
-            { label: 'Tout fermer', primary: true, onClick: (close, closeAll) => closeAll() },
-            { label: 'Ajouter un projet', primary: false, onClick: async (c) => {
+            { label: t('modal.close_all'), primary: true, onClick: (close, closeAll) => closeAll() },
+            { label: t('history.add_title'), primary: false, onClick: async (c) => {
                 await createHistoryEntry();
                 c();
             }},

@@ -5,6 +5,7 @@
  * ## API
  */
 
+import { t } from '../i18n/index.js'
 import { getCurrentFontFamily, getEditor } from './editor'
 import { openModal } from './modal';
 import { showToast } from './toast';
@@ -14,16 +15,16 @@ export const STRUCT_ELEMENTS = [
     id: 'table',
     content: '#table',
     classes: '',
-    title: 'Tableau',
+    title: t('structures.table'),
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
         <div id="structures-table-modal">
-          <p class="structures-input-label">Dimensions</p>
-          <div class="flex items-center w-full" style="margin-bottom: 8px">
-            <div class="flex items-center flex-none gap-2">
-              <input
-                id="structures-table-input-cols"
+          <p class="structures-input-label">${t('structures.dimensions')}</p>
+           <div class="flex items-center w-full" style="margin-bottom: 8px">
+             <div class="flex items-center flex-none gap-2">
+               <input
+                 id="structures-table-input-cols"
                 type="number"
                 placeholder="cols"
                 min="1"
@@ -45,7 +46,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
 
-          <p class="structures-input-label">Marge intérieure</p>
+          <p class="structures-input-label">${t('structures.inset')}</p>
           <div class="flex items-center w-full" style="margin-bottom: 8px">
             <div class="flex items-center gap-2 flex-none">
               <input
@@ -71,7 +72,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
 
-          <p class="structures-input-label">Alignement horizontal</p>
+          <p class="structures-input-label">${t('structures.align_h')}</p>
           <div class="flex items-center w-full" style="margin-bottom: 8px">
             <select
               id="structures-table-input-horizontal-align"
@@ -86,7 +87,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
 
-          <p class="structures-input-label">Alignement vertical</p>
+          <p class="structures-input-label">${t('structures.align_v')}</p>
           <div class="flex items-center w-full" style="margin-bottom: 8px">
             <select
               id="structures-table-input-vertical-align"
@@ -107,11 +108,11 @@ export const STRUCT_ELEMENTS = [
         </div>
       `;
       openModal({
-        title: 'Insérer un tableau',
+        title: t('structures.insert_table'),
         body: body,
         buttons: [
           {
-            label: 'Insérer',
+            label: t('modal.insert'),
             primary: true,
             onClick: () => {
               // get all values from the form
@@ -162,12 +163,12 @@ export const STRUCT_ELEMENTS = [
     id: 'grid',
     content: '#grid',
     classes: '',
-    title: 'Grille pour placer les éléments',
+    title: t('structures.grid'),
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
       <div id="structures-grid-modal">
-        <p class="structures-input-label">Dimensions</p>
+        <p class="structures-input-label">${t('structures.dimensions')}</p>
         <div class="flex items-center w-full" style="margin-bottom: 8px">
           <div class="flex items-center flex-none gap-2">
             <input
@@ -193,7 +194,7 @@ export const STRUCT_ELEMENTS = [
           </div>
         </div>
 
-        <p class="structures-input-label">Marge intérieure</p>
+        <p class="structures-input-label">${t('structures.inset')}</p>
         <div class="flex items-center w-full" style="margin-bottom: 8px">
           <div class="flex items-center gap-2 flex-none">
             <input
@@ -219,7 +220,7 @@ export const STRUCT_ELEMENTS = [
           </div>
         </div>
 
-        <p class="structures-input-label">Alignement horizontal</p>
+        <p class="structures-input-label">${t('structures.align_h')}</p>
         <div class="flex items-center w-full" style="margin-bottom: 8px">
           <select
             id="structures-grid-input-horizontal-align"
@@ -234,7 +235,7 @@ export const STRUCT_ELEMENTS = [
           </div>
         </div>
 
-        <p class="structures-input-label">Alignement vertical</p>
+        <p class="structures-input-label">${t('structures.align_v')}</p>
         <div class="flex items-center w-full" style="margin-bottom: 8px">
           <select
             id="structures-grid-input-vertical-align"
@@ -256,11 +257,11 @@ export const STRUCT_ELEMENTS = [
       </div>
             `;
       openModal({
-        title: 'Insérer une grille',
+        title: t('structures.insert_grid'),
         body: body,
         buttons: [
           {
-            label: 'Insérer',
+            label: t('modal.insert'),
             primary: true,
             onClick: () => {
               // get all values from the form
@@ -311,12 +312,12 @@ export const STRUCT_ELEMENTS = [
     id: 'rect',
     content: '#rect',
     classes: '',
-    title: 'Rectangle',
+    title: t('structures.rect'),
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
         <div id="structures-rect-modal">
-          <p class="structures-input-label">Dimensions</p>
+          <p class="structures-input-label">${t('structures.dimensions')}</p>
           <div class="flex items-center w-full" style="margin-bottom: 8px">
             <div class="flex items-center flex-none gap-2">
               <input
@@ -360,7 +361,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
 
-          <p class="structures-input-label">Marge intérieure</p>
+          <p class="structures-input-label">${t('structures.inset')}</p>
           <div class="flex items-center w-full" style="margin-bottom: 8px">
             <div class="flex items-center gap-2 flex-none">
               <input
@@ -386,7 +387,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
 
-          <p class="structures-input-label">Bordure</p>
+          <p class="structures-input-label">${t('structures.border')}</p>
           <div class="flex items-center w-full gap-2" style="margin-bottom: 8px">
             <input
               id="structures-rect-input-border"
@@ -435,7 +436,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
 
-          <p class="structures-input-label">Remplissage</p>
+          <p class="structures-input-label">${t('structures.fill')}</p>
           <div class="flex items-center w-full gap-2" style="margin-bottom: 8px">
             <input type="checkbox" id="structures-rect-checkbox-fill" class="w-6 h-6 mb-2" />
             <input
@@ -466,11 +467,11 @@ export const STRUCT_ELEMENTS = [
       });
 
       openModal({
-        title: 'Insérer un rectangle',
+        title: t('structures.insert_rect'),
         body: body,
         buttons: [
           {
-            label: 'Insérer',
+            label: t('modal.insert'),
             primary: true,
             onClick: () => {
               // get all values from the form
@@ -519,16 +520,16 @@ export const STRUCT_ELEMENTS = [
     id: 'figure',
     content: '#figure',
     classes: '',
-    title: 'Image avec légende',
+    title: t('structures.figure'),
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
         <div id="structures-rect-modal">
-          <p class="structures-input-label">Non implémenté</p>
+          <p class="structures-input-label">${t('structures.not_implemented')}</p>
         </div>
       `;
       openModal({
-        title: 'Image avec légende',
+        title: t('structures.insert_figure'),
         body: body,
         buttons: [],
       });

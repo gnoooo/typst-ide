@@ -21,11 +21,18 @@ import { openBibliography } from './bibliography/bibliography.js';
 import { openFileManager } from './manage_files/manage_files.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
+import { t, initI18n, setLang } from '../i18n/index.js'
 
 async function main() {
+  initI18n()
+
+  document.querySelectorAll('[data-lang]').forEach(btn => {
+    btn.addEventListener('click', () => setLang(btn.dataset.lang))
+  })
+
   if (!window.__TAURI__) {
     document.body.innerHTML =
-      '<p style="color:red;padding:1rem">Tauri API non disponible.</p>';
+      `<p style="color:red;padding:1rem">${t('error.tauri_api_unavailable')}</p>`;
     return;
   }
 
@@ -74,7 +81,7 @@ async function main() {
       const project = getCurrentProject();
       if (!project?.path) {
         event.preventDefault();
-        writeToConsole("error", "Ouvre un projet avant de coller une image.");
+        writeToConsole("error", t('toast.image_paste_no_project'));
         showConsole();
         return;
       }
@@ -87,11 +94,11 @@ async function main() {
         });
 
         insertImageAtCursor(relativePath);
-        writeToConsole("info", `Image enregistrée: ${relativePath}`);
+        writeToConsole("info", t('toast.image_saved', { path: relativePath }));
         // console.info(`[paste-image] saved to ${project.path}/${relativePath}`);
       } catch (error) {
         // console.error("[paste-image] save_data_image failed", error);
-        writeToConsole("error", `Erreur collage image: ${String(error)}`);
+        writeToConsole("error", t('toast.image_paste_error', { error: String(error) }));
         showConsole();
       } finally {
         _pasteInFlight = false;
@@ -130,7 +137,7 @@ async function main() {
     onDiagnostics: (diagnostics) => applyMonacoMarkers(editor, diagnostics),
     autoFit: true,
     onZoomChange: updateZoomPreview,
-    onSuccess: () => writeToConsole("success", "Compilation successful"),
+    onSuccess: () => writeToConsole("success", t('toast.compile_success')),
     onError: (_diagnostics, msg) => { writeToConsole("error", msg); showConsole(); },
     onClickRegion: (region) => {
       editor.setPosition({ lineNumber: region.line, column: region.column });
@@ -258,18 +265,17 @@ async function main() {
     const { invoke } = window.__TAURI__.core;
     const current = getCurrentFontFamily();
     const newFont = await showPrompt({
-      title: "Changer la police de l'éditeur",
-      label:
-        'Nom de la police (ex: "Fira Code", "JetBrains Mono", "Cascadia Mono")',
-      placeholder: current || "Fira Code",
+      title: t('font.change_title'),
+      label: t('font.prompt_label'),
+      placeholder: current || t('font.placeholder'),
       validate: async (v) => {
         const exists = await invoke("font_exists", { name: v });
         if (exists) return true;
         const suggestion = await invoke("suggest_font", { name: v });
         if (suggestion) {
-          return `Police "${v}" introuvable. Vouliez-vous dire "${suggestion}" ?`;
+          return t('font.not_found_suggestion', { name: v, suggestion });
         }
-        return `Police "${v}" introuvable sur cette machine.`;
+        return t('font.not_found', { name: v });
       },
     });
     if (newFont !== null) {
@@ -425,7 +431,7 @@ async function savePdf(editor) {
       path,
       root: getCurrentProject()?.path ?? null,
     });
-    writeToConsole("success", `PDF exporté : ${path}`);
+    writeToConsole("success", t('project.pdf_exported', { path }));
   } catch (err) {
     writeToConsole("error", String(err));
     showConsole();

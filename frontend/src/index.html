@@ -36,11 +36,11 @@
                 <div class="navbar-menu">
                     <!-- Fichier -->
                     <div class="menu-item">
-                        <button class="menu-trigger">Fichier</button>
+                        <button class="menu-trigger" data-i18n="menu.file">Fichier</button>
                         <ul class="dropdown">
                             <li>
                                 <button id="new-project">
-                                    Nouveau projet
+                                    <span data-i18n="menu.new_project">Nouveau projet</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">shift</kbd>
@@ -50,7 +50,7 @@
                             </li>
                             <li>
                                 <button id="open-project">
-                                    Ouvrir un projet
+                                    <span data-i18n="menu.open_project">Ouvrir un projet</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">shift</kbd>
@@ -63,11 +63,11 @@
 
                     <!-- Édition -->
                     <div class="menu-item">
-                        <button class="menu-trigger">Édition</button>
+                        <button class="menu-trigger" data-i18n="menu.edit">Édition</button>
                         <ul class="dropdown">
                             <li>
                                 <button id="action-undo">
-                                    Annuler
+                                    <span data-i18n="menu.undo">Annuler</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">Z</kbd>
@@ -76,7 +76,7 @@
                             </li>
                             <li>
                                 <button id="action-redo">
-                                    Rétablir
+                                    <span data-i18n="menu.redo">Rétablir</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">Y</kbd>
@@ -86,7 +86,7 @@
                             <li class="separator"></li>
                             <li>
                                 <button id="action-search">
-                                    Chercher
+                                    <span data-i18n="menu.search">Chercher</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">F</kbd>
@@ -95,7 +95,7 @@
                             </li>
                             <li>
                                 <button id="action-replace">
-                                    Remplacer
+                                    <span data-i18n="menu.replace">Remplacer</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">H</kbd>
@@ -104,7 +104,7 @@
                             </li>
                             <li>
                                 <button id="action-goto">
-                                    Aller à la ligne
+                                    <span data-i18n="menu.goto_line">Aller à la ligne</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">G</kbd>
@@ -113,7 +113,7 @@
                             </li>
                             <li>
                                 <button id="action-comment">
-                                    Commenter la ligne
+                                    <span data-i18n="menu.comment_line">Commenter la ligne</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">/</kbd>
@@ -122,17 +122,17 @@
                             </li>
                             <li class="separator"/>
                             <li>
-                                <button id="open-notepad">
+                                <button id="open-notepad" data-i18n="menu.open_notepad">
                                     Ouvrir le bloc-note
                                 </button>
                             </li>
                             <li>
-                                <button id="manage-project-files">
+                                <button id="manage-project-files" data-i18n="menu.manage_files">
                                     Gérer les fichiers du projet
                                 </button>
                             </li>
                             <li>
-                                <button id="manage-bibliography">
+                                <button id="manage-bibliography" data-i18n="menu.manage_bibliography">
                                     Gérer les bibliographies
                                 </button>
                             </li>
@@ -141,11 +141,11 @@
 
                     <!-- Vue -->
                     <div class="menu-item">
-                        <button class="menu-trigger">Vue</button>
+                        <button class="menu-trigger" data-i18n="menu.view">Vue</button>
                         <ul class="dropdown">
                             <li>
                                 <button id="webview-zoom-in">
-                                    Agrandir
+                                    <span data-i18n="menu.zoom_in">Agrandir</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">shift</kbd>
@@ -155,7 +155,7 @@
                             </li>
                             <li>
                                 <button id="webview-zoom-out">
-                                    Rétrécir
+                                    <span data-i18n="menu.zoom_out">Rétrécir</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">shift</kbd>
@@ -165,7 +165,7 @@
                             </li>
                             <li>
                                 <button id="webview-zoom-reset">
-                                    Réinitialiser
+                                    <span data-i18n="menu.zoom_reset">Réinitialiser</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">shift</kbd>
@@ -176,7 +176,7 @@
                             <li class="separator"></li>
                             <li>
                                 <button id="editor-zoom-in">
-                                    Agrandir l'éditeur
+                                    <span data-i18n="menu.editor_zoom_in">Agrandir l'éditeur</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">alt</kbd>
@@ -186,7 +186,7 @@
                             </li>
                             <li>
                                 <button id="editor-zoom-out">
-                                    Rétrécir l'éditeur
+                                    <span data-i18n="menu.editor_zoom_out">Rétrécir l'éditeur</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">alt</kbd>
@@ -196,7 +196,7 @@
                             </li>
                             <li>
                                 <button id="editor-zoom-reset">
-                                    Réinitialiser l'éditeur
+                                    <span data-i18n="menu.editor_zoom_reset">Réinitialiser l'éditeur</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">alt</kbd>
@@ -207,7 +207,7 @@
                             <li class="separator"></li>
                             <li>
                                 <button id="toggle-console">
-                                    Console
+                                    <span data-i18n="menu.console">Console</span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">E</kbd>
@@ -222,7 +222,7 @@
                                         id="auto-compile"
                                         checked
                                     />
-                                    Auto-compilation
+                                    <span data-i18n="menu.auto_compile">Auto-compilation</span>
                                 </label>
                             </li>
                         </ul>
@@ -230,23 +230,32 @@
 
                     <!-- Aide -->
                     <div class="menu-item">
-                        <button class="menu-trigger">Aide</button>
+                        <button class="menu-trigger" data-i18n="menu.help">Aide</button>
                         <ul class="dropdown">
                             <li>
-                                <button id="editor-fontfamily-btn">
+                                <button id="editor-fontfamily-btn" data-i18n="menu.change_font">
                                     Changer la police de l'éditeur
                                 </button>
                             </li>
                             <li class="separator"></li>
+                            <li class="separator"></li>
+                            <li>
+                                <button class="menu-trigger" data-i18n="menu.language">Langue</button>
+                                <ul class="dropdown">
+                                    <li><button data-lang="fr" data-i18n="lang.french">Français</button></li>
+                                    <li><button data-lang="en" data-i18n="lang.english">English</button></li>
+                                </ul>
+                            </li>
+                            <li class="separator"></li>
                             <li>
                                 <button onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/')">
-                                    Documentation Typst
+                                    <span data-i18n="menu.docs_typst">Documentation Typst</span>
                                     <span class="material-symbols-outlined" style="font-size: 16px">open_in_new</span>
                                 </button>
                             </li>
                             <li>
                                 <button onclick="window.__TAURI__.opener.openUrl('https://github.com/gnoooo/typst-ide')">
-                                    Repo officiel de Typst IDE
+                                    <span data-i18n="menu.official_repo">Repo officiel de Typst IDE</span>
                                     <span class="material-symbols-outlined" style="font-size: 16px">open_in_new</span>
                                 </button>
                             </li>
@@ -310,16 +319,16 @@
                 </div>
 
                 <div id="preview-manage-btn" class="flex gap-2 justify-end">
-                    <button class="tool-btn" id="compile-btn">Compiler</button>
-                    <button class="tool-btn" id="save-btn">Save</button>
+                    <button class="tool-btn" id="compile-btn" data-i18n="toolbar.compile">Compiler</button>
+                    <button class="tool-btn" id="save-btn" data-i18n="toolbar.save">Save</button>
                 </div>
             </div>
 
             <!-- ## Output console ####################################### -->
             <div id="output-console" class="output-console hidden">
                 <div class="console-header">
-                    <span>Console de compilation</span>
-                    <button id="close-console" title="Fermer">&#x2715;</button>
+                    <span data-i18n="console.title">Console de compilation</span>
+                    <button id="close-console" data-i18n-title="console.close" title="Fermer">&#x2715;</button>
                 </div>
                 <div id="console-content" class="console-content"></div>
             </div>

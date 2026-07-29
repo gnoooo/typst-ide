@@ -1,5 +1,6 @@
 {
   "app.name": "Typst IDE",
+  "error.tauri_api_unavailable": "Tauri API not available.",
 
   "menu.file": "File",
   "menu.new_project": "New Project",

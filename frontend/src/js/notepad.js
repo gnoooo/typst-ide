@@ -33,6 +33,7 @@
  */
 const { invoke } = window.__TAURI__.core;
 
+import { t, getLang } from '../i18n/index.js'
 import { openModal, showPrompt, showConfirm } from './modal.js';
 import { getCurrentFontFamily, getEditor } from './editor.js';
 import { getCurrentProject } from './project.js';
@@ -60,7 +61,7 @@ function createSearchBar() {
 
   const input = document.createElement("input");
   input.type = "text";
-  input.placeholder = "Rechercher une note…";
+  input.placeholder = t('notepad.search');
   input.style.flex = "1";
   input.style.border = "none";
   input.style.background = "transparent";
@@ -92,14 +93,14 @@ function rebuildNotesList(filterText) {
 
   if (!hasGlobal && !hasProject) {
     container.innerHTML = filterText
-      ? '<p style="color:var(--text-muted)">Aucun résultat.</p>'
-      : '<p>Aucune note pour le moment.</p>';
+      ? `<p style="color:var(--text-muted)">${t('notepad.no_results')}</p>`
+      : `<p>${t('notepad.no_notes')}</p>`;
     return;
   }
 
   if (hasGlobal) {
     const globalTitle = document.createElement('h2');
-    globalTitle.textContent = 'Notes globales';
+    globalTitle.textContent = t('notepad.global_notes');
     globalTitle.style.fontSize = '1rem';
     globalTitle.style.fontWeight = 'bold';
     container.appendChild(globalTitle);
@@ -112,7 +113,7 @@ function rebuildNotesList(filterText) {
 
   if (hasProject) {
     const projectTitle = document.createElement('h2');
-    projectTitle.textContent = 'Notes du projet';
+    projectTitle.textContent = t('notepad.project_notes');
     projectTitle.style.fontSize = '1rem';
     projectTitle.style.fontWeight = 'bold';
     container.appendChild(projectTitle);
@@ -155,20 +156,20 @@ function buildNoteElement(note) {
 function createNote(scope='project') {
     const body = document.createElement('div');
     body.innerHTML = `
-<input type="text" placeholder="Titre de la note" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;" />
-<label for="scope">Portée de la note:</label>
+<input type="text" placeholder="${t('notepad.note_title')}" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;" />
+<label for="scope">${t('notepad.scope_label')}</label>
 <select name="scope" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;">
-    <option value="global" ${scope === 'global' ? 'selected' : ''}>Globale (visible dans tous les projets)</option>
-    <option value="project" ${scope === 'project' ? 'selected' : ''}>Projet actuel seulement</option>
+    <option value="global" ${scope === 'global' ? 'selected' : ''}>${t('notepad.scope_global')}</option>
+    <option value="project" ${scope === 'project' ? 'selected' : ''}>${t('notepad.scope_project')}</option>
 </select>
-<textarea placeholder="Contenu de la note" style="width:100%;height:150px;padding:0.5rem;font-size:1rem;"/>
+<textarea placeholder="${t('notepad.note_content')}" style="width:100%;height:150px;padding:0.5rem;font-size:1rem;"/>
     `;
     openModal({
-        title: 'Ajouter une note',
+        title: t('notepad.add_note'),
         body: body,
         width: '75%',
         buttons: [
-            { label: 'Ajouter', primary: true, onClick: async (close) => {
+            { label: t('modal.add'), primary: true, onClick: async (close) => {
                 const title = body.querySelector('input')?.value.trim();
                 const text = body.querySelector('textarea')?.value.trim();
                 const scope = body.querySelector('select')?.value;
@@ -177,7 +178,7 @@ function createNote(scope='project') {
                     let project_id;
                     if (scope == 'project'){
                         if (!getCurrentProject()) {
-                            showToast("warning", "Vous devez ouvrir un projet pour créer une note liée à un projet.");
+                            showToast("warning", t('notepad.no_project'));
                             return;
                         }
                         project_id = await invoke('get_current_project_id', { projectPath: getCurrentProject().path });
@@ -211,10 +212,10 @@ function insertNote(content) {
 
 async function deleteNote(noteId) {
     const confirmed = await showConfirm({
-        title: 'Supprimer la note',
-        message: 'Êtes-vous sûr de vouloir supprimer cette note ? Cette action est irréversible.',
-        confirmLabel: 'Supprimer',
-        cancelLabel: 'Annuler'
+        title: t('notepad.delete_title'),
+        message: t('notepad.delete_message'),
+        confirmLabel: t('modal.delete'),
+        cancelLabel: t('modal.cancel')
     });
 
     if (confirmed) {
@@ -230,21 +231,21 @@ async function editNote(note) {
     body.style.flexDirection = 'column';
     body.style.height = '100%';
     body.innerHTML = `
-<input type="text" placeholder="Titre de la note" value="${note.title}" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;" />
-<label for="scope">Portée de la note:</label>
+<input type="text" placeholder="${t('notepad.note_title')}" value="${note.title}" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;" />
+<label for="scope">${t('notepad.scope_label')}</label>
 <select name="scope" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;">
-    <option value="global" ${note.scope === 'global' ? 'selected' : ''}>Globale (visible dans tous les projets)</option>
-    <option value="project" ${note.scope === 'project' ? 'selected' : ''}>Projet actuel seulement</option>
+    <option value="global" ${note.scope === 'global' ? 'selected' : ''}>${t('notepad.scope_global')}</option>
+    <option value="project" ${note.scope === 'project' ? 'selected' : ''}>${t('notepad.scope_project')}</option>
 </select>
-<textarea placeholder="Contenu de la note" style="flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;font-family:${getCurrentFontFamily()};">${note.content}</textarea>
+<textarea placeholder="${t('notepad.note_content')}" style="flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;font-family:${getCurrentFontFamily()};">${note.content}</textarea>
     `;
     openModal({
-        title: 'Modifier la note',
+        title: t('notepad.edit_note'),
         body: body,
         width: '75%',
         height: '75%',
         buttons: [
-            { label: 'Enregistrer', primary: true, onClick: async (close) => {
+            { label: t('modal.save'), primary: true, onClick: async (close) => {
                 const title = body.querySelector('input')?.value.trim();
                 const text = body.querySelector('textarea')?.value.trim();
                 const scope = body.querySelector('select')?.value;
@@ -273,33 +274,35 @@ async function editNote(note) {
 }
 
 function viewNote(note) {
+    const locale = getLang() === 'fr' ? 'fr-FR' : 'en-US'
     const createdAt = new Date(note.created_at)
-    const createdAtDate = createdAt.toLocaleDateString("fr-FR", {
+    const createdAtDate = createdAt.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
     });
-    const createdAtTime = createdAt.toLocaleTimeString("fr-FR", {
+    const createdAtTime = createdAt.toLocaleTimeString(locale, {
         hour: '2-digit',
         minute: '2-digit',
     });
     const updatedAt = new Date(note.updated_at)
-    const updatedAtDate = updatedAt.toLocaleDateString("fr-FR", {
+    const updatedAtDate = updatedAt.toLocaleDateString(locale, {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
     });
-    const updatedAtTime = updatedAt.toLocaleTimeString("fr-FR", {
+    const updatedAtTime = updatedAt.toLocaleTimeString(locale, {
         hour: '2-digit',
         minute: '2-digit',
     });
+    const scopeLabel = note.scope === 'global' ? t('notepad.scope_global_label') : t('notepad.scope_project_label')
 
     const body = document.createElement('div');
     body.innerHTML = `
 <div id="note-preview-metadata">
-    <p>Crée le ${createdAtDate} à ${createdAtTime}</p>
-    <p>Dernière modification le ${updatedAtDate} à ${updatedAtTime}</p>
-    <p>Portée ${note.scope === 'global' ? 'globale' : 'projet'}</p>
+    <p>${t('notepad.created_at', { date: createdAtDate, time: createdAtTime })}</p>
+    <p>${t('notepad.updated_at', { date: updatedAtDate, time: updatedAtTime })}</p>
+    <p>${t('notepad.scope_info', { scope: scopeLabel })}</p>
 </div>
 <div id="note-preview-content" style="font-family:${getCurrentFontFamily()};">${note.content}</div>
     `;
@@ -351,11 +354,11 @@ export async function openNotepad() {
     rebuildNotesList("");
 
     openModal({
-        title: 'Bloc-notes',
+        title: t('notepad.title'),
         body: body,
         width: window.innerWidth < 1000 ? '75%' : '50%',
         buttons: [
-            { label: 'Ajouter une note', primary: true, onClick: (close) => {
+            { label: t('notepad.add_note'), primary: true, onClick: (close) => {
                 close();
                 createNote();
             }}
