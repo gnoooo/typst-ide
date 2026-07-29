@@ -17,6 +17,7 @@
  *   Ctrl+0          : Zoom reset
  */
 
+import { t } from '../i18n/index.js'
 import { toggleConsole } from "./toolbar.js";
 import {
   webviewZoomIn,
@@ -49,84 +50,84 @@ export function registerShortcuts({
 
   editor.addAction({
     id: "typst-bold",
-    label: "Gras",
+    label: t('shortcut.bold'),
     keybindings: [KM.CtrlCmd | KC.KeyB],
     run: (ed) => wrapSelection(ed, "*", "*"),
   });
 
   editor.addAction({
     id: "typst-italic",
-    label: "Italique",
+    label: t('shortcut.italic'),
     keybindings: [KM.CtrlCmd | KC.KeyI],
     run: (ed) => wrapSelection(ed, "_", "_"),
   });
 
   editor.addAction({
     id: "typst-underline",
-    label: "Souligné",
+    label: t('shortcut.underline'),
     keybindings: [KM.CtrlCmd | KC.KeyU],
     run: (ed) => wrapSelection(ed, "#underline[", "]"),
   });
 
   editor.addAction({
     id: "editor-comment",
-    label: "Commenter",
+    label: t('shortcut.comment'),
     keybindings: [KM.CtrlCmd | KM.Shift | KC.Slash, KM.CtrlCmd | KC.Slash],
     run: (ed) => ed.getAction("editor.action.commentLine")?.run(),
   });
 
   editor.addAction({
     id: "typst-compile",
-    label: "Compiler",
+    label: t('shortcut.compile'),
     keybindings: [KM.CtrlCmd | KC.KeyR],
     run: () => onCompile(),
   });
 
   editor.addAction({
     id: "toggle-console",
-    label: "Basculer la console",
+    label: t('shortcut.toggle_console'),
     keybindings: [KM.CtrlCmd | KC.KeyE],
     run: () => toggleConsole(),
   });
 
   editor.addAction({
     id: "webview-zoom-in",
-    label: "Agrandir",
+    label: t('shortcut.zoom_in'),
     keybindings: [KM.CtrlCmd | KM.Shift | KC.Equal],
     run: () => webviewZoomIn(),
   });
 
   editor.addAction({
     id: "webview-zoom-out",
-    label: "Rétrécir",
+    label: t('shortcut.zoom_out'),
     keybindings: [KM.CtrlCmd | KM.Shift | KC.Minus, KM.CtrlCmd | KM.Shift | KC.Digit6],
     run: () => webviewZoomOut(),
   });
 
   editor.addAction({
     id: "webview-zoom-reset",
-    label: "Taille normale",
+    label: t('shortcut.zoom_reset'),
     keybindings: [KM.CtrlCmd | KM.Shift | KC.Digit0],
     run: () => webviewZoomReset(),
   });
 
   editor.addAction({
     id: "editor-zoom-in",
-    label: "Agrandir l'éditeur",
+    label: t('shortcut.editor_zoom_in'),
     keybindings: [KM.CtrlCmd | KM.Alt | KC.Equal],
     run: () => onEditorZoomIn(),
   });
 
   editor.addAction({
     id: "editor-zoom-out",
-    label: "Rétrécir l'éditeur",
+    label: t('shortcut.editor_zoom_out'),
     keybindings: [KM.CtrlCmd | KM.Alt | KC.Minus, KM.CtrlCmd | KM.Alt | KC.Digit2],
     run: () => onEditorZoomOut(),
   });
 
   editor.addAction({
     id: "editor-zoom-reset",
-    label: "Reset éditeur",
+    label: t('shortcut.editor_zoom_reset'),
     keybindings: [KM.CtrlCmd | KM.Alt | KC.Digit0],
     run: () => onEditorZoomReset(),
   });

@@ -19,6 +19,8 @@
  *   opts.title, opts.label, opts.placeholder, opts.validate(v) = string|true
  */
 
+import { t } from '../i18n/index.js'
+
 // ## Core ####################################################################
 
 /**
@@ -122,7 +124,9 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
  * @param {{ title: string, message: string, confirmLabel?: string, cancelLabel?: string }} opts
  * @returns {Promise<boolean>}
  */
-export function showConfirm({ title, message, confirmLabel = 'Confirmer', cancelLabel = 'Annuler' }) {
+export function showConfirm({ title, message, confirmLabel, cancelLabel }) {
+    if (confirmLabel === undefined) confirmLabel = t('modal.confirm')
+    if (cancelLabel === undefined) cancelLabel = t('modal.cancel')
     return new Promise((resolve) => {
         const { close } = openModal({
             title,
@@ -163,8 +167,8 @@ export function showPrompt({ title, label, placeholder, validate }) {
             title,
             body: bodyHtml,
             buttons: [
-                { label: 'Annuler',    primary: false, onClick: () => done(null) },
-                { label: 'Confirmer', primary: true,  onClick: () => tryConfirm() },
+                { label: t('modal.cancel'),    primary: false, onClick: () => done(null) },
+                { label: t('modal.confirm'), primary: true,  onClick: () => tryConfirm() },
             ],
             onClose: () => done(null),
         });
@@ -175,7 +179,7 @@ export function showPrompt({ title, label, placeholder, validate }) {
 
         async function tryConfirm() {
             const value = input?.value.trim() ?? '';
-            if (!value) { errorEl.textContent = 'Ce champ est requis.'; return; }
+            if (!value) { errorEl.textContent = t('modal.required'); return; }
             if (validate) {
                 const result = await validate(value);
                 if (result !== true) { errorEl.textContent = result; return; }
@@ -224,8 +228,8 @@ export function showSelect({ title, label, optionsdata, validate }) {
       title,
       body: bodyHtml,
       buttons: [
-        { label: 'Annuler',    primary: false, onClick: () => done(null) },
-        { label: 'Confirmer', primary: true,  onClick: () => tryConfirm() },
+        { label: t('modal.cancel'),    primary: false, onClick: () => done(null) },
+        { label: t('modal.confirm'), primary: true,  onClick: () => tryConfirm() },
       ],
       onClose: () => done(null),
     });
@@ -236,7 +240,7 @@ export function showSelect({ title, label, optionsdata, validate }) {
 
     async function tryConfirm() {
       const value = input?.value.trim() ?? '';
-      if (!value) { errorEl.textContent = 'Ce champ est requis.'; return; }
+      if (!value) { errorEl.textContent = t('modal.required'); return; }
       if (validate) {
         const result = await validate(value);
         if (result !== true) { errorEl.textContent = result; return; }
