@@ -1,7 +1,7 @@
 # Maintainer: gnoooo
 
 pkgname=typst-ide
-pkgver=1.2.6
+pkgver=1.2.7
 pkgrel=1
 pkgdesc="A modern IDE for Typst"
 arch=('x86_64')
