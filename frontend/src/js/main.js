@@ -26,6 +26,10 @@ import { t, initI18n, setLang } from '../i18n/index.js'
 async function main() {
   initI18n()
 
+  document.querySelectorAll('.submenu .menu-trigger').forEach(btn => {
+    btn.addEventListener('click', (e) => e.stopPropagation())
+  })
+
   document.querySelectorAll('[data-lang]').forEach(btn => {
     btn.addEventListener('click', () => setLang(btn.dataset.lang))
   })

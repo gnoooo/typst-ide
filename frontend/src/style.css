@@ -329,6 +329,25 @@ div.toolbar-row>#preview-manage-btn{
     accent-color: var(--accent);
 }
 
+/* Submenu (flyout) */
+.dropdown .submenu {
+    position: relative;
+}
+
+.dropdown .submenu .dropdown {
+    display: none;
+    position: absolute;
+    top: -5px;
+    left: 100%;
+    min-width: 160px;
+    margin-left: -1px;
+}
+
+.dropdown .submenu:hover .dropdown,
+.dropdown .submenu:focus-within .dropdown {
+    display: block;
+}
+
 /* #################################################################
    6. Tool Buttons
    ################################################################# */
