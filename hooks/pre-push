@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# pre-push hook: verify that all project version files are consistent, and
+# that any pushed tag vX.Y.Z matches the version in those files
+set -u
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+CARGOTOML="$REPO_ROOT/crates/app/Cargo.toml"
+TAURICONF="$REPO_ROOT/crates/app/tauri.conf.json"
+PKGBUILD="$REPO_ROOT/PKGBUILD"
+
+fail() {
+  echo "pre-push: $1" >&2
+  exit 1
+}
+
+for f in "$CARGOTOML" "$TAURICONF" "$PKGBUILD"; do
+  [ -f "$f" ] || fail "file not found: $f"
+done
+
+cargo_ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$CARGOTOML" | head -n 1)"
+tauri_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURICONF" | head -n 1)"
+pkgbuild_ver="$(sed -n 's/^pkgver=\(.*\)/\1/p' "$PKGBUILD" | head -n 1)"
+
+# Check A: the three version files must agree with each other
+if [ -z "$cargo_ver" ] || [ -z "$tauri_ver" ] || [ -z "$pkgbuild_ver" ]; then
+  fail "could not extract a version from the version files (Cargo.toml='$cargo_ver', tauri.conf.json='$tauri_ver', PKGBUILD='$pkgbuild_ver')"
+fi
+
+if [ "$cargo_ver" != "$tauri_ver" ] || [ "$tauri_ver" != "$pkgbuild_ver" ]; then
+  {
+    echo "pre-push: version files are inconsistent:"
+    echo "  crates/app/Cargo.toml      -> $cargo_ver"
+    echo "  crates/app/tauri.conf.json -> $tauri_ver"
+    echo "  PKGBUILD                   -> $pkgbuild_ver"
+    echo "  Align them before pushing."
+  } >&2
+  exit 1
+fi
+
+# Check B: every pushed tag refs/tags/vX.Y.Z must match the file version
+tags=""
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/tags/v*)
+      tag_ver="${remote_ref#refs/tags/v}"
+      [ -n "$tags" ] && tags="$tags $tag_ver" || tags="$tag_ver"
+      if [ "$tag_ver" != "$cargo_ver" ]; then
+        fail "pushed tag v$tag_ver does not match version files ($cargo_ver). Bump the version or fix the tag before pushing."
+      fi
+      ;;
+  esac
+done
+
+if [ -n "$tags" ]; then
+  echo "pre-push: tags v$tags match version files ($cargo_ver)."
+fi
+
+exit 0

@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# pre-commit hook: block secrets in staged files, check rustfmt on staged Rust files
+set -u
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# 1) Secrets in staged content (strong signatures only, to avoid false positives)
+SECRET_PATTERNS=(
+  '-----BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY-----'
+  'AKIA[0-9A-Z]{16}'
+  'ghp_[A-Za-z0-9]{36}'
+  'github_pat_[A-Za-z0-9_]{20,}'
+  'xox[baprs]-[0-9A-Za-z-]{10,}'
+  'sk-[A-Za-z0-9]{20,}'
+)
+
+args=(-E)
+for p in "${SECRET_PATTERNS[@]}"; do
+  args+=(-n -e "$p")
+done
+
+if files=$(git grep --cached -l "${args[@]}" -- 2>/dev/null); then
+  echo "pre-commit: possible secrets staged in:" >&2
+  echo "$files" >&2
+  exit 1
+fi
+
+# 2) rustfmt check, only if at least one Rust file is staged
+if git diff --cached --name-only --diff-filter=ACM | LC_ALL=C grep -q '\.rs$'; then
+  if ! cargo fmt --version >/dev/null 2>&1; then
+    echo "pre-commit: rustfmt not installed, skipping format check (rustup component add rustfmt)" >&2
+  elif ! (cd "$REPO_ROOT" && cargo fmt --all --check); then
+    echo "pre-commit: cargo fmt --all --check failed (run: cargo fmt)" >&2
+    exit 1
+  fi
+fi
+
+exit 0
