@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "typst-ide"
 version = "1.2.7"
 edition = "2024"
 

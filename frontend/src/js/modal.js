@@ -142,10 +142,10 @@ export function showConfirm({ title, message, confirmLabel, cancelLabel }) {
 
 /**
  * Show a text-input prompt modal.
- * @param {{ title: string, label: string, placeholder: string, validate?: (v: string) => string | true }} opts
+ * @param {{ title: string, label: string, placeholder: string, defaultValue?: string, validate?: (v: string) => string | true }} opts
  * @returns {Promise<string|null>}
  */
-export function showPrompt({ title, label, placeholder, validate }) {
+export function showPrompt({ title, label, placeholder, defaultValue = '', validate }) {
     return new Promise((resolve) => {
         const inputId = 'modal-prompt-input-' + Date.now();
         const errorId = 'modal-prompt-error-' + Date.now();
@@ -175,7 +175,13 @@ export function showPrompt({ title, label, placeholder, validate }) {
 
         const input   = overlay.querySelector(`#${inputId}`);
         const errorEl = overlay.querySelector(`#${errorId}`);
-        input?.focus();
+        if (input) {
+            input.value = defaultValue;
+            input.focus();
+            // Select the name without the extension so the user can type a new name
+            const dotIdx = defaultValue.lastIndexOf('.');
+            input.setSelectionRange(0, dotIdx > 0 ? dotIdx : defaultValue.length);
+        }
 
         async function tryConfirm() {
             const value = input?.value.trim() ?? '';

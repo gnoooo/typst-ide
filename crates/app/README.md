@@ -72,7 +72,7 @@ crates/app/
 
 - **Frontend dist** : `../../frontend/dist`
 - **Dev URL** : `http://localhost:1420`
-- **Bundle targets** : `appimage` (Linux), `nsis` (Windows)
+- **Bundle targets** : `deb` (Linux), `rpm` (Linux), `nsis` (Windows, via cross-build `--target x86_64-pc-windows-gnu`)
 - **Identifier** : `com.typst.ide`
 
 ## Build Commands
@@ -83,14 +83,26 @@ crates/app/
 # Development (with frontend hot-reload)
 cargo tauri dev
 
-# Linux release (AppImage)
-NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu
+# Release packages (default: all targets from bundle.targets)
+cargo tauri build       # Linux -> .deb + .rpm (nsis skipped: it needs the Windows target)
 
-# Windows release (NSIS installer, cross-compiled from Linux)
+# Select a specific bundle (or several, comma-separated)
+cargo tauri build --bundles deb
+cargo tauri build --bundles rpm
+cargo tauri build --bundles deb,rpm
+
+# Windows .exe (NSIS installer, cross-compiled from Linux)
 cargo tauri build --target x86_64-pc-windows-gnu
 ```
 
-> `NO_STRIP=1` is required on Linux because `linuxdeploy` does not support the `.relr.dyn` ELF sections produced by recent linkers.
+> The Windows cross-build needs the cross toolchain and the NSIS tools to be installed:
+>
+> ```bash
+> # Fedora: sudo dnf install mingw64-gcc nsis mingw64-gcc-c++ mingw64-binutils mingw64-winpthreads
+> # Arch:   sudo pacman -S mingw-w64-gcc nsis
+> ```
+>
+> `frontend/dist` must be built beforehand (`npm run build` in `frontend/`), otherwise the bundle step fails. Like CI, use `NO_STRIP=1 cargo tauri build` when the release profile sets `strip = true`.
 
 ## Notable Dependencies
 

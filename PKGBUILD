@@ -45,13 +45,13 @@ build() {
   export CFLAGS="${CFLAGS/-flto=auto}"
   export RUSTFLAGS="${RUSTFLAGS:-} -C linker=cc -C link-arg=-Wl,--no-as-needed"
 
-  cargo build --release -p app
+  cargo build --release -p typst-ide
 }
 
 package() {
   cd "${srcdir}/${pkgname}-${pkgver}"
 
-  install -Dm755 "target/release/app" "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm755 "target/release/typst-ide" "${pkgdir}/usr/bin/${pkgname}"
   install -Dm644 "$srcdir/typst-ide.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
   install -Dm644 "crates/app/icons/32x32.png" "${pkgdir}/usr/share/icons/hicolor/32x32/apps/${pkgname}.png"
   install -Dm644 "crates/app/icons/128x128.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/${pkgname}.png"

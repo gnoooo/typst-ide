@@ -1352,6 +1352,101 @@ div.flex.items-center.gap-1>button.action-btn:first-child {
     border-left: 1px solid var(--border);
 }
 
+.file-tree-row.is-drop-target {
+    outline: 2px solid var(--accent-hover);
+    outline-offset: -2px;
+    background: var(--bg-hover);
+}
+
+.file-tree-root-drop {
+    border-bottom: 1px dashed var(--border);
+    border-radius: 0;
+    margin-bottom: 2px;
+}
+
+.file-tree-root-drop .file-tree-name {
+    font-style: italic;
+}
+
+.file-tree-main-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    padding: 0 4px;
+    margin-right: 2px;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+
+.file-tree-context-menu {
+    position: fixed;
+    z-index: 10000;
+    min-width: 200px;
+    padding: 4px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.file-tree-context-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.file-tree-context-item .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--text-muted);
+}
+
+.file-tree-context-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-tree-context-item:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+.file-tree-context-item--danger {
+    color: var(--error-text);
+}
+
+.file-tree-context-item--danger .material-symbols-outlined {
+    color: var(--error-text);
+}
+
+.file-tree-context-item--danger:hover {
+    background: var(--bg-hover);
+}
+
+.file-tree-context-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 6px;
+}
+
 #manage-files-btn {
     padding: 2px 6px 0 6px;
 }

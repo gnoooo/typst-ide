@@ -68,25 +68,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
-name = "app"
-version = "1.2.7"
-dependencies = [
- "base64 0.22.1",
- "core",
- "font-kit",
- "rfd",
- "rusqlite",
- "serde",
- "serde_json",
- "strsim",
- "tauri",
- "tauri-build",
- "tauri-plugin-clipboard-manager",
- "tauri-plugin-opener",
- "tokio",
-]
-
-[[package]]
 name = "approx"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -817,7 +798,7 @@ dependencies = [
  "tempfile",
  "typst",
  "typst-as-library",
- "typst-ide",
+ "typst-ide 0.15.0",
  "typst-layout",
  "typst-pdf",
  "typst-svg",
@@ -6025,7 +6006,7 @@ dependencies = [
  "time",
  "ttf-parser 0.21.1",
  "typst",
- "typst-ide",
+ "typst-ide 0.15.0",
  "typst-kit",
  "typst-pdf",
  "ureq",
@@ -6101,6 +6082,25 @@ dependencies = [
  "typst-layout",
  "typst-utils",
  "unscanny",
+]
+
+[[package]]
+name = "typst-ide"
+version = "1.2.7"
+dependencies = [
+ "base64 0.22.1",
+ "core",
+ "font-kit",
+ "rfd",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "strsim",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-opener",
+ "tokio",
 ]
 
 [[package]]

@@ -356,6 +356,77 @@ async fn import_file_dialog(dest_dir: String) -> Result<Vec<String>, String> {
     Ok(imported)
 }
 
+/// Opens a native single-file picker and replaces the content of `path`
+/// with the chosen file (the target name/path is kept).
+/// Returns the chosen file name, or an error if cancelled.
+#[tauri::command]
+async fn replace_file(path: String) -> Result<String, String> {
+    let src = tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Remplacer le fichier")
+            .pick_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Aucun fichier sélectionné.".to_string())?;
+
+    let name = src
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    std::fs::copy(&src, &path).map_err(|e| {
+        format!("Impossible de remplacer {} : {}", name, e)
+    })?;
+    Ok(name)
+}
+
+/// Reveals a file or folder in the OS file manager.
+#[tauri::command]
+async fn reveal_in_file_manager(path: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let p = std::path::PathBuf::from(&path);
+        let target = if p.is_file() {
+            p.parent().unwrap_or(&p).to_path_buf()
+        } else {
+            p.clone()
+        };
+
+        #[cfg(target_os = "windows")]
+        {
+            let dir_arg = format!("/select,{}", path);
+            std::process::Command::new("explorer")
+                .arg(&dir_arg)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let res = if p.is_file() {
+                std::process::Command::new("open").arg("-R").arg(&path).spawn()
+            } else {
+                std::process::Command::new("open").arg(&path).spawn()
+            };
+            res.map_err(|e| e.to_string())?;
+        }
+        #[cfg(target_os = "linux")]
+        {
+            std::process::Command::new("xdg-open")
+                .arg(&target)
+                .spawn()
+                .map_err(|e| e.to_string())?;
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+        {
+            let _ = target;
+            return Err("Système d'exploitation non supporté.".to_string());
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 /// Saves a `data:image/...;base64,...` payload as a file in `<project>/images/`
 /// Returns the relative path to use in Typst (e.g. `images/pasted-123.png`)
 #[tauri::command]
@@ -856,6 +927,8 @@ fn main() {
             create_dir,
             delete_file_or_dir,
             import_file_dialog,
+            replace_file,
+            reveal_in_file_manager,
             read_image_as_base64,
             save_data_image,
             pick_pdf_path,
