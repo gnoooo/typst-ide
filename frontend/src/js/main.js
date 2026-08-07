@@ -18,7 +18,6 @@ import { openModal, showPrompt } from "./modal.js";
 import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
-import { openFileManager } from './manage_files/manage_files.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 import { t, initI18n, setLang } from '../i18n/index.js'
@@ -206,6 +205,7 @@ async function main() {
   bindMenuAction("notepad-btn", () => openNotepad());
 
   // File manager buttons
+  const openFileManager = () => import('./manage_files/index.js').then((m) => m.openFileManager());
   bindMenuAction("manage-files-btn", () => openFileManager());
   bindMenuAction("manage-project-files", () => openFileManager());
 
