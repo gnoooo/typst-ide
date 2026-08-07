@@ -224,7 +224,7 @@
   "bib.title": "Bibliothèques du projet",
   "bib.add_title": "Ajouter une bibliographie",
   "bib.edit_title": "Modifier une bibliographie",
-  "bib.raw_edit_title": "Édition brute — {name}",
+  "bib.raw_edit_title": "Édition brute : {name}",
   "bib.search": "Rechercher une bibliographie…",
   "bib.no_results": "Aucun résultat.",
   "bib.no_entries": "Aucune bibliographie.",
