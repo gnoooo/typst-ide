@@ -272,16 +272,16 @@
             <div class="toolbar-row">
                 <span class="flex gap-2">
                     <span class="gap-2">
-                        <button class="tool-btn _unsaved-blinking" id="unsaved-btn">
+                        <button class="tool-btn _unsaved-blinking" id="unsaved-btn" data-i18n-title="toolbar.new_project">
                             <span class="material-symbols-outlined" id="unsaved-icon">file_save</span>
                         </button>
-                        <button class="tool-btn _open-project-blinking" id="open-project-btn">
+                        <button class="tool-btn _open-project-blinking" id="open-project-btn" data-i18n-title="toolbar.open_project">
                             <span class="material-symbols-outlined" id="open-project-icon">folder_open</span>
                         </button>
-                        <button class="tool-btn" id="notepad-btn">
+                        <button class="tool-btn" id="notepad-btn" data-i18n-title="toolbar.notepad">
                             <span class="material-symbols-outlined" id="notepad-icon">sticky_note_2</span>
                         </button>
-                        <button class="tool-btn" id="manage-files-btn">
+                        <button class="tool-btn" id="manage-files-btn" data-i18n-title="toolbar.manage_files">
                             <span class="material-symbols-outlined" id="manage-files-icon">folder_managed</span>
                         </button>
                     </span>
@@ -296,12 +296,12 @@
                     </div>
 
                     <div class="btn-group flex justify-start" id="text-formatting-panel">
-                        <button class="tool-btn" id="bold-btn">B</button>
-                        <button class="tool-btn" id="italic-btn">I</button>
-                        <button class="tool-btn" id="underline-btn">U</button>
+                        <button class="tool-btn" id="bold-btn" data-i18n-title="toolbar.bold">B</button>
+                        <button class="tool-btn" id="italic-btn" data-i18n-title="toolbar.italic">I</button>
+                        <button class="tool-btn" id="underline-btn" data-i18n-title="toolbar.underline">U</button>
                     </div>
                     <div class="menu-item" id="structures-menu">
-                        <button class="tool-btn menu-trigger" id="structures-btn">
+                        <button class="tool-btn menu-trigger" id="structures-btn" data-i18n-title="toolbar.structures">
                             #
                             <span class="material-symbols-outlined" id="structures-btn-icon">chevron_right</span>
                         </button>
@@ -312,7 +312,7 @@
                 </span>
 
                 <div class="btn-group flex" id="preview-zoom-panel">
-                    <button class="tool-btn" id="zoom-preview-out-btn">
+                    <button class="tool-btn" id="zoom-preview-out-btn" data-i18n-title="toolbar.preview_zoom_out">
                         -
                     </button>
                     <span class="flex items-center text-align-center" ²id="zoom-display">
@@ -327,7 +327,7 @@
                         />
                         %
                     </span>
-                    <button class="tool-btn" id="zoom-preview-in-btn">+</button>
+                    <button class="tool-btn" id="zoom-preview-in-btn" data-i18n-title="toolbar.preview_zoom_in">+</button>
                 </div>
 
                 <div id="preview-manage-btn" class="flex gap-2 justify-end">
