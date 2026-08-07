@@ -35,6 +35,17 @@
   "toolbar.unsaved": "Unsaved",
   "toolbar.saved": "Saved",
 
+  "filesync.save_title": "Save my version (overwrites external changes)",
+  "filesync.reload_title": "Reload from disk (fetch external changes)",
+  "filesync.save_confirm_title": "Overwrite external changes",
+  "filesync.save_confirm_message": "The file was modified outside Typst IDE. Overwrite those changes with the editor content?",
+  "filesync.reload_confirm_title": "Reload File",
+  "filesync.reload_confirm_message": "You have unsaved changes. Reloading from disk will replace them with the external changes.",
+  "filesync.saved": "File saved.",
+  "filesync.reloaded": "File reloaded from disk.",
+  "filesync.save_error": "Save error: {error}",
+  "filesync.reload_error": "Reload error: {error}",
+
   "console.title": "Compilation Console",
   "console.close": "Close",
 

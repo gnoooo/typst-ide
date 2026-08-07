@@ -381,6 +381,42 @@ div.toolbar-row>#preview-manage-btn{
     border-radius: 0;
 }
 
+/*  External file change indicator  */
+#file-sync-group[hidden] {
+    display: none;
+}
+
+#file-sync-group {
+    display: flex;
+    align-items: stretch;
+}
+
+#file-sync-group .file-sync-btn {
+    color: var(--info-text);
+    padding: 2px 8px 0 8px;
+}
+
+#file-sync-group .file-sync-btn:hover {
+    background: var(--btn-tool-hover);
+}
+
+#file-sync-group .material-symbols-outlined {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+#file-sync-save-btn {
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+#file-sync-reload-btn {
+    border: 1px solid var(--border);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
 /*  Unsaved indicator  */
 @keyframes unsavedBlink {
     0%,

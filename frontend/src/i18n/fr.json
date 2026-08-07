@@ -35,6 +35,17 @@
   "toolbar.unsaved": "Non sauvegardé",
   "toolbar.saved": "Sauvegardé",
 
+  "filesync.save_title": "Sauvegarder ma version (écrase les changements externes)",
+  "filesync.reload_title": "Recharger depuis le disque (récupère les changements externes)",
+  "filesync.save_confirm_title": "Écraser les changements externes",
+  "filesync.save_confirm_message": "Le fichier a été modifié en dehors de Typst IDE. Écraser ces changements avec le contenu de l'éditeur ?",
+  "filesync.reload_confirm_title": "Recharger le fichier",
+  "filesync.reload_confirm_message": "Vous avez des modifications non sauvegardées. Recharger depuis le disque les remplacera par les changements externes.",
+  "filesync.saved": "Fichier sauvegardé.",
+  "filesync.reloaded": "Fichier rechargé depuis le disque.",
+  "filesync.save_error": "Erreur lors de la sauvegarde : {error}",
+  "filesync.reload_error": "Erreur lors du rechargement : {error}",
+
   "console.title": "Console de compilation",
   "console.close": "Fermer",
 

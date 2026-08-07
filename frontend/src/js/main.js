@@ -19,6 +19,7 @@ import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
+import { initFileSync } from "./file-sync.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 import { t, initI18n, setLang } from '../i18n/index.js'
 
@@ -122,6 +123,9 @@ async function main() {
   );
 
   initTheme((theme) => setEditorTheme(theme));
+
+  // ## External file change detection ################################
+  initFileSync();
 
   // Update status-bar zoom on load
   updateZoomPreview();

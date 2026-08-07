@@ -190,6 +190,17 @@ pub fn delete_file_or_dir(path: String) -> Result<(), String> {
     }
 }
 
+/// Computes the FNV-1a 64-bit hash of a file's content (hex, 16 chars).
+/// Used to detect external modifications of the file being edited.
+#[tauri::command]
+pub fn file_hash(path: String) -> Result<String, String> {
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    let hash = bytes.iter().fold(0xcbf29ce484222325_u64, |h, &b| {
+        (h ^ b as u64).wrapping_mul(0x100000001b3)
+    });
+    Ok(format!("{hash:016x}"))
+}
+
 /// Reads an image file and returns it as a base64 data URL
 #[tauri::command]
 pub fn read_image_as_base64(path: String) -> Result<String, String> {

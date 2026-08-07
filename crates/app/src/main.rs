@@ -75,6 +75,7 @@ fn main() {
             fs::reveal_in_file_manager,
             fs::read_image_as_base64,
             fs::save_data_image,
+            fs::file_hash,
 
             db::add_note,
             db::get_all_notes,
