@@ -207,22 +207,45 @@
                             <li class="separator"></li>
                             <li>
                                 <button id="toggle-console">
-                                    <span data-i18n="menu.console">Console</span>
+                                    <span class="console-label-group">
+                                        <span data-i18n="menu.console">Console</span>
+                                        <span id="console-error-badge" class="console-error-badge hidden">&#9679;</span>
+                                    </span>
                                     <div>
                                         <kbd class="kbd kbd-md">ctrl</kbd>
                                         <kbd class="kbd kbd-md">E</kbd>
                                     </div>
                                 </button>
                             </li>
+                            <li>
+                                <button id="console-ignore-btn" data-i18n="menu.console_ignore">
+                                    Ignorer des erreurs
+                                </button>
+                            </li>
                             <li class="separator"></li>
                             <li>
                                 <label class="menu-checkbox">
-                                    <input
-                                        type="checkbox"
-                                        id="auto-compile"
-                                        checked
-                                    />
+                                    <span class="checkbox-box">
+                                        <input
+                                            type="checkbox"
+                                            id="auto-compile"
+                                            checked
+                                        />
+                                        <span class="material-symbols-outlined checkbox-check">check</span>
+                                    </span>
                                     <span data-i18n="menu.auto_compile">Auto-compilation</span>
+                                </label>
+                            </li>
+                            <li>
+                                <label class="menu-checkbox">
+                                    <span class="checkbox-box">
+                                        <input
+                                            type="checkbox"
+                                            id="show-console-on-error"
+                                        />
+                                        <span class="material-symbols-outlined checkbox-check">check</span>
+                                    </span>
+                                    <span data-i18n="menu.console_on_error">Afficher la console en cas d'erreur</span>
                                 </label>
                             </li>
                         </ul>

@@ -11,7 +11,14 @@ window.monaco = monaco;
 import { createEditor, setEditorTheme, editorZoomIn, editorZoomOut, editorZoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily, getEditor, insertImageAtCursor } from "./editor.js";
 import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, setPreviewZoom, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth, forceCompile } from "./preview.js";
 import { initWebviewZoom, webviewZoomIn, webviewZoomOut, webviewZoomReset } from "./webview-zoom.js";
-import { initToolbar, initTheme, writeToConsole, showConsole } from "./toolbar.js";
+import {
+  initToolbar,
+  initTheme,
+  writeToConsole,
+  showConsole,
+  markConsoleErrorUnread,
+  clearConsoleErrorUnread,
+} from "./toolbar.js";
 import { registerShortcuts } from "./shortcuts.js";
 import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator, getCurrentProject } from "./project.js";
 import { openModal, showPrompt } from "./modal.js";
@@ -144,8 +151,14 @@ async function main() {
     onDiagnostics: (diagnostics) => applyMonacoMarkers(editor, diagnostics),
     autoFit: true,
     onZoomChange: updateZoomPreview,
-    onSuccess: () => writeToConsole("success", t('toast.compile_success')),
-    onError: (_diagnostics, msg) => { writeToConsole("error", msg); showConsole(); },
+    onSuccess: () => { writeToConsole("success", t('toast.compile_success')); clearConsoleErrorUnread(); },
+    onError: (diagnostics, msg) => {
+      writeToConsole("error", msg);
+      const autoShow = document.getElementById("show-console-on-error")?.checked ?? false;
+      const ignored  = isConsoleIgnoredError(diagnostics, msg);
+      if (autoShow && !ignored) showConsole();
+      else markConsoleErrorUnread();
+    },
     onClickRegion: (region) => {
       editor.setPosition({ lineNumber: region.line, column: region.column });
       editor.revealPositionInCenter({ lineNumber: region.line, column: region.column });
@@ -185,6 +198,7 @@ async function main() {
   bindMenuAction("action-comment", () => editor.getAction("editor.action.commentLine")?.run());
 
   bindMenuAction("manage-bibliography", () => openBibliography());
+  bindMenuAction("console-ignore-btn", () => openConsoleIgnoreEditor());
 
   // Zoom buttons in toolbar (zoom the entire WebView)
   bindMenuAction("webview-zoom-in", () => webviewZoomIn());
@@ -268,6 +282,15 @@ async function main() {
     });
   }
 
+  // Auto-show console on compile error checkbox
+  const showConsoleOnError = document.getElementById("show-console-on-error");
+  if (showConsoleOnError) {
+    showConsoleOnError.checked = localStorage.getItem("show-console-on-error") === "true";
+    showConsoleOnError.addEventListener("change", () => {
+      localStorage.setItem("show-console-on-error", String(showConsoleOnError.checked));
+    });
+  }
+
   // Change editor font family
   document.getElementById("editor-fontfamily-btn")?.addEventListener("click", async () => {
     const { invoke } = window.__TAURI__.core;
@@ -302,6 +325,76 @@ function bindMenuAction(id, fn) {
     e.preventDefault();
     fn();
   });
+}
+
+// ## Console error ignore list ######################################
+
+const CONSOLE_IGNORE_KEY = "console-ignore-terms";
+
+function getConsoleIgnoreTerms() {
+  return (localStorage.getItem(CONSOLE_IGNORE_KEY) ?? "")
+    .split("\n")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/** True when any ignore term is a substring of an error message */
+function isConsoleIgnoredError(diagnostics, msg) {
+  const terms = getConsoleIgnoreTerms();
+  if (terms.length === 0) return false;
+  const haystacks = [String(msg ?? "")];
+  for (const d of Array.isArray(diagnostics) ? diagnostics : []) {
+    if (d?.message) haystacks.push(String(d.message));
+  }
+  const lowered = haystacks.join("\n").toLowerCase();
+  return terms.some((term) => lowered.includes(term));
+}
+
+function openConsoleIgnoreEditor() {
+  const textareaId = "console-ignore-textarea-" + Date.now();
+  const body = `
+    <p class="ide-modal-message">${t("console.ignore_hint")}</p>
+    <label class="ide-modal-label" for="${textareaId}">
+      ${t("console.ignore_label")}
+    </label>
+    <textarea
+      id="${textareaId}"
+      class="ide-modal-textarea"
+      placeholder="${t("console.ignore_placeholder")}"
+      spellcheck="false"
+    ></textarea>
+  `;
+
+  const { close, overlay } = openModal({
+    title: t("console.ignore_title"),
+    body,
+    width: "480px",
+    buttons: [
+      { label: t("modal.cancel"), primary: false, onClick: (c) => c() },
+      {
+        label: t("modal.confirm"),
+        primary: true,
+        onClick: (c) => {
+          const value = overlay.querySelector(`#${textareaId}`)?.value ?? "";
+          localStorage.setItem(
+            CONSOLE_IGNORE_KEY,
+            value
+              .split("\n")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .join("\n"),
+          );
+          c();
+        },
+      },
+    ],
+  });
+
+  const textarea = overlay.querySelector(`#${textareaId}`);
+  if (textarea) {
+    textarea.value = getConsoleIgnoreTerms().join("\n");
+    textarea.focus();
+  }
 }
 
 function updateZoomPreview() {

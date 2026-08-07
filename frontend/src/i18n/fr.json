@@ -24,6 +24,8 @@
   "menu.editor_zoom_reset": "Réinitialiser l'éditeur",
   "menu.console": "Console",
   "menu.auto_compile": "Auto-compilation",
+  "menu.console_on_error": "Afficher la console en cas d'erreur",
+  "menu.console_ignore": "Ignorer des erreurs",
   "menu.help": "Aide",
   "menu.change_font": "Changer la police de l'éditeur",
   "menu.docs_typst": "Documentation Typst",
@@ -58,6 +60,10 @@
 
   "console.title": "Console de compilation",
   "console.close": "Fermer",
+  "console.ignore_title": "Ignorer certaines erreurs",
+  "console.ignore_label": "Un terme par ligne :",
+  "console.ignore_hint": "La console ne s'ouvrira pas automatiquement pour une erreur contenant l'un de ces termes. Elle reste accessible via Ctrl+E.",
+  "console.ignore_placeholder": "ex. : image, not found, undefined",
 
   "shortcut.bold": "Gras",
   "shortcut.italic": "Italique",

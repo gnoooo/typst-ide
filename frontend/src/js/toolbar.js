@@ -101,17 +101,44 @@ export function initConsoleToggle() {
     });
 }
 
+let _consoleErrorUnread = false;
+
 export function toggleConsole() {
     const panel = document.getElementById('output-console');
     panel?.classList.toggle('hidden');
+    if (panel && !panel.classList.contains('hidden')) _consoleErrorUnread = false;
+    _refreshErrorBadge();
 }
 
 export function showConsole() {
     document.getElementById('output-console')?.classList.remove('hidden');
+    _consoleErrorUnread = false;
+    _refreshErrorBadge();
 }
 
 export function hideConsole() {
     document.getElementById('output-console')?.classList.add('hidden');
+    _refreshErrorBadge();
+}
+
+/** Signal that error messages were written to a hidden console */
+export function markConsoleErrorUnread() {
+    _consoleErrorUnread = true;
+    _refreshErrorBadge();
+}
+
+/** Clear the unread-error marker (e.g. after a successful compile) */
+export function clearConsoleErrorUnread() {
+    _consoleErrorUnread = false;
+    _refreshErrorBadge();
+}
+
+function _refreshErrorBadge() {
+    const panel = document.getElementById('output-console');
+    const badge = document.getElementById('console-error-badge');
+    if (!badge) return;
+    const hidden = panel?.classList.contains('hidden') ?? true;
+    badge.classList.toggle('hidden', !(_consoleErrorUnread && hidden));
 }
 
 /**
