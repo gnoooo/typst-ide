@@ -1,9 +1,8 @@
-use rusqlite::{Connection, Result, Error};
-use uuid::Uuid;
-use sha2::{Sha256, Digest};
 use chrono::Utc;
+use rusqlite::{Connection, Error, Result};
 use serde::Serialize;
-
+use sha2::{Digest, Sha256};
+use uuid::Uuid;
 
 pub fn project_id_from_path(path: &str) -> String {
     let mut hasher = Sha256::new();
@@ -63,7 +62,7 @@ pub fn add_note(
 
 pub fn get_all_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
     let mut stmt = conn.prepare(
-        "SELECT id, title, content, scope, project_id, created_at, updated_at FROM notes"
+        "SELECT id, title, content, scope, project_id, created_at, updated_at FROM notes",
     )?;
 
     let notes = stmt.query_map([], |row| {
@@ -124,7 +123,14 @@ pub fn delete_note(conn: &Connection, note_id: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn update_note(conn: &Connection, note_id: &str, title: &str, content: &str, scope: &str, project_id: Option<&str>) -> Result<()> {
+pub fn update_note(
+    conn: &Connection,
+    note_id: &str,
+    title: &str,
+    content: &str,
+    scope: &str,
+    project_id: Option<&str>,
+) -> Result<()> {
     let now = Utc::now().to_rfc3339();
     let mut stmt = conn.prepare(
         "UPDATE notes SET title = ?1, content = ?2, scope = ?3, project_id = ?4, updated_at = ?5 WHERE id = ?6"

@@ -1,15 +1,18 @@
-use std::{
-    collections::HashMap, fmt::Write as FmtWrite, fs::{self, File, OpenOptions, read_dir}, io::{BufRead, BufReader, Error, ErrorKind, Result, Write as IoWrite}
-};
-use serde::{Serialize, Deserialize};
-use serde_json::Value;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::{
+    collections::HashMap,
+    fmt::Write as FmtWrite,
+    fs::{self, File, OpenOptions, read_dir},
+    io::{BufRead, BufReader, Error, ErrorKind, Result, Write as IoWrite},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BibEntry {
     pub entry_type: String,
     pub cite_key: String,
-    pub data: HashMap<String, String>
+    pub data: HashMap<String, String>,
 }
 
 pub fn create_bib_file_if_missing(filepath: &str) -> Result<()> {
@@ -44,7 +47,9 @@ pub fn parse_bib_file(path: &str) -> Result<Vec<BibEntry>> {
             if let Some(start) = line.find('@') {
                 if let Some(open_brace) = line.find('{') {
                     let entry_type = line[start + 1..open_brace].trim().to_string();
-                    let cite_key = line[open_brace + 1..line.find(',').unwrap_or(open_brace)].trim().to_string();
+                    let cite_key = line[open_brace + 1..line.find(',').unwrap_or(open_brace)]
+                        .trim()
+                        .to_string();
 
                     current_entry = Some(BibEntry {
                         entry_type,
@@ -53,7 +58,8 @@ pub fn parse_bib_file(path: &str) -> Result<Vec<BibEntry>> {
                     });
 
                     // init bracket count
-                    brace_count = line.chars().filter(|&c| c == '{').count() - line.chars().filter(|&c| c == '}').count();
+                    brace_count = line.chars().filter(|&c| c == '{').count()
+                        - line.chars().filter(|&c| c == '}').count();
                 }
             }
             continue;
@@ -62,7 +68,9 @@ pub fn parse_bib_file(path: &str) -> Result<Vec<BibEntry>> {
         // inside an entry
         if let Some(entry) = &mut current_entry {
             let line = line.trim();
-            if line.is_empty() { continue };
+            if line.is_empty() {
+                continue;
+            };
 
             if let Some((key, value)) = line.split_once("=") {
                 let key = key.trim().to_string();
@@ -90,10 +98,7 @@ pub fn parse_bib_file(path: &str) -> Result<Vec<BibEntry>> {
     Ok(entries)
 }
 
-pub fn check_if_entry_exists(
-    filepath: &str,
-    cite_key_tocheck: &str
-) -> Result<bool> {
+pub fn check_if_entry_exists(filepath: &str, cite_key_tocheck: &str) -> Result<bool> {
     let entries: Vec<BibEntry> = match parse_bib_file(filepath) {
         Ok(v) => v,
         Err(e) => return Err(e),
@@ -101,18 +106,14 @@ pub fn check_if_entry_exists(
 
     for entry in entries {
         if entry.cite_key == cite_key_tocheck {
-            return Ok(false)
+            return Ok(false);
         }
     }
 
     Ok(true)
 }
 
-pub fn build_bib_entry(
-    entry_type: &str,
-    cite_key: &str,
-    json: &Value
-) -> String {
+pub fn build_bib_entry(entry_type: &str, cite_key: &str, json: &Value) -> String {
     let mut entry = String::new();
 
     // to escape a { or }, we have to double it
@@ -138,7 +139,7 @@ pub fn add_entry_to_bib(
     filepath: &str,
     entry_type: &str,
     cite_key: &str,
-    json: &Value
+    json: &Value,
 ) -> Result<()> {
     if !check_if_entry_exists(filepath, cite_key)? {
         return Err(Error::new(ErrorKind::Other, "Entry already exists"));
@@ -155,9 +156,7 @@ pub fn add_entry_to_bib(
     Ok(())
 }
 
-pub fn get_all_bibs(
-    projectpath: &str
-) -> Result<Vec<String>> {
+pub fn get_all_bibs(projectpath: &str) -> Result<Vec<String>> {
     let mut files = Vec::new();
 
     for entry in read_dir(projectpath)? {
@@ -185,10 +184,7 @@ pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Valu
         .get("entry_type")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let new_cite_key = entry
-        .get("cite_key")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let new_cite_key = entry.get("cite_key").and_then(|v| v.as_str()).unwrap_or("");
     let new_data = entry
         .get("data")
         .and_then(|v| v.as_object())
@@ -196,7 +192,7 @@ pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Valu
             map.iter()
                 .map(|(k, v)| format!("\t{} = \"{}\",", k, v.as_str().unwrap_or("")))
                 .collect::<Vec<_>>()
-                    .join("\n")
+                .join("\n")
         })
         .unwrap_or_default();
 
@@ -208,12 +204,7 @@ pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Valu
         if cite_key != old_cite_key {
             return caps[0].to_string();
         }
-        format!(
-            "@{}{{{},\n{}\n}}",
-            new_entry_type,
-            new_cite_key,
-            new_data
-        )
+        format!("@{}{{{},\n{}\n}}", new_entry_type, new_cite_key, new_data)
     });
 
     fs::write(filepath, new_content.as_bytes())?;
@@ -238,7 +229,11 @@ pub fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Resu
     Ok(())
 }
 
-pub fn delete_bib_source_value(filepath: &str, cite_key_to_edit: &str, key_to_delete: &str) -> Result<()> {
+pub fn delete_bib_source_value(
+    filepath: &str,
+    cite_key_to_edit: &str,
+    key_to_delete: &str,
+) -> Result<()> {
     let content = fs::read_to_string(filepath)?;
     let re = Regex::new(r"@(\w+)\{([^,]+),([\s\S]*?)\}")
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -268,15 +263,9 @@ pub fn delete_bib_source_value(filepath: &str, cite_key_to_edit: &str, key_to_de
 
         let new_data_block = lines.join("\n");
 
-        format!(
-            "@{}{{{},\n{}\n}}",
-            entry_type,
-            cite_key,
-            new_data_block
-        )
+        format!("@{}{{{},\n{}\n}}", entry_type, cite_key, new_data_block)
     });
 
     fs::write(filepath, new_content.as_bytes())?;
     Ok(())
 }
-

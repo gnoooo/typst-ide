@@ -4,15 +4,15 @@
 # manage.sh : manager de projet pour Typst IDE (Rust + Tauri + frontend)
 #
 # Usage:
-#   ./manage.sh info             Affiche les infos du projet (nom, version, cohérence, git...)
-#   ./manage.sh bump <version>   Met à jour la version dans tous les fichiers
-#                                   (Cargo.toml, tauri.conf.json, PKGBUILD, Cargo.lock, frontend)
-#                                   Options : --dry-run (affiche sans écrire)
-#   ./manage.sh check            Vérifie la cohérence des versions + cargo fmt/check
-#   ./manage.sh test             Lance les tests du workspace
-#   ./manage.sh build            Build frontend + release Rust
-#   ./manage.sh dev              Lance tauri dev
-#   ./manage.sh help             Cette d'aide
+#     ./manage.sh info             Affiche les infos du projet (nom, version, cohérence, git...)
+#     ./manage.sh bump <version>   Met à jour la version dans tous les fichiers
+#                                     (Cargo.toml, tauri.conf.json, PKGBUILD, Cargo.lock, frontend)
+#                                     Options : --dry-run (affiche sans écrire)
+#     ./manage.sh check            Vérifie la cohérence des versions + cargo fmt/check
+#     ./manage.sh test             Lance les tests du workspace
+#     ./manage.sh build            Build frontend + release Rust
+#     ./manage.sh dev              Lance tauri dev
+#     ./manage.sh help             Cette d'aide
 # ===================================================================================================
 
 set -euo pipefail
@@ -132,9 +132,9 @@ check_consistency() {
     row() {
       local name="$1" val="$2" good="$3"
       if [ "$good" = "1" ]; then
-        printf "  %-28s %s %s\n" "$name" "${GREEN}OK${NC}" "$val"
+        printf "    %-28s %s %s\n" "$name" "${GREEN}OK${NC}" "$val"
       else
-        printf "  %-28s %s %s\n" "$name" "${RED}KO${NC}" "${val:-—}"
+        printf "    %-28s %s %s\n" "$name" "${RED}KO${NC}" "${val:-—}"
       fi
     }
     row "crates/app/Cargo.toml"      "$app"      "$([ -n "$app" ] && echo 1 || echo 0)"
@@ -144,7 +144,7 @@ check_consistency() {
     if [ "$app" = "$front" ]; then
       row "frontend/package.json" "$front" "1"
     else
-      printf "  %-28s %s %s %s\n" "frontend/package.json" "${DIM} ~${NC}" "$front" "${DIM}(suivi par bump, non bloquant)${NC}"
+      printf "    %-28s %s %s %s\n" "frontend/package.json" "${DIM} ~${NC}" "$front" "${DIM}(suivi par bump, non bloquant)${NC}"
     fi
   fi
 
@@ -170,16 +170,16 @@ cmd_info() {
 
   echo "${BOLD}Typst IDE : infos du projet${NC}"
   echo
-  printf "  %-28s %s\n" "App (Cargo.toml)" "$(app_name) $(app_version)"
-  printf "  %-28s %s\n" "Nom du produit (Tauri)" "$(product_name)"
+  printf "    %-28s %s\n" "App (Cargo.toml)" "$(app_name) $(app_version)"
+  printf "    %-28s %s\n" "Nom du produit (Tauri)" "$(product_name)"
   echo
   echo "${BOLD}Versions${NC}"
   if check_consistency --pretty; then
     echo
-    echo "  ${GREEN}Cohérence des versions : OK${NC}"
+    echo "    ${GREEN}Cohérence des versions : OK${NC}"
   else
     echo
-    echo "  ${RED}Cohérence des versions : KO${NC}"
+    echo "    ${RED}Cohérence des versions : KO${NC}"
   fi
 
   echo
@@ -192,7 +192,7 @@ cmd_info() {
       *"members"*)   continue ;;
       *)
         if [ "$in_workspace" = "1" ] && printf '%s' "$line" | grep -q '^\s*"'; then
-          printf "  %-28s %s\n" "membre" "$(echo "$line" | tr -d '",')"
+          printf "    %-28s %s\n" "membre" "$(echo "$line" | tr -d '",' | xargs)"
         fi
         ;;
     esac
@@ -200,20 +200,20 @@ cmd_info() {
 
   echo
   echo "${BOLD}Outils${NC}"
-  printf "  %-28s %s\n" "rustc" "$(rustc --version 2>/dev/null || echo "(introuvable)")"
-  printf "  %-28s %s\n" "cargo" "$(cargo --version 2>/dev/null || echo "(introuvable)")"
-  printf "  %-28s %s\n" "node" "$(node --version 2>/dev/null || echo "(introuvable)")"
-  printf "  %-28s %s\n" "npm" "$(npm --version 2>/dev/null || echo "(introuvable)")"
+  printf "    %-28s %s\n" "rustc" "$(rustc --version 2>/dev/null || echo "(introuvable)")"
+  printf "    %-28s %s\n" "cargo" "$(cargo --version 2>/dev/null || echo "(introuvable)")"
+  printf "    %-28s %s\n" "node" "$(node --version 2>/dev/null || echo "(introuvable)")"
+  printf "    %-28s %s\n" "npm" "$(npm --version 2>/dev/null || echo "(introuvable)")"
 
   echo
   echo "${BOLD}Git${NC}"
-  printf "  %-28s %s\n" "branche" "$(git_branch)"
-  printf "  %-28s %s\n" "dernier tag" "$(last_git_tag)"
-  printf "  %-28s %s\n" "état" "$(git -C "$REPO_ROOT" status --porcelain | grep -q . && echo "modifié" || echo "propre")"
+  printf "    %-28s %s\n" "branche" "$(git_branch)"
+  printf "    %-28s %s\n" "dernier tag" "$(last_git_tag)"
+  printf "    %-28s %s\n" "état" "$(git -C "$REPO_ROOT" status --porcelain | grep -q . && echo " modifié" || echo " propre")"
 
   local head_sha
   head_sha="$(git -C "$REPO_ROOT" log -1 --format='%h %s' 2>/dev/null || echo "—")"
-  printf "  %-28s %s\n" "dernier commit" "$head_sha"
+  printf "    %-28s %s\n" "dernier commit" "$head_sha"
 }
 
 cmd_bump() {
@@ -251,7 +251,7 @@ cmd_bump() {
   if [ "$dry_run" = "1" ]; then
     echo "(--dry-run : rien n'est écrit)"
     dry_row() {
-      printf "  %s %s -> " "${DIM}$(printf '%-28s' "$1")${NC}" "${YELLOW}$(printf '%-18s' "$2")${NC}"
+      printf "    %s %s -> " "${DIM}$(printf '%-28s' "$1")${NC}" "${YELLOW}$(printf '%-18s' "$2")${NC}"
       echo "${GREEN}$3${NC}"
     }
     dry_row "crates/app/Cargo.toml"      "version = \"$old\""       "version = \"$new_version\""
@@ -260,7 +260,7 @@ cmd_bump() {
     dry_row "Cargo.lock"                 "typst-ide $old"           "typst-ide $new_version"
     dry_row "frontend/*"                 "$old"                     "$new_version"
     echo
-    echo "  Vérification attendue : ${GREEN}cohérent${NC}"
+    echo "    Vérification attendue : ${GREEN}cohérent${NC}"
     exit 0
   fi
 
@@ -270,12 +270,12 @@ cmd_bump() {
   set_lock_version     "$new_version"
   set_frontend_version "$new_version"
 
-  echo "  ${GREEN}OK${NC} crates/app/Cargo.toml      -> version = \"$new_version\""
-  echo "  ${GREEN}OK${NC} crates/app/tauri.conf.json -> \"version\": \"$new_version\""
-  echo "  ${GREEN}OK${NC} PKGBUILD                   -> pkgver=$new_version"
-  echo "  ${GREEN}OK${NC} Cargo.lock                 -> typst-ide $new_version"
-  echo "  ${GREEN}OK${NC} frontend/package.json      -> $new_version"
-  echo "  ${GREEN}OK${NC} frontend/package-lock.json -> $new_version"
+  echo "    ${GREEN}OK${NC} crates/app/Cargo.toml      -> version = \"$new_version\""
+  echo "    ${GREEN}OK${NC} crates/app/tauri.conf.json -> \"version\": \"$new_version\""
+  echo "    ${GREEN}OK${NC} PKGBUILD                   -> pkgver=$new_version"
+  echo "    ${GREEN}OK${NC} Cargo.lock                 -> typst-ide $new_version"
+  echo "    ${GREEN}OK${NC} frontend/package.json      -> $new_version"
+  echo "    ${GREEN}OK${NC} frontend/package-lock.json -> $new_version"
 
   echo
   if check_consistency; then
@@ -287,7 +287,7 @@ cmd_bump() {
 
   echo
   echo "Fichiers modifiés :"
-  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json | sed 's/^/  /'
+  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json | sed 's/^/    /'
   echo
   echo "Note : aucun commit ni tag créé. Le hook pre-push vérifiera la cohérence à la prochaine poussée."
 }
@@ -297,36 +297,36 @@ cmd_check() {
 
   echo "== Cohérence des versions =="
   if check_consistency --pretty; then
-    echo "  ${GREEN}OK${NC}"
+    echo "    ${GREEN}OK${NC}"
   else
-    echo "  ${RED}INCOHÉRENTES, alignez les fichiers avant de pousser${NC}"
+    echo "    ${RED}INCOHÉRENTES, alignez les fichiers avant de pousser${NC}"
     exit 1
   fi
 
   echo
   echo "== cargo fmt --all --check =="
   if cargo fmt --version >/dev/null 2>&1; then
-    ( cd "$REPO_ROOT" && cargo fmt --all --check ) || die "rustfmt: des fichiers ne sont pas formatés"
+    ( cd "$REPO_ROOT" && cargo fmt --all --check ) && echo -e "    rustfmt: ${GREEN}OK${NC}" || die "    rustfmt: des fichiers ne sont pas formatés"
   else
-    echo "  ${YELLOW}rustfmt non installé (rustup component add rustfmt), vérification ignorée${NC}"
+    echo "    ${YELLOW}rustfmt non installé (rustup component add rustfmt), vérification ignorée${NC}"
   fi
 
   echo
   echo "== cargo check --workspace =="
-  ( cd "$REPO_ROOT" && cargo check --workspace ) || die "cargo check a échoué"
+  ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
 }
 
 cmd_test() {
-  ( cd "$REPO_ROOT" && cargo test --workspace ) || die "les tests ont échoué"
+  ( cd "$REPO_ROOT" && cargo test --workspace ) && echo "    tests: ${GREEN}OK (tout passe)${NC}" || die "    les tests ont échoué"
 }
 
 cmd_build() {
   echo "== Frontend =="
-  ( cd "$REPO_ROOT/frontend" && npm run build ) || die "le build frontend a échoué"
+  ( cd "$REPO_ROOT/frontend" && npm run build ) && echo "    build frontend: ${GREEN}OK${NC}" || die "    le build frontend a échoué"
 
   echo
   echo "== Rust (release) =="
-  ( cd "$REPO_ROOT" && cargo build --release -p typst-ide ) || die "le build Rust a échoué"
+  ( cd "$REPO_ROOT" && cargo build --release -p typst-ide ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
 }
 
 cmd_dev() {

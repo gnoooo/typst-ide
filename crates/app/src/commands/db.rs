@@ -107,7 +107,10 @@ pub fn get_history(
 }
 
 #[tauri::command]
-pub fn delete_history_entry(state: tauri::State<'_, HistoryDbState>, id: String) -> Result<(), String> {
+pub fn delete_history_entry(
+    state: tauri::State<'_, HistoryDbState>,
+    id: String,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     history_db::delete_history_entry(&conn, &id).map_err(|e| e.to_string())
 }
@@ -136,7 +139,8 @@ pub fn add_bibliography_entry(
     full: bool,
 ) -> Result<bool, String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let inserted = bibliography_db::add_entry(&conn, &title, &style, &path, &project_path, full).map_err(|e| e.to_string())?;
+    let inserted = bibliography_db::add_entry(&conn, &title, &style, &path, &project_path, full)
+        .map_err(|e| e.to_string())?;
     Ok(inserted)
 }
 
@@ -150,7 +154,10 @@ pub fn get_bibliography(
 }
 
 #[tauri::command]
-pub fn delete_bibliography_entry(state: tauri::State<'_, BibliographyDbState>, id: String) -> Result<(), String> {
+pub fn delete_bibliography_entry(
+    state: tauri::State<'_, BibliographyDbState>,
+    id: String,
+) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     bibliography_db::delete_bibliography_entry(&conn, &id).map_err(|e| e.to_string())
 }
@@ -165,5 +172,6 @@ pub fn update_bibliography_entry(
     full: bool,
 ) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::update_bibliography_entry(&conn, &id, &title, &style, &path, full).map_err(|e| e.to_string())
+    bibliography_db::update_bibliography_entry(&conn, &id, &title, &style, &path, full)
+        .map_err(|e| e.to_string())
 }

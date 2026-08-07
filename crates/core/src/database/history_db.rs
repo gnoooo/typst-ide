@@ -1,7 +1,6 @@
 use rusqlite::{Connection, Result};
-use uuid::Uuid;
 use serde::Serialize;
-
+use uuid::Uuid;
 
 pub struct HistoryDB {
     pub conn: Connection,
@@ -31,11 +30,7 @@ pub struct HistoryEntry {
     pub updated_at: String,
 }
 
-pub fn add_entry(
-    conn: &Connection,
-    name: &str,
-    path: &str
-) -> Result<bool> {
+pub fn add_entry(conn: &Connection, name: &str, path: &str) -> Result<bool> {
     let id = Uuid::new_v4().to_string();
 
     let inserted = conn.execute(
@@ -43,11 +38,13 @@ pub fn add_entry(
         [id, name.to_string(), path.to_string()],
     )?;
 
-    Ok(inserted==1)
+    Ok(inserted == 1)
 }
 
 pub fn get_history(conn: &Connection) -> Result<Vec<HistoryEntry>> {
-    let mut stmt = conn.prepare("SELECT id, name, path, created_at, updated_at FROM history ORDER BY updated_at DESC")?;
+    let mut stmt = conn.prepare(
+        "SELECT id, name, path, created_at, updated_at FROM history ORDER BY updated_at DESC",
+    )?;
     let history_iter = stmt.query_map([], |row| {
         Ok(HistoryEntry {
             id: row.get(0)?,
@@ -67,8 +64,11 @@ pub fn delete_history_entry(conn: &Connection, id: &str) -> Result<()> {
 }
 
 pub fn update_history_entry(conn: &Connection, id: &str, name: &str, path: &str) -> Result<()> {
-    conn.execute("
+    conn.execute(
+        "
         UPDATE history SET name = ?, path = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    ",[&name, &path, &id])?;
+    ",
+        [&name, &path, &id],
+    )?;
     Ok(())
 }

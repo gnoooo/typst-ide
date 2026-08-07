@@ -62,12 +62,11 @@ pub fn copy_file(src: &str, dst: &str) -> Result<u64> {
     fs::copy(src, dst)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    
+
     #[test]
     fn test_read_write_file() {
         let dir = tempdir().unwrap();
@@ -78,7 +77,7 @@ mod tests {
 
         write_file(path.to_str().unwrap(), content).unwrap();
         let read_content = read_file(path.to_str().unwrap()).unwrap();
-        
+
         assert_eq!(read_content, content);
         std::fs::remove_file(path).unwrap();
     }
@@ -90,7 +89,6 @@ mod tests {
 
         let result = read_file(file_path.to_str().unwrap());
         assert!(result.is_err());
-
     }
 
     #[test]
@@ -122,5 +120,4 @@ mod tests {
         delete_file(file_path.to_str().unwrap()).unwrap();
         assert!(!file_exists(file_path.to_str().unwrap()));
     }
-
 }

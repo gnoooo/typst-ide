@@ -47,8 +47,9 @@ fn main() {
             app.manage(HistoryDbState(Mutex::new(history_conn)));
 
             let bibliography_db_path = data_dir.join("bibliography.db");
-            let bibliography_conn = bibliography_db::init_db(bibliography_db_path.to_str().unwrap())
-                .expect("Failed to initialise bibliography DB");
+            let bibliography_conn =
+                bibliography_db::init_db(bibliography_db_path.to_str().unwrap())
+                    .expect("Failed to initialise bibliography DB");
             app.manage(BibliographyDbState(Mutex::new(bibliography_conn)));
 
             // Semaphore(1): at most one Typst compile at a time
@@ -60,7 +61,6 @@ fn main() {
             preview::render_preview,
             preview::invalidate_file_cache,
             preview::resolve_preview_click,
-
             fs::open_folder_dialog,
             fs::create_project,
             fs::open_project,
@@ -76,7 +76,6 @@ fn main() {
             fs::read_image_as_base64,
             fs::save_data_image,
             fs::file_hash,
-
             db::add_note,
             db::get_all_notes,
             db::delete_note,
@@ -92,7 +91,6 @@ fn main() {
             db::get_bibliography,
             db::delete_bibliography_entry,
             db::update_bibliography_entry,
-
             bibliography::create_bib_file_if_missing,
             bibliography::parse_bib_file,
             bibliography::add_entry_to_bib,
@@ -101,10 +99,8 @@ fn main() {
             bibliography::delete_whole_bib_source,
             bibliography::delete_bib_source_value,
             bibliography::synchronize_bibliography_entries,
-
             export::pick_pdf_path,
             export::export_pdf,
-
             misc::set_webview_zoom,
             misc::font_exists,
             misc::suggest_font

@@ -1,7 +1,10 @@
 // Preview commands: compile to HTML, invalidate cache, resolve clicks
 
 use crate::state::CompileState;
-use typst_ide_core::compiler::{ClickResult, DiagnosticInfo, PreviewResult, compile_to_preview_html, invalidate_preview_file_cache, resolve_click};
+use typst_ide_core::compiler::{
+    ClickResult, DiagnosticInfo, PreviewResult, compile_to_preview_html,
+    invalidate_preview_file_cache, resolve_click,
+};
 
 /// Cursor position as reported by Monaco (1-based line and UTF-16 column).
 /// Transmitted by the frontend to enable forward-search (editor → preview sync).
@@ -28,7 +31,10 @@ pub async fn render_preview(
             severity: "error".into(),
             message: e.to_string(),
             hints: vec![],
-            line: None, column: None, end_line: None, end_column: None,
+            line: None,
+            column: None,
+            end_line: None,
+            end_column: None,
         }]
     })?;
     tauri::async_runtime::spawn_blocking(move || {

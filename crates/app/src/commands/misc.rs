@@ -22,9 +22,9 @@ pub fn font_exists(name: String) -> bool {
 /// (edit distance > 5 after normalisation).
 #[tauri::command]
 pub fn suggest_font(name: String) -> Option<String> {
+    use font_kit::source::SystemSource;
     use std::collections::BTreeSet;
     use std::sync::OnceLock;
-    use font_kit::source::SystemSource;
 
     static FAMILIES: OnceLock<Vec<String>> = OnceLock::new();
     let families = FAMILIES.get_or_init(|| {

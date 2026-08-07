@@ -5,16 +5,16 @@ use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use serde::Serialize;
-use typst::diag::{SourceDiagnostic, Severity};
 use std::num::NonZeroUsize;
+use typst::diag::{Severity, SourceDiagnostic};
 
+use typst::World;
 use typst::introspection::PagedPosition;
 use typst::layout::{Frame, FrameItem, Point};
-use typst_layout::PagedDocument;
 use typst::syntax::{LinkedNode, Side, Span, SyntaxKind};
-use typst::World;
 use typst_as_library::TypstWrapperWorld;
-use typst_ide::{jump_from_click, Jump};
+use typst_ide::{Jump, jump_from_click};
+use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
 
 /// Returns the current working directory as a String, falling back to "."
@@ -54,7 +54,7 @@ fn svg_cache() -> &'static Mutex<HashMap<u128, String>> {
 /// serialized and sent to the frontend.
 #[derive(Serialize, Clone)]
 pub struct DiagnosticInfo {
-    pub severity: String,   // "error" | "warning"
+    pub severity: String, // "error" | "warning"
     pub message: String,
     pub hints: Vec<String>,
     pub line: Option<u32>,       // 1-based start line
@@ -114,7 +114,15 @@ fn collect_diagnostics(
                 None => (None, None, None, None),
             };
 
-            DiagnosticInfo { severity, message, hints, line, column, end_line, end_column }
+            DiagnosticInfo {
+                severity,
+                message,
+                hints,
+                line,
+                column,
+                end_line,
+                end_column,
+            }
         })
         .collect()
 }
@@ -122,9 +130,9 @@ fn collect_diagnostics(
 /// Position in the rendered preview corresponding to a cursor position in the source.
 #[derive(Serialize, Clone)]
 pub struct JumpPos {
-    pub page: usize,  // 1-based page number
-    pub x: f64,       // x coordinate in pt
-    pub y: f64,       // y coordinate in pt
+    pub page: usize, // 1-based page number
+    pub x: f64,      // x coordinate in pt
+    pub y: f64,      // y coordinate in pt
 }
 
 /// Per-phase timing breakdown for a single compilation, in milliseconds.
@@ -179,18 +187,26 @@ fn monaco_pos_to_byte(text: &str, line: u32, column: u32) -> usize {
     let mut current_line = 1u32;
     let mut byte_pos = 0usize;
     for ch in text.chars() {
-        if current_line == line { break; }
+        if current_line == line {
+            break;
+        }
         byte_pos += ch.len_utf8();
-        if ch == '\n' { current_line += 1; }
+        if ch == '\n' {
+            current_line += 1;
+        }
     }
     // Advance (column - 1) UTF-16 units within the line
     let line_text = &text[byte_pos..];
     let mut utf16_consumed = 0u32;
     let target_utf16 = column.saturating_sub(1);
     for ch in line_text.chars() {
-        if ch == '\n' { break; }
+        if ch == '\n' {
+            break;
+        }
         let ch_utf16 = ch.len_utf16() as u32;
-        if utf16_consumed + ch_utf16 > target_utf16 { break; }
+        if utf16_consumed + ch_utf16 > target_utf16 {
+            break;
+        }
         utf16_consumed += ch_utf16;
         byte_pos += ch.len_utf8();
     }
@@ -204,9 +220,7 @@ fn best_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<
 
     for &(mut pos, ref item) in frame.items() {
         if let FrameItem::Group(group) = item {
-            if let Some((dist, point)) =
-                best_glyph_in_frame(&group.frame, span, target_offset)
-            {
+            if let Some((dist, point)) = best_glyph_in_frame(&group.frame, span, target_offset) {
                 let candidate = (dist, pos + point.transform(group.transform));
                 if best_global.as_ref().map_or(true, |(d, _)| dist < *d) {
                     best_global = Some(candidate);
@@ -325,12 +339,16 @@ pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
 /// 2. **SVG page cache**: each compiled `Page` is hashed with `typst_utils::hash128`.
 ///    The SVG string for unchanged pages is returned from the cache without
 ///    calling `typst_svg::svg` again, which is the most expensive per-page step.
-pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option<(u32, u32)>) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
+pub fn compile_to_preview_html(
+    root: Option<&str>,
+    content: &str,
+    cursor: Option<(u32, u32)>,
+) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
     let t_total = Instant::now();
 
     let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
 
-    // 1. Acquire / update the persistent world 
+    // 1. Acquire / update the persistent world
     let t_world = Instant::now();
     let mut world_guard = preview_world_cache().lock().unwrap();
     match world_guard.as_mut() {
@@ -378,14 +396,28 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
             let hash = typst_utils::hash128(page);
             let svg = svg_guard
                 .entry(hash)
-                .or_insert_with(|| typst_svg::svg(page, &typst_svg::SvgOptions { render_bleed: false, pretty: false }))
+                .or_insert_with(|| {
+                    typst_svg::svg(
+                        page,
+                        &typst_svg::SvgOptions {
+                            render_bleed: false,
+                            pretty: false,
+                        },
+                    )
+                })
                 .clone();
-            RenderedPage { svg, hash: format!("{hash:032x}") }
+            RenderedPage {
+                svg,
+                hash: format!("{hash:032x}"),
+            }
         })
         .collect();
     // Evict SVG cache entries for pages no longer in this document.
-    let current_hashes: std::collections::HashSet<u128> =
-        document.pages().iter().map(|p| typst_utils::hash128(p)).collect();
+    let current_hashes: std::collections::HashSet<u128> = document
+        .pages()
+        .iter()
+        .map(|p| typst_utils::hash128(p))
+        .collect();
     svg_guard.retain(|k, _| current_hashes.contains(k));
     drop(svg_guard);
     let svg_ms = t_svg.elapsed().as_millis() as u64;
@@ -394,7 +426,12 @@ pub fn compile_to_preview_html(root: Option<&str>, content: &str, cursor: Option
     Ok(PreviewResult {
         pages,
         jump_pos,
-        timings: CompileTimings { world_ms, compile_ms, svg_ms, total_ms },
+        timings: CompileTimings {
+            world_ms,
+            compile_ms,
+            svg_ms,
+            total_ms,
+        },
     })
 }
 
@@ -498,21 +535,21 @@ pub fn invalidate_preview_file_cache() {
 pub fn compile_to_pdf(root: Option<&str>, content: &str) -> Result<Vec<u8>, String> {
     let world = match root {
         Some(r) => create_world_with_root(r, content),
-        None    => create_default_world(content),
+        None => create_default_world(content),
     };
     let document: PagedDocument = typst::compile(&world)
         .output
         .map_err(|errors| format_diagnostics(&errors))?;
-    
-    typst_pdf::pdf(&document, &PdfOptions::default())
-        .map_err(|errors| format_diagnostics(&errors))
+
+    typst_pdf::pdf(&document, &PdfOptions::default()).map_err(|errors| format_diagnostics(&errors))
 }
 
 /// Compiles a Typst document to PDF and writes it to the specified output path
-pub fn compile(world: &TypstWrapperWorld, output: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
-    let document = typst::compile(world)
-        .output
-        .expect("Error compiling typst");
+pub fn compile(
+    world: &TypstWrapperWorld,
+    output: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let document = typst::compile(world).output.expect("Error compiling typst");
 
     let pdf = typst_pdf::pdf(&document, &PdfOptions::default()).expect("Error exporting PDF");
     fs::write(output, pdf).expect("Error writing PDF.");
@@ -522,22 +559,21 @@ pub fn compile(world: &TypstWrapperWorld, output: &std::path::Path) -> Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use pdf_extract::extract_text;
+    use tempfile::tempdir;
 
     #[test]
     fn test_compile() {
         let dir = tempdir().unwrap();
         let content = "= Writing a test".to_owned();
-        
+
         let world = create_default_world(&content);
         let output_path = dir.path().join("test_output.pdf");
-        
+
         let result = compile(&world, &output_path);
         assert!(result.is_ok());
 
         let extracted_text = extract_text(&output_path).expect("Error extracting text from PDF");
         assert!(extracted_text.contains("Writing a test"));
     }
-
 }

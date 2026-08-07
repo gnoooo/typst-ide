@@ -132,16 +132,17 @@ pub fn list_directory(dir_path: String) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
-fn collect_entries(root: &std::path::Path, dir: &std::path::Path, out: &mut Vec<FileEntry>) -> Result<(), String> {
+fn collect_entries(
+    root: &std::path::Path,
+    dir: &std::path::Path,
+    out: &mut Vec<FileEntry>,
+) -> Result<(), String> {
     let read_dir = std::fs::read_dir(dir).map_err(|e| e.to_string())?;
     for entry in read_dir {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
         let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
-        let name = entry
-            .file_name()
-            .to_string_lossy()
-            .into_owned();
+        let name = entry.file_name().to_string_lossy().into_owned();
         // Skip hidden files/dirs that start with '.'
         if name.starts_with('.') {
             continue;
@@ -248,9 +249,8 @@ pub async fn import_file_dialog(dest_dir: String) -> Result<Vec<String>, String>
             .to_string_lossy()
             .into_owned();
         let dest_path = dest.join(&name);
-        std::fs::copy(src_path, &dest_path).map_err(|e| {
-            format!("Impossible de copier {} : {}", name, e)
-        })?;
+        std::fs::copy(src_path, &dest_path)
+            .map_err(|e| format!("Impossible de copier {} : {}", name, e))?;
         imported.push(name);
     }
     Ok(imported)
@@ -275,9 +275,7 @@ pub async fn replace_file(path: String) -> Result<String, String> {
         .unwrap_or_default()
         .to_string_lossy()
         .into_owned();
-    std::fs::copy(&src, &path).map_err(|e| {
-        format!("Impossible de remplacer {} : {}", name, e)
-    })?;
+    std::fs::copy(&src, &path).map_err(|e| format!("Impossible de remplacer {} : {}", name, e))?;
     Ok(name)
 }
 
@@ -303,7 +301,10 @@ pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
         #[cfg(target_os = "macos")]
         {
             let res = if p.is_file() {
-                std::process::Command::new("open").arg("-R").arg(&path).spawn()
+                std::process::Command::new("open")
+                    .arg("-R")
+                    .arg(&path)
+                    .spawn()
             } else {
                 std::process::Command::new("open").arg(&path).spawn()
             };
@@ -353,13 +354,7 @@ pub async fn save_data_image(project_path: String, data_url: String) -> Result<S
         "svg+xml" => "svg".to_string(),
         other => other
             .chars()
-            .map(|c| {
-                if c.is_ascii_alphanumeric() {
-                    c
-                } else {
-                    '_'
-                }
-            })
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect(),
     };
 

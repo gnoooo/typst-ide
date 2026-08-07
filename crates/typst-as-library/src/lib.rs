@@ -161,12 +161,14 @@ impl TypstWrapperWorld {
             typst::syntax::VirtualRoot::Package(package) => {
                 // Fetching file from package
                 let package_dir = self.download_package(package)?;
-                id.vpath().realize(&package_dir)
+                id.vpath()
+                    .realize(&package_dir)
                     .map_err(|_| FileError::AccessDenied)?
             }
             typst::syntax::VirtualRoot::Project => {
                 // Fetching file from disk
-                id.vpath().realize(&self.root)
+                id.vpath()
+                    .realize(&self.root)
                     .map_err(|_| FileError::AccessDenied)?
             }
         };
@@ -227,7 +229,7 @@ impl TypstWrapperWorld {
         let raw_archive = zune_inflate::DeflateDecoder::new(&compressed_archive)
             .decode_gzip()
             .map_err(|error| PackageError::MalformedArchive(Some(eco_format!("{error}"))))?;
-        
+
         let mut archive = tar::Archive::new(raw_archive.as_slice());
         archive.unpack(&path).map_err(|error| {
             _ = std::fs::remove_dir_all(&path);
