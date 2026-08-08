@@ -256,6 +256,59 @@ pub async fn import_file_dialog(dest_dir: String) -> Result<Vec<String>, String>
     Ok(imported)
 }
 
+/// Opens a native image picker, copies the selected image into
+/// `<project>/images/` (created if missing) and returns its relative path.
+/// If a file with the same name already exists, a numeric suffix is added
+/// (e.g. `image (1).png`).
+#[tauri::command]
+pub async fn import_image_dialog(project_path: String) -> Result<String, String> {
+    let file = tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Choisir une image")
+            .add_filter(
+                "Images",
+                &["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp", "ico"],
+            )
+            .pick_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Aucune image sélectionnée.".to_string())?;
+
+    let images_dir = std::path::PathBuf::from(&project_path).join("images");
+    std::fs::create_dir_all(&images_dir).map_err(|e| e.to_string())?;
+
+    let name = file
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+
+    let mut dest_path = images_dir.join(&name);
+    let mut counter = 1;
+    while dest_path.exists() {
+        let stem = file
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy();
+        let ext = file
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy();
+        dest_path = images_dir.join(format!("{stem} ({counter}).{ext}"));
+        counter += 1;
+    }
+
+    std::fs::copy(&file, &dest_path)
+        .map_err(|e| format!("Impossible de copier {name} : {e}"))?;
+
+    Ok(dest_path
+        .strip_prefix(&std::path::PathBuf::from(&project_path))
+        .unwrap_or(&dest_path)
+        .to_string_lossy()
+        .into_owned())
+}
+
 /// Opens a native file picker (multi-select) without copying anything.
 /// Returns the absolute paths of the selected files.
 #[tauri::command]

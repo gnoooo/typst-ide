@@ -9,6 +9,7 @@ import { t } from '../i18n/index.js'
 import { getCurrentFontFamily, getEditor } from './editor'
 import { openModal } from './modal';
 import { showToast } from './toast';
+import { getCurrentProject } from './project';
 
 export const STRUCT_ELEMENTS = [
   {
@@ -523,15 +524,129 @@ export const STRUCT_ELEMENTS = [
     title: 'structures.figure',
     openModal: () => {
       const body = document.createElement('div');
+
+      const updatePreview = async () => {
+        const pathInput = document.getElementById('structures-figure-input-path');
+        const img = document.getElementById('structures-figure-preview-img');
+        const empty = document.getElementById('structures-figure-preview-empty');
+        const path = pathInput?.value.trim();
+        if (!path) {
+          if (img) img.style.display = 'none';
+          if (empty) empty.style.display = '';
+          return;
+        }
+        const project = getCurrentProject();
+        if (!project?.path) return;
+        try {
+          const fullPath = path.startsWith('/') ? path : `${project.path}/${path}`;
+          const dataUrl = await window.__TAURI__.core.invoke('read_image_as_base64', { path: fullPath });
+          img.src = dataUrl;
+          img.style.display = '';
+          empty.style.display = 'none';
+        } catch (error) {
+          img.style.display = 'none';
+          empty.style.display = '';
+        }
+      };
+
+      const browseImage = async () => {
+        const project = getCurrentProject();
+        if (!project?.path) {
+          showToast('warning', t('toast.image_paste_no_project'));
+          return;
+        }
+        try {
+          const relativePath = await window.__TAURI__.core.invoke('import_image_dialog', {
+            projectPath: project.path,
+          });
+          if (!relativePath) return;
+          const pathInput = document.getElementById('structures-figure-input-path');
+          if (pathInput) pathInput.value = relativePath;
+          await updatePreview();
+          document.getElementById('structures-figure-input-caption')?.focus();
+        } catch (error) {
+          showToast('error', t('toast.image_import_error', { error: String(error) }));
+        }
+      };
+
       body.innerHTML = `
-        <div id="structures-rect-modal">
-          <p class="structures-input-label">${t('structures.not_implemented')}</p>
+        <div id="structures-figure-modal">
+          <p class="structures-input-label">${t('structures.image_path')}</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <input
+              id="structures-figure-input-path"
+              type="text"
+              placeholder="images/photo.png"
+              autocomplete="off"
+              spellcheck="false"
+              style="flex:1;min-width:0;height:32px;padding:0 8px;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;"
+            />
+            <button id="structures-figure-btn-browse" type="button" class="btn structures-inline-btn">${t('structures.browse')}</button>
+          </div>
+
+          <p class="structures-input-label">${t('structures.preview')}</p>
+          <div
+            id="structures-figure-preview"
+            style="display:flex;align-items:center;justify-content:center;min-height:80px;max-height:220px;overflow:hidden;margin-bottom:8px;border:1px solid rgba(128,128,128,.3);border-radius:6px;padding:8px;"
+          >
+            <img id="structures-figure-preview-img" alt="" style="max-width:100%;max-height:220px;display:none;" />
+            <span id="structures-figure-preview-empty" style="opacity:.5;font-size:12px;">${t('structures.preview_unavailable')}</span>
+          </div>
+
+          <p class="structures-input-label">${t('structures.caption')}</p>
+          <input
+            id="structures-figure-input-caption"
+            type="text"
+            autocomplete="off"
+            style="width:100%;height:32px;padding:0 8px;box-sizing:border-box;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;margin-bottom:8px;"
+          />
+
+          <p
+            onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/reference/model/figure/')"
+            style="cursor:pointer;color:var(--color-link);text-decoration:underline;display:flex;width:fit-content;"
+          >More information...</p>
         </div>
       `;
+
+      const { invoke } = window.__TAURI__.core;
+      const pathInput = body.querySelector('#structures-figure-input-path');
+      if (pathInput) {
+        pathInput.addEventListener('input', () => {
+          clearTimeout(pathInput._previewTimer);
+          pathInput._previewTimer = setTimeout(updatePreview, 300);
+        });
+      }
+      const browseBtn = body.querySelector('#structures-figure-btn-browse');
+      browseBtn?.addEventListener('click', () => browseImage());
+
       openModal({
         title: t('structures.insert_figure'),
         body: body,
-        buttons: [],
+        width: '560px',
+        buttons: [
+          {
+            label: t('modal.insert'),
+            primary: true,
+            onClick: (close) => {
+              const path = document.getElementById('structures-figure-input-path')?.value.trim() ?? '';
+              const caption = document.getElementById('structures-figure-input-caption')?.value.trim() ?? '';
+              if (!path) {
+                showToast('warning', t('toast.image_path_required'));
+                return;
+              }
+              const typst_code = `\n#figure(\n    image("${path}"),\n    caption: [${caption}]\n)\n`;
+              const editor = getEditor();
+              if (editor) {
+                const selection = editor.getSelection();
+                if (selection) {
+                  editor.executeEdits(null, [{ range: selection, text: typst_code }]);
+                }
+                editor.focus();
+              }
+              close();
+            },
+          },
+        ],
       });
     }
   },

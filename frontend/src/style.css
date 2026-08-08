@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Tailwind v4: sources de classe explicites (les fichiers JS génèrent du HTML) */
+@source "../js";
+@source "./index.html";
+
 
 /* ###################################################################
    Typst IDE  Application stylesheet
@@ -607,6 +611,16 @@ div.toolbar-row>#preview-manage-btn{
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding-inline: 4px;
+}
+
+/* Bouton compact aligné sur la hauteur des inputs des modales structures (h-8 = 32px) */
+.structures-inline-btn {
+    height: 32px;
+    min-height: 32px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
 }
 
 

@@ -72,6 +72,7 @@ fn main() {
             fs::create_dir,
             fs::delete_file_or_dir,
             fs::import_file_dialog,
+            fs::import_image_dialog,
             fs::import_folder_dialog,
             fs::pick_files,
             fs::replace_file,
