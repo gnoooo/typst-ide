@@ -7,6 +7,8 @@
 #     ./manage.sh info             Affiche les infos du projet (nom, version, cohérence, git...)
 #     ./manage.sh bump <version>   Met à jour la version dans tous les fichiers
 #                                     (Cargo.toml, tauri.conf.json, PKGBUILD, Cargo.lock, frontend)
+#                                     Ou bump automatique : major|minor|patch|premajor|preminor|prepatch|prerelease
+#                                        (incrémente la version actuelle)
 #                                     Options : --dry-run (affiche sans écrire)
 #     ./manage.sh check            Vérifie la cohérence des versions + cargo fmt/check
 #     ./manage.sh test             Lance les tests du workspace
@@ -161,6 +163,39 @@ git_branch() {
   git -C "$REPO_ROOT" branch --show-current 2>/dev/null || echo "(détaché)"
 }
 
+# --- Bump automatique ---
+
+# Calcule la nouvelle version depuis la version actuelle et un type de bump.
+# Supporte major, minor, patch et leurs variantes pre-* (prerelease).
+compute_bump() {
+  local kind="$1" cur="$2"
+  local ma mi pa suffix=""
+  if [[ "$cur" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-.*)?$ ]]; then
+    ma=${BASH_REMATCH[1]}; mi=${BASH_REMATCH[2]}; pa=${BASH_REMATCH[3]}
+    suffix="${BASH_REMATCH[4]}"
+  else
+    die "version actuelle non valide ('$cur') : impossible de bumper '$kind'"
+  fi
+  case "$kind" in
+    major)     echo "$((ma + 1)).0.0" ;;
+    minor)     echo "$ma.$((mi + 1)).0" ;;
+    patch)     echo "$ma.$mi.$((pa + 1))" ;;
+    premajor)  echo "$((ma + 1)).0.0-0" ;;
+    preminor)  echo "$ma.$((mi + 1)).0-0" ;;
+    prepatch)  echo "$ma.$mi.$((pa + 1))-0" ;;
+    prerelease)
+      if [[ "$suffix" =~ ^-([0-9]+)$ ]]; then
+        echo "$ma.$mi.$pa-$((${BASH_REMATCH[1]} + 1))"
+      elif [ -n "$suffix" ]; then
+        echo "$ma.$mi.$pa${suffix}.0"
+      else
+        echo "$ma.$mi.$pa-0"
+      fi
+      ;;
+    *) die "type de bump inconnu: $kind" ;;
+  esac
+}
+
 # ---------------------
 # Commandes
 # ---------------------
@@ -217,25 +252,38 @@ cmd_info() {
 }
 
 cmd_bump() {
-  local new_version="" dry_run=0
+  local new_version="" bump_kind="" dry_run=0
 
   for arg in "$@"; do
     case "$arg" in
       --dry-run) dry_run=1 ;;
       -*) die "option inconnue: $arg (seule option acceptée: --dry-run)" ;;
-      *) [ -z "$new_version" ] && new_version="$arg" || die "trop d'arguments: bump attend une seule version" ;;
+      major|minor|patch|premajor|preminor|prepatch|prerelease)
+        [ -z "$bump_kind" ] && bump_kind="$arg" || die "trop d'arguments: bump attend une seule version ou un seul type"
+        ;;
+      *)
+        [ -z "$new_version" ] && new_version="$arg" || die "trop d'arguments: bump attend une seule version"
+        ;;
     esac
   done
-  [ -n "$new_version" ] || die "usage: manage.sh bump <version> [--dry-run]"
+  [ -n "$new_version" ] || [ -n "$bump_kind" ] || die "usage: manage.sh bump <version|major|minor|patch|...> [--dry-run]"
 
   require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$LOCKFILE" "$FRONTEND_PKG"
+
+  local old
+  old="$(app_version)"
+
+  # --- Bump automatique ---
+  if [ -n "$bump_kind" ]; then
+    new_version="$(compute_bump "$bump_kind" "$old")"
+    echo "Bump automatique ($bump_kind) : $old -> ${BOLD}$new_version${NC}"
+    echo
+  fi
 
   # --- Validation ---
   echo "$new_version" | grep -qE "$SEMVER_RE" \
     || die "version invalide '$new_version' (format attendu: X.Y.Z, ex. 1.3.0)"
 
-  local old
-  old="$(app_version)"
   [ "$old" = "$new_version" ] \
     && die "la version est déjà $new_version"
 
@@ -338,7 +386,7 @@ cmd_dev() {
 }
 
 usage() {
-  sed -n '4,15p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '4,17p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # ---------------------

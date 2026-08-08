@@ -38,7 +38,7 @@ async function main() {
   })
 
   document.querySelectorAll('[data-lang]').forEach(btn => {
-    btn.addEventListener('click', () => setLang(btn.dataset.lang))
+    btn.addEventListener('click', () => { setLang(btn.dataset.lang); populateStructureDropdown(); })
   })
 
   if (!window.__TAURI__) {

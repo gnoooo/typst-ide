@@ -15,7 +15,7 @@ export const STRUCT_ELEMENTS = [
     id: 'table',
     content: '#table',
     classes: '',
-    title: t('structures.table'),
+    title: 'structures.table',
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -163,7 +163,7 @@ export const STRUCT_ELEMENTS = [
     id: 'grid',
     content: '#grid',
     classes: '',
-    title: t('structures.grid'),
+    title: 'structures.grid',
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -312,7 +312,7 @@ export const STRUCT_ELEMENTS = [
     id: 'rect',
     content: '#rect',
     classes: '',
-    title: t('structures.rect'),
+    title: 'structures.rect',
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -520,7 +520,7 @@ export const STRUCT_ELEMENTS = [
     id: 'figure',
     content: '#figure',
     classes: '',
-    title: t('structures.figure'),
+    title: 'structures.figure',
     openModal: () => {
       const body = document.createElement('div');
       body.innerHTML = `
@@ -582,7 +582,7 @@ export function populateStructureDropdown() {
     });
     button.innerHTML = item.content;
     if (item.classes) button.classList.add(...item.classes.split(' '));
-    button.title = item.title;
+    button.title = item.title ? t(item.title) : '';
     if (item.id) button.id = item.id;
     li.appendChild(button);
     dropdown.appendChild(li);
