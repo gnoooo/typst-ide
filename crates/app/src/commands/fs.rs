@@ -287,20 +287,13 @@ pub async fn import_image_dialog(project_path: String) -> Result<String, String>
     let mut dest_path = images_dir.join(&name);
     let mut counter = 1;
     while dest_path.exists() {
-        let stem = file
-            .file_stem()
-            .unwrap_or_default()
-            .to_string_lossy();
-        let ext = file
-            .extension()
-            .unwrap_or_default()
-            .to_string_lossy();
+        let stem = file.file_stem().unwrap_or_default().to_string_lossy();
+        let ext = file.extension().unwrap_or_default().to_string_lossy();
         dest_path = images_dir.join(format!("{stem} ({counter}).{ext}"));
         counter += 1;
     }
 
-    std::fs::copy(&file, &dest_path)
-        .map_err(|e| format!("Impossible de copier {name} : {e}"))?;
+    std::fs::copy(&file, &dest_path).map_err(|e| format!("Impossible de copier {name} : {e}"))?;
 
     Ok(dest_path
         .strip_prefix(&std::path::PathBuf::from(&project_path))
