@@ -1,5 +1,15 @@
 # Release Notes
 
+## v1.4.3
+
+### New in v1.4.3
+
+- **Rectangle dialog redesigned** : border and radius are now two independent settings (`border` + color picker, `radius` + unit selector), with more sensible defaults (no border by default, fill color set to black). The `%` unit no longer appears where it makes no sense.
+
+### Fixes
+
+- **Tailwind CSS finally works** : the app was compiled with the old Tailwind v3 directives; it now uses the v4 syntax (`@import "tailwindcss"`) with the daisyUI plugin, and the utility classes actually get generated. The inject-tailwind script keeps the `public/css/output.css` link working in the built app.
+
 ## v1.4.2
 
 ### New in v1.4.2
