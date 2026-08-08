@@ -19,6 +19,30 @@ use commands::preview;
 use commands::templates;
 use state::{BibliographyDbState, CompileState, HistoryDbState, NotesDbState};
 
+/// Initialises one of the SQLite databases, showing a native error dialog and
+/// returning the error if anything goes wrong (instead of panicking).
+fn init_db_with_dialog(
+    label: &str,
+    path: &std::path::Path,
+    init: fn(&str) -> rusqlite::Result<rusqlite::Connection>,
+) -> Result<rusqlite::Connection, Box<dyn std::error::Error>> {
+    let path_str = path.to_str().ok_or_else(|| {
+        format!(
+            "{label} database path is not valid UTF-8: {}",
+            path.display()
+        )
+    })?;
+    init(path_str).map_err(|e| {
+        let message = format!("Failed to initialise {label} database: {e}");
+        let _ = rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Error)
+            .set_title("Typst IDE")
+            .set_description(&message)
+            .show();
+        message.into()
+    })
+}
+
 fn main() {
     // On Linux, WebKitGTK may try to use DMABuf/GPU compositing and fail on some systems.
     // Disable as a secondary defense (the real fix is not bundling Wayland libs in the AppImage).
@@ -38,19 +62,20 @@ fn main() {
             std::fs::create_dir_all(&data_dir)?;
 
             let note_db_path = data_dir.join("notes.db");
-            let note_conn = notes_db::init_db(note_db_path.to_str().unwrap())
-                .expect("Failed to initialise notes DB");
+            let note_conn = init_db_with_dialog("notes", &note_db_path, notes_db::init_db)?;
             app.manage(NotesDbState(Mutex::new(note_conn)));
 
             let history_db_path = data_dir.join("history.db");
-            let history_conn = history_db::init_db(history_db_path.to_str().unwrap())
-                .expect("Failed to initialise history DB");
+            let history_conn =
+                init_db_with_dialog("history", &history_db_path, history_db::init_db)?;
             app.manage(HistoryDbState(Mutex::new(history_conn)));
 
             let bibliography_db_path = data_dir.join("bibliography.db");
-            let bibliography_conn =
-                bibliography_db::init_db(bibliography_db_path.to_str().unwrap())
-                    .expect("Failed to initialise bibliography DB");
+            let bibliography_conn = init_db_with_dialog(
+                "bibliography",
+                &bibliography_db_path,
+                bibliography_db::init_db,
+            )?;
             app.manage(BibliographyDbState(Mutex::new(bibliography_conn)));
 
             // Semaphore(1): at most one Typst compile at a time
