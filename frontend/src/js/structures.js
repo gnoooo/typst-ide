@@ -394,8 +394,8 @@ export const STRUCT_ELEMENTS = [
               id="structures-rect-input-border"
               type="number"
               placeholder="border"
-              min="2"
-              value="2"
+              min="0"
+              value="1"
               class="w-18 h-8 text-base mb-2"
             />
             <select
@@ -406,14 +406,26 @@ export const STRUCT_ELEMENTS = [
               <option value="mm">mm</option>
               <option value="cm">cm</option>
               <option value="inches">inches</option>
-              <option value="%">%</option>
             </select>
+            <input
+              id="structures-rect-input-bordercolor"
+              type="color"
+              value="#000000"
+              class="w-8 h-8 text-base mb-2"
+            />
+            <div class="flex-1 text-right min-w-0">
+              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">1pt + black</pre>
+            </div>
+          </div>
+
+          <p class="structures-input-label">${t('structures.radius')}</p>
+          <div class="flex items-center w-full gap-2" style="margin-bottom: 8px">
             <input
               id="structures-rect-input-radius"
               type="number"
               placeholder="radius"
-              min="2"
-              value="2"
+              min="0"
+              value="0"
               class="w-18 h-8 text-base mb-2"
             />
             <select
@@ -426,14 +438,8 @@ export const STRUCT_ELEMENTS = [
               <option value="inches">inches</option>
               <option value="%">%</option>
             </select>
-            <input
-              id="structures-rect-input-bordercolor"
-              type="color"
-              value="#000000"
-              class="w-8 h-8 text-base mb-2"
-            />
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">2pt 0pt black</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">0pt</pre>
             </div>
           </div>
 
@@ -443,6 +449,7 @@ export const STRUCT_ELEMENTS = [
             <input
               id="structures-rect-input-fillcolor"
               type="color"
+              value="#000000"
               class="w-16 h-8 text-base mb-2"
               style="opacity: 0.5;transition:0.2s;"
             />
@@ -476,10 +483,10 @@ export const STRUCT_ELEMENTS = [
             primary: true,
             onClick: () => {
               // get all values from the form
-              const width_value = parseInt(document.getElementById('structures-rect-input-width').value);
-              const width_unit = parseInt(document.getElementById('structures-rect-select-width').value);
-              const height_value = parseInt(document.getElementById('structures-rect-input-height').value);
-              const height_unit = parseInt(document.getElementById('structures-rect-select-height').value);
+              const width_value = parseFloat(document.getElementById('structures-rect-input-width').value);
+              const width_unit = document.getElementById('structures-rect-select-width').value;
+              const height_value = parseFloat(document.getElementById('structures-rect-input-height').value);
+              const height_unit = document.getElementById('structures-rect-select-height').value;
               const inset_value = document.getElementById('structures-rect-input-inset').value;
               const inset_unit = document.getElementById('structures-rect-select-inset').value;
               const thickness_value = document.getElementById('structures-rect-input-border').value;
@@ -488,6 +495,7 @@ export const STRUCT_ELEMENTS = [
               const radius_unit = document.getElementById('structures-rect-select-radius').value;
               const border_color = document.getElementById('structures-rect-input-bordercolor').value;
               const fill_color = document.getElementById('structures-rect-input-fillcolor').value;
+              const fill_enabled = document.getElementById('structures-rect-checkbox-fill').checked;
 
               // create the typst code
               const width_code = width_value ? `\nwidth: ${width_value}${width_unit},\n` : '\twidth: auto,\n';
@@ -495,7 +503,7 @@ export const STRUCT_ELEMENTS = [
               const inset_code = inset_value ? `\tinset: ${inset_value}${inset_unit},\n` : '';
               const stroke_code = thickness_value ? `\tstroke: ${thickness_value}${thickness_unit} + rgb("${border_color}"),\n` : '';
               const radius_code = radius_value ? `\tradius: ${radius_value}${radius_unit},\n` : '';
-              const fill_code = fill_color ? `\tfill: rgb("${fill_color}"),\n` : '';
+              const fill_code = fill_enabled && fill_color ? `\tfill: rgb("${fill_color}"),\n` : '';
 
               const typst_code = `#rect(\n${width_code}${height_code}${inset_code}${stroke_code}${radius_code}${fill_code})[\n\t\n]`;
               const editor = getEditor();

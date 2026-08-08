@@ -163,6 +163,7 @@
   "structures.align_h": "Alignement horizontal",
   "structures.align_v": "Alignement vertical",
   "structures.border": "Bordure",
+  "structures.radius": "Rayon",
   "structures.fill": "Remplissage",
   "structures.image_path": "Chemin de l'image",
   "structures.caption": "Légende",

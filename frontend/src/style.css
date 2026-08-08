@@ -1,11 +1,9 @@
 @import "../node_modules/material-symbols/outlined.css";
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@plugin "daisyui";
 
 /* Tailwind v4: sources de classe explicites (les fichiers JS génèrent du HTML) */
-@source "../js";
+@source "./js";
 @source "./index.html";
 
 

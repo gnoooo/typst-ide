@@ -163,6 +163,7 @@
   "structures.align_h": "Horizontal alignment",
   "structures.align_v": "Vertical alignment",
   "structures.border": "Border",
+  "structures.radius": "Radius",
   "structures.fill": "Fill",
   "structures.image_path": "Image path",
   "structures.caption": "Caption",

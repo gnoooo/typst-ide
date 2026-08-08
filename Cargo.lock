@@ -6086,7 +6086,7 @@ dependencies = [
 
 [[package]]
 name = "typst-ide"
-version = "1.4.2"
+version = "1.4.3"
 dependencies = [
  "base64 0.22.1",
  "core",
