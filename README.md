@@ -33,12 +33,11 @@ git clone https://gitlab.com/gnoooo/typst-ide
 cd typst-ide
 ```
 
-Since I didn't pushed the whole repository, we neet to initialize some things:
+Nothing else to initialize, the whole repository is pushed. However, a few steps are required to set up the workspace:
 1. NPM
     ```bash
-    cd frontend && npm install
-    npm run build:css # not necessary: everytime the app build, it generate the CSS
-    npm run postinstall # to convert Monaco Editor (which use web workers) to an ESM module
+    cd frontend
+    npm install
     ```
 2. Cargo
     ```bash
@@ -46,12 +45,14 @@ Since I didn't pushed the whole repository, we neet to initialize some things:
     cd ../crates/app
     cargo tauri build # then pray
     ```
+
 ### Build the app
-To build the app (into an AppImage for Linux and a setup executable for Windows), we have to:
-1. Compile CSS and build the frontend:
+
+To build the app (into `.deb`/`.rpm`/AppImage packages for Linux and a setup executable for Windows), we have to:
+1. Build the frontend:
     ```bash
     cd frontend/
-    npm run build   # => npm run build:css && vite build dist
+    npm run build   # => vite build (Tailwind CSS is compiled via PostCSS)
     ```
 2. Build the app (it's long...):
     - Windows
@@ -65,8 +66,8 @@ To build the app (into an AppImage for Linux and a setup executable for Windows)
         NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu
         ```
         - `NO_STRIP=1` helps avoid the `failed to bundle project \`failed to run linuxdeploy\`` error
-3. The executables files will be in:
-    - Linux : `$HOME/path/to/typst-ide/target/x86_64_unknown-linux-gnu/release/bundle/appimage/Typst IDE_x.y.z_amd64.AppImage`
+3. The executable files will be in:
+    - Linux : `$HOME/path/to/typst-ide/target/x86_64_unknown-linux-gnu/release/bundle/deb/Typst IDE_x.y.z_amd64.deb` (and `rpm/`, `appimage/` next to it)
     - Windows : `$HOME/path/to/typst-ide/target/x86_64-pc-windows-gnu/bundle/nsis/Typst IDE_x.y.z_x64-setup.exe`
 
 # Usage
