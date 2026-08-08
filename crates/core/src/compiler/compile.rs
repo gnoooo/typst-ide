@@ -263,19 +263,11 @@ fn find_precise_cursor_position(
         .or_else(|| {
             root.leaf_at(cursor, Side::After)
                 .filter(|n| matches!(n.kind(), SyntaxKind::Text | SyntaxKind::MathText))
-        });
-    if node.is_none() {
-        eprintln!("[cursor_jump] no Text/MathText leaf at cursor={cursor}");
-    }
-    let node = node?;
+        })?;
 
     let span = node.span();
     let range = node.range();
     let target_offset = cursor.saturating_sub(range.start) as u16;
-    eprintln!(
-        "[cursor_jump] node range={:?}, cursor={cursor}, target_offset={target_offset}",
-        range
-    );
 
     // Search ALL pages, pick the one with the smallest glyph offset distance.
     let mut best: Option<(u16, usize, Point)> = None;
@@ -289,17 +281,7 @@ fn find_precise_cursor_position(
         }
     }
 
-    let (_, page_idx, point) = best.or_else(|| {
-        eprintln!("[cursor_jump] no glyph found (span={span:?}, target_offset={target_offset})");
-        None
-    })?;
-    eprintln!(
-        "[cursor_jump] found at page={} x={:.1} y={:.1} (target_offset={})",
-        page_idx + 1,
-        point.x.to_pt(),
-        point.y.to_pt(),
-        target_offset,
-    );
+    let (_, page_idx, point) = best?;
     Some(JumpPos {
         page: page_idx + 1,
         x: point.x.to_pt(),
@@ -382,7 +364,6 @@ pub fn compile_to_preview_html(
     let jump_pos = cursor.and_then(|(line, col)| {
         let source = world.source(world.main()).ok()?;
         let offset = monaco_pos_to_byte(source.text(), line, col);
-        eprintln!("[cursor_jump] line={line} col={col} offset={offset}");
         find_precise_cursor_position(&document, &source, offset)
     });
 
@@ -460,58 +441,25 @@ pub fn resolve_click(
 
     // Ensure the world has the correct root and source.
     if *cached_root != root_str {
-        eprintln!("[resolve_click] root mismatch: cached={cached_root}, requested={root_str}");
         return None;
     }
     world.reset_source(content);
 
     let document: PagedDocument = match typst::compile(world as &_).output {
         Ok(doc) => doc,
-        Err(errors) => {
-            eprintln!(
-                "[resolve_click] compilation failed with {} errors",
-                errors.len()
-            );
-            return None;
-        }
+        Err(_) => return None,
     };
-    let page_count = document.pages().len();
     let pos = PagedPosition {
-        page: NonZeroUsize::new(page).or_else(|| {
-            eprintln!("[resolve_click] invalid page {page} (page_count={page_count})");
-            None
-        })?,
+        page: NonZeroUsize::new(page)?,
         point: Point::new(typst::layout::Abs::pt(x), typst::layout::Abs::pt(y)),
     };
-    eprintln!("[resolve_click] page={page}/{page_count}, click=({x:.1}, {y:.1})pt");
-    let jump = match jump_from_click(world, &document, &pos) {
-        Some(j) => j,
-        None => {
-            eprintln!("[resolve_click] jump_from_click returned None");
-            return None;
-        }
-    };
-    eprintln!("[resolve_click] jump_from_click returned Jump::File");
+    let jump = jump_from_click(world, &document, &pos)?;
     let (file_id, offset) = match jump {
         Jump::File(id, off) => (id, off),
-        Jump::Url(_url) => {
-            eprintln!("[resolve_click] got Jump::Url, ignoring");
-            return None;
-        }
-        Jump::Position(_pos) => {
-            eprintln!("[resolve_click] got Jump::Position, ignoring");
-            return None;
-        }
+        Jump::Url(_) | Jump::Position(_) => return None,
     };
-    let source = match world.source(file_id) {
-        Ok(s) => s,
-        Err(_) => {
-            eprintln!("[resolve_click] source not found for file_id");
-            return None;
-        }
-    };
+    let source = world.source(file_id).ok()?;
     let (line, column) = byte_to_line_col(source.text(), offset);
-    eprintln!("[resolve_click] resolved to ({line}, {column})");
     Some(ClickResult { line, column })
 }
 
