@@ -256,6 +256,66 @@ pub async fn import_file_dialog(dest_dir: String) -> Result<Vec<String>, String>
     Ok(imported)
 }
 
+/// Opens a native file picker (multi-select) without copying anything.
+/// Returns the absolute paths of the selected files.
+#[tauri::command]
+pub async fn pick_files() -> Result<Vec<String>, String> {
+    let files = tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Sélectionner des fichiers")
+            .pick_files()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Aucun fichier sélectionné.".to_string())?;
+
+    Ok(files
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect())
+}
+
+/// Opens a native folder picker and copies the selected folder (keeping its
+/// name) into `dest_dir`. Returns the name of the imported folder.
+#[tauri::command]
+pub async fn import_folder_dialog(dest_dir: String) -> Result<String, String> {
+    let folder = tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Importer un dossier")
+            .pick_folder()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "Aucun dossier sélectionné.".to_string())?;
+
+    let name = folder
+        .file_name()
+        .ok_or_else(|| "Nom de dossier invalide.".to_string())?
+        .to_string_lossy()
+        .into_owned();
+    copy_dir_recursive(&folder, &std::path::PathBuf::from(&dest_dir).join(&name))?;
+    Ok(name)
+}
+
+/// Recursively copies a source directory into `dest` (which is created).
+pub(crate) fn copy_dir_recursive(
+    src: &std::path::Path,
+    dest: &std::path::Path,
+) -> Result<(), String> {
+    std::fs::create_dir_all(dest).map_err(|e| e.to_string())?;
+    for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let target = dest.join(entry.file_name());
+        if path.is_dir() {
+            copy_dir_recursive(&path, &target)?;
+        } else {
+            std::fs::copy(&path, &target).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
 /// Opens a native single-file picker and replaces the content of `path`
 /// with the chosen file (the target name/path is kept).
 /// Returns the chosen file name, or an error if cancelled.

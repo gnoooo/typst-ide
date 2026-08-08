@@ -227,6 +227,10 @@ async function main() {
   bindMenuAction("manage-files-btn", () => openFileManager());
   bindMenuAction("manage-project-files", () => openFileManager());
 
+  // Template manager button
+  const openTemplateManager = () => import('./templates/index.js').then((m) => m.openTemplateManager());
+  bindMenuAction("manage-templates", () => openTemplateManager());
+
   // Change style of text
   bindMenuAction("bold-btn", () => getEditor().getAction("typst-bold")?.run());
   bindMenuAction("italic-btn", () =>

@@ -277,7 +277,7 @@ function renderFile(node, allFiles, depth, container, li) {
 
   const imageExts = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
   if (imageExts.includes(node.extension)) {
-    actions.appendChild(createButton("add_photo_alternate", t('modal.insert'), (e) => {
+    actions.appendChild(createButton("image", t('modal.insert'), (e) => {
       e.stopPropagation();
       insertImageAtCursor(node.relative_path);
       showToast("success", t('file.insert_image', { path: node.relative_path }));

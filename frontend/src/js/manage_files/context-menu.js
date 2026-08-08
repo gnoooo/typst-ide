@@ -31,7 +31,7 @@ function buildContextItems(node, container, li, row) {
     if (imageExts.includes(node.extension)) {
       items.push({
         label: t('modal.insert'),
-        icon: "add_photo_alternate",
+        icon: "image",
         action: () => {
           insertImageAtCursor(node.relative_path);
           showToast("success", t('file.insert_image', { path: node.relative_path }));

@@ -16,6 +16,7 @@ use commands::export;
 use commands::fs;
 use commands::misc;
 use commands::preview;
+use commands::templates;
 use state::{BibliographyDbState, CompileState, HistoryDbState, NotesDbState};
 
 fn main() {
@@ -71,6 +72,8 @@ fn main() {
             fs::create_dir,
             fs::delete_file_or_dir,
             fs::import_file_dialog,
+            fs::import_folder_dialog,
+            fs::pick_files,
             fs::replace_file,
             fs::reveal_in_file_manager,
             fs::read_image_as_base64,
@@ -103,7 +106,15 @@ fn main() {
             export::export_pdf,
             misc::set_webview_zoom,
             misc::font_exists,
-            misc::suggest_font
+            misc::suggest_font,
+            templates::get_templates_dir,
+            templates::list_templates,
+            templates::create_template,
+            templates::read_template,
+            templates::update_template,
+            templates::rename_template,
+            templates::delete_template,
+            templates::copy_template_to_project
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
