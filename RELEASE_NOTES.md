@@ -1,5 +1,40 @@
 # Release Notes
 
+## v1.4.2
+
+### New in v1.4.2
+
+- **Insert an image with a caption (`#figure`)** : the structures dropdown (`#` menu) now includes a "figure" entry. Pick an image through a native, image-only file dialog (or type its path directly), get a live preview when your image is chosen, add a caption, and it inserts `#figure(image("images/..."), caption: [...])` at the cursor. The chosen image is copied into the project's `images/` folder (duplicate names are automatically deduplicated) and the inserted path always matches that location.
+- **`manage.sh bump` with version keywords** : `./manage.sh bump major|minor|patch|premajor|preminor|prepatch|prerelease` now auto-increments the current version instead of requiring an explicit version string. Existing features (consistency check, `--dry-run`) still apply.
+
+### Fixes
+
+- The figure insert dialog no longer shows "not implemented".
+
+## v1.4.1
+
+### Fixes
+
+- Tooltips of the structures (`#`) dropdown buttons now display correctly.
+
+## v1.4.0
+
+### New in v1.4.0
+
+- **Templates** : browse, create, edit, rename and delete templates stored in a dedicated templates directory. Templates can gather a document set and, when applied to a project, they can import the associated `images/` and fonts folders. The library is searchable and the whole flow is available from the main menus.
+
+### Already available
+
+- Typst compilation with live preview (HTML, inline SVGs)
+- PDF export
+- Bibliography management (SQLite-backed sources and entries)
+- Notepad with global and per-project notes, plus search
+- Zoom for editor and preview
+- Image paste into documents
+- Insert table, grid, rectangle and figure (image with caption)
+- Translated shortcuts (EN/FR)
+- Packages for Debian/Ubuntu (`.deb`), Fedora/Red Hat (`.rpm`), Arch Linux (PKGBUILD) and Windows (NSIS installer)
+
 ## v1.3.0
 
 Typst IDE is a modern, local-first Typst editor built with Tauri 2 and Rust, a fast and lightweight replacement for the old Electron-based Typst Studio. Write documents with live preview, everything stays on your machine.
