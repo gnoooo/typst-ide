@@ -14,26 +14,13 @@ import { showConfirm } from './modal.js';
 import { showToast } from './toast.js';
 import { getEditor } from './editor.js';
 import { getCurrentProject, onProjectChange, notifySaveIndicator } from './project.js';
+import { hashText } from './file-hash.js';
 
 const { invoke } = window.__TAURI__.core;
 
 const POLL_INTERVAL_MS = 2000;
 
 let _lastSavedHash = null;
-
-/**
- * FNV-1a 64-bit hash over UTF-8 bytes of `text`.
- * Matches the Rust implementation in `commands::fs::file_hash`.
- */
-function hashText(text) {
-    const bytes = new TextEncoder().encode(text);
-    let hash = 0xcbf29ce484222325n;
-    for (const b of bytes) {
-        hash ^= BigInt(b);
-        hash = BigInt.asUintN(64, hash * 0x100000001b3n);
-    }
-    return hash.toString(16).padStart(16, '0').toLowerCase();
-}
 
 function buttons() {
     return {

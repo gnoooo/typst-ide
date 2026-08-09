@@ -4,6 +4,9 @@
 mod commands;
 mod state;
 
+#[cfg(test)]
+mod tests;
+
 use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::Manager;
