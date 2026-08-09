@@ -798,7 +798,7 @@ dependencies = [
  "tempfile",
  "typst",
  "typst-as-library",
- "typst-ide 0.15.0",
+ "typst-ide",
  "typst-layout",
  "typst-pdf",
  "typst-svg",
@@ -6006,7 +6006,7 @@ dependencies = [
  "time",
  "ttf-parser 0.21.1",
  "typst",
- "typst-ide 0.15.0",
+ "typst-ide",
  "typst-kit",
  "typst-pdf",
  "ureq",
@@ -6085,8 +6085,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "typst-ide"
-version = "1.4.3"
+name = "typst-ide-app"
+version = "1.4.4"
 dependencies = [
  "base64 0.22.1",
  "core",

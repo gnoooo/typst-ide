@@ -1,7 +1,14 @@
 [package]
-name = "typst-ide"
-version = "1.4.3"
+name = "typst-ide-app"
+version = "1.4.4"
 edition = "2024"
+
+# Keep the binary named `typst-ide` (desktop entry, PKGBUILD install path…),
+# while the package name `typst-ide-app` avoids clashing with the registry
+# crate `typst-ide` (0.15.x) that `core` depends on.
+[[bin]]
+name = "typst-ide"
+path = "src/main.rs"
 
 [dependencies]
 tauri = { version = "2.1", features = ["devtools", "test"] }

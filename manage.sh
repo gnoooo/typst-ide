@@ -56,13 +56,13 @@ tauri_version()    { sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*
 pkgbuild_version() { sed -n 's/^pkgver=\(.*\)/\1/p' "$PKGBUILD" | head -n 1; }
 frontend_version() { sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$FRONTEND_PKG" | head -n 1; }
 
-# version de l'entrée workspace `typst-ide` dans Cargo.lock
+# version de l'entrée workspace `typst-ide-app` dans Cargo.lock
 # (l'entrée registry "typst-ide 0.15.x" possède un `source = ...`, ignorée)
 lock_version() {
   awk '
     /^name = /      { name=$0 }
-    /^version = / && name == "name = \"typst-ide\"" && !target { target=NR }
-    /^source = / && name == "name = \"typst-ide\"" { target = 0 }
+    /^version = / && name == "name = \"typst-ide-app\"" && !target { target=NR }
+    /^source = / && name == "name = \"typst-ide-app\"" { target = 0 }
     { lines[NR]=$0 }
     END {
       if (target > 0) {
@@ -88,12 +88,12 @@ set_pkgbuild_version() {
   sed -i "s/^pkgver=.*/pkgver=$1/" "$PKGBUILD"
 }
 
-# remplace la version de l'entrée workspace `typst-ide` dans Cargo.lock
+# remplace la version de l'entrée workspace `typst-ide-app` dans Cargo.lock
 set_lock_version() {
   awk -v new="$1" '
     /^name = /      { name=$0 }
-    /^version = / && name == "name = \"typst-ide\"" && !target { target=NR }
-    /^source = / && name == "name = \"typst-ide\"" { target=0 }
+    /^version = / && name == "name = \"typst-ide-app\"" && !target { target=NR }
+    /^source = / && name == "name = \"typst-ide-app\"" { target=0 }
     { lines[NR]=$0 }
     END {
       for (i = 1; i <= NR; i++) {
@@ -305,7 +305,7 @@ cmd_bump() {
     dry_row "crates/app/Cargo.toml"      "version = \"$old\""       "version = \"$new_version\""
     dry_row "crates/app/tauri.conf.json" "\"version\": \"$old\""    "\"version\": \"$new_version\""
     dry_row "PKGBUILD"                   "pkgver=$old"              "pkgver=$new_version"
-    dry_row "Cargo.lock"                 "typst-ide $old"           "typst-ide $new_version"
+    dry_row "Cargo.lock"                 "typst-ide-app $old"       "typst-ide-app $new_version"
     dry_row "frontend/*"                 "$old"                     "$new_version"
     echo
     echo "    Vérification attendue : ${GREEN}cohérent${NC}"
@@ -321,7 +321,7 @@ cmd_bump() {
   echo "    ${GREEN}OK${NC} crates/app/Cargo.toml      -> version = \"$new_version\""
   echo "    ${GREEN}OK${NC} crates/app/tauri.conf.json -> \"version\": \"$new_version\""
   echo "    ${GREEN}OK${NC} PKGBUILD                   -> pkgver=$new_version"
-  echo "    ${GREEN}OK${NC} Cargo.lock                 -> typst-ide $new_version"
+  echo "    ${GREEN}OK${NC} Cargo.lock                 -> typst-ide-app $new_version"
   echo "    ${GREEN}OK${NC} frontend/package.json      -> $new_version"
   echo "    ${GREEN}OK${NC} frontend/package-lock.json -> $new_version"
 
@@ -374,7 +374,7 @@ cmd_build() {
 
   echo
   echo "== Rust (release) =="
-  ( cd "$REPO_ROOT" && cargo build --release -p typst-ide ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
+  ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
 }
 
 cmd_dev() {
