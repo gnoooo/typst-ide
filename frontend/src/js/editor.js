@@ -9,6 +9,7 @@
 
 import * as monaco from 'monaco-editor';
 import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
+import { registerTypstLanguage, getThemeName } from './typst-syntax.js';
 
 const DEFAULT_FONT_SIZE = 14;
 const MIN_FONT_SIZE     = 8;
@@ -34,7 +35,7 @@ export function createEditor(container) {
     _editor = monaco.editor.create(container, {
         value: '',
         language: 'typst',
-        theme: savedTheme === 'light' ? 'vs' : 'vs-dark',
+        theme: getThemeName(savedTheme),
         fontSize: _currentSize,
         fontFamily: "'Fira Code', 'Cascadia Code', 'Courier New', monospace",
         fontLigatures: true,
@@ -171,7 +172,7 @@ export function insertImageAtCursor(dataUrl) {
  */
 export function setEditorTheme(theme) {
     if (!_editor) return;
-    monaco.editor.setTheme(theme === 'light' ? 'vs' : 'vs-dark');
+    monaco.editor.setTheme(getThemeName(theme));
 }
 
 export function getEditor() {
@@ -221,37 +222,4 @@ function _applySize() {
 }
 
 // ## Typst language registration ####################################
-
-function registerTypstLanguage() {
-    if (monaco.languages.getLanguages().some((l) => l.id === 'typst')) return;
-
-    monaco.languages.register({ id: 'typst' });
-
-    // Comment configuration (enables Ctrl+/ to toggle //)
-    monaco.languages.setLanguageConfiguration('typst', {
-        comments: { lineComment: '//' },
-        brackets: [['(', ')'], ['[', ']'], ['{', '}']],
-        autoClosingPairs: [
-            { open: '(', close: ')' },
-            { open: '[', close: ']' },
-            { open: '{', close: '}' },
-            { open: '"', close: '"', notIn: ['string'] },
-            { open: '$', close: '$', notIn: ['string'] },
-        ],
-    });
-
-    monaco.languages.setMonarchTokensProvider('typst', {
-        tokenizer: {
-            root: [
-                [/^=+\s.*$/,    'keyword'],       // Headings
-                [/\*[^*\n]+\*/, 'strong'],         // Bold
-                [/_[^_\n]+_/,   'emphasis'],       // Italic
-                [/\$[^$\n]*\$/, 'number'],         // Inline math
-                [/`[^`\n]*`/,   'string'],         // Raw/code
-                [/\/\/.*$/,     'comment'],        // Line comment
-                [/#[a-zA-Z_]\w*/, 'type.identifier'], // Functions
-                [/@[a-zA-Z_]\w*/, 'variable'],    // References
-            ],
-        },
-    });
-}
+// See typst-syntax.js for the highlight rules and colors.
