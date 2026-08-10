@@ -267,7 +267,6 @@ function renderFile(node, allFiles, depth, container, li) {
   const nameSpan = document.createElement("span");
   nameSpan.className = "file-tree-name";
   nameSpan.textContent = node.name;
-  nameSpan.style.flex = "1";
   nameSpan.style.overflow = "hidden";
   nameSpan.style.textOverflow = "ellipsis";
   nameSpan.style.whiteSpace = "nowrap";
@@ -282,7 +281,7 @@ function renderFile(node, allFiles, depth, container, li) {
       insertImageAtCursor(node.relative_path);
       showToast("success", t('file.insert_image', { path: node.relative_path }));
     }));
-    setupImagePreview(row, node.relative_path);
+    setupImagePreview(nameSpan, node.relative_path);
   }
   if (node.extension === "bib") {
     actions.appendChild(createButton("menu_book", t('bib.title'), (e) => {
@@ -337,7 +336,7 @@ function attachRowUI(row, actions, node, container, li) {
   attachRowContextMenu(row, node, container, li);
 }
 
-function setupImagePreview(row, relativePath) {
+function setupImagePreview(nameSpan, relativePath) {
   let previewEl = null;
   let timer = null;
   const project = getCurrentProject();
@@ -357,7 +356,7 @@ function setupImagePreview(row, relativePath) {
     previewEl.style.top = `${top}px`;
   }
 
-  row.addEventListener("mouseenter", (e) => {
+  nameSpan.addEventListener("mouseenter", (e) => {
     timer = setTimeout(async () => {
       try {
         const dataUrl = await invoke("read_image_as_base64", { path: fullPath });
@@ -389,7 +388,7 @@ function setupImagePreview(row, relativePath) {
     }, 400);
   });
 
-  row.addEventListener("mouseleave", () => {
+  nameSpan.addEventListener("mouseleave", () => {
     clearTimeout(timer);
     if (previewEl) {
       previewEl.remove();

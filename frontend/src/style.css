@@ -1430,17 +1430,19 @@ div.flex.items-center.gap-1>button.action-btn:first-child {
 }
 
 .file-tree-name {
-    flex: 1;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    min-width: 0;
 }
 
 .file-tree-actions {
     display: flex;
     align-items: center;
     gap: 2px;
+    margin-left: auto;
 }
 
 .file-tree-action-btn {
