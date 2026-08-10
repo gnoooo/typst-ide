@@ -265,7 +265,11 @@
                                     Changer la police de l'éditeur
                                 </button>
                             </li>
-                            <li class="separator"></li>
+                            <li>
+                                <button id="open-tutorial" data-i18n="menu.tutorial">
+                                    Ouvrir le tutoriel
+                                </button>
+                            </li>
                             <li class="separator"></li>
                             <li class="submenu">
                                 <button class="menu-trigger">
@@ -359,8 +363,14 @@
                 </div>
 
                 <div id="preview-manage-btn" class="flex gap-2 justify-end">
-                    <button class="tool-btn" id="compile-btn" data-i18n="toolbar.compile">Compiler</button>
-                    <button class="tool-btn" id="save-btn" data-i18n="toolbar.save">Save</button>
+                    <!--<button class="tool-btn" id="compile-btn" data-i18n="toolbar.compile">Compiler</button>-->
+                    <button class="tool-btn" id="compile-btn">
+                        <span class="material-symbols-outlined" style="font-size: 19px">terminal</span>
+                    </button>
+                    <!--<button class="tool-btn" id="save-btn" data-i18n="toolbar.save">Save</button>-->
+                    <button class="tool-btn" id="save-btn">
+                        <span class="material-symbols-outlined" style="font-size: 19px">save</span>
+                    </button>
                 </div>
             </div>
 

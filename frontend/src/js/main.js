@@ -231,6 +231,9 @@ async function main() {
   const openTemplateManager = () => import('./templates/index.js').then((m) => m.openTemplateManager());
   bindMenuAction("manage-templates", () => openTemplateManager());
 
+  // Tutorial window (Aide menu)
+  bindMenuAction("open-tutorial", () => openTutorialWindow());
+
   // Change style of text
   bindMenuAction("bold-btn", () => getEditor().getAction("typst-bold")?.run());
   bindMenuAction("italic-btn", () =>
@@ -329,6 +332,34 @@ function bindMenuAction(id, fn) {
     e.preventDefault();
     fn();
   });
+}
+
+// ## Tutorial window ################################################
+
+async function openTutorialWindow() {
+  try {
+    const { webviewWindow } = window.__TAURI__;
+    const existing = (await webviewWindow.getAllWebviewWindows()).find(
+      (w) => w.label === "tutorial",
+    );
+    if (existing) {
+      await existing.show().catch(() => {});
+      await existing.setFocus().catch(() => {});
+      return;
+    }
+    new webviewWindow.WebviewWindow("tutorial", {
+      url: "tutorial.html",
+      title: t("tutorial.title"),
+      width: 980,
+      height: 700,
+      minWidth: 640,
+      minHeight: 480,
+    });
+  } catch (error) {
+    const msg = String(error?.message ?? error ?? "unknown error");
+    writeToConsole("error", t("toast.tutorial_open_error", { error: msg }));
+    showConsole();
+  }
 }
 
 // ## Console error ignore list ######################################

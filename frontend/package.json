@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -15,6 +15,7 @@
   "type": "commonjs",
   "dependencies": {
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
+    "marked": "^18.0.9",
     "material-symbols": "^0.40.2"
   },
   "devDependencies": {

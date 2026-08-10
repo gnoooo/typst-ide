@@ -28,6 +28,7 @@
   "menu.console_ignore": "Ignorer des erreurs",
   "menu.help": "Aide",
   "menu.change_font": "Changer la police de l'éditeur",
+  "menu.tutorial": "Ouvrir le tutoriel",
   "menu.docs_typst": "Documentation Typst",
   "menu.official_repo": "Repo officiel de Typst IDE",
   "menu.language": "Langue",
@@ -329,6 +330,7 @@
   "toast.image_import_error": "Erreur d'import d'image : {error}",
   "toast.image_path_required": "Veuillez renseigner un chemin d'image.",
   "toast.compile_success": "Compilation successful",
+  "toast.tutorial_open_error": "Impossible d'ouvrir le tutoriel : {error}",
 
   "font.change_title": "Changer la police de l'éditeur",
   "font.prompt_label": "Nom de la police (ex: \"Fira Code\", \"JetBrains Mono\", \"Cascadia Mono\")",
@@ -337,5 +339,11 @@
   "font.not_found": "Police \"{name}\" introuvable sur cette machine.",
 
   "lang.french": "Français",
-  "lang.english": "English"
+  "lang.english": "English",
+
+  "tutorial.title": "Tutoriel",
+  "tutorial.steps": "Étapes",
+  "tutorial.prev": "Précédent",
+  "tutorial.next": "Suivant",
+  "tutorial.progress": "Étape {current} / {total}"
 }

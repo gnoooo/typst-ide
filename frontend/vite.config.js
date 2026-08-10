@@ -23,9 +23,10 @@ export default defineConfig({
     outDir: path.resolve(__dirname, 'dist'),
     emptyOutDir: true,
     rollupOptions: {
-      // input is the index.html inside the `root` (src)
+      // inputs are the pages inside the `root` (src)
       input: {
-        index: path.resolve(__dirname, 'src/index.html')
+        index: path.resolve(__dirname, 'src/index.html'),
+        tutorial: path.resolve(__dirname, 'src/tutorial.html')
       },
       output: {
         entryFileNames: '[name].js',

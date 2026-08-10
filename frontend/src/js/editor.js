@@ -30,14 +30,15 @@ if (isNaN(_currentSize) || _currentSize < MIN_FONT_SIZE || _currentSize > MAX_FO
  * @returns {Promise<import('monaco-editor').editor.IStandaloneCodeEditor>}
  */
 export function createEditor(container) {
-    registerTypstLanguage();
-    const savedTheme = localStorage.getItem('theme') ?? 'light';
+  registerTypstLanguage();
+  const savedTheme = localStorage.getItem('theme') ?? 'light';
+  const savedFamily = localStorage.getItem('editor-font-family');
     _editor = monaco.editor.create(container, {
         value: '',
         language: 'typst',
         theme: getThemeName(savedTheme),
         fontSize: _currentSize,
-        fontFamily: "'Fira Code', 'Cascadia Code', 'Courier New', monospace",
+        fontFamily: savedFamily || "'Fira Code', 'Cascadia Code', 'Courier New', monospace",
         fontLigatures: true,
         minimap: { enabled: false },
         scrollBeyondLastLine: false,

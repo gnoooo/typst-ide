@@ -28,6 +28,7 @@
   "menu.console_ignore": "Ignore errors",
   "menu.help": "Help",
   "menu.change_font": "Change editor font",
+  "menu.tutorial": "Open tutorial",
   "menu.docs_typst": "Typst documentation",
   "menu.official_repo": "Official Typst IDE repo",
   "menu.language": "Language",
@@ -328,6 +329,7 @@
   "toast.image_import_error": "Image import error: {error}",
   "toast.image_path_required": "Please provide an image path.",
   "toast.compile_success": "Compilation successful",
+  "toast.tutorial_open_error": "Failed to open tutorial: {error}",
 
   "font.change_title": "Change editor font",
   "font.prompt_label": "Font name (e.g. \"Fira Code\", \"JetBrains Mono\", \"Cascadia Mono\")",
@@ -336,5 +338,11 @@
   "font.not_found": "Font \"{name}\" not found on this machine.",
 
   "lang.french": "Français",
-  "lang.english": "English"
+  "lang.english": "English",
+
+  "tutorial.title": "Tutorial",
+  "tutorial.steps": "Steps",
+  "tutorial.prev": "Previous",
+  "tutorial.next": "Next",
+  "tutorial.progress": "Step {current} / {total}"
 }

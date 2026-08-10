@@ -84,6 +84,26 @@ fn main() {
             // Semaphore(1): at most one Typst compile at a time
             app.manage(CompileState(Arc::new(Semaphore::new(1))));
 
+            // Tutorial window on first launch (flag = already shown once)
+            let tutorial_flag = data_dir.join("tutorial_seen");
+            if !tutorial_flag.exists() {
+                let result = tauri::WebviewWindowBuilder::new(
+                    app,
+                    "tutorial",
+                    tauri::WebviewUrl::App("tutorial.html".into()),
+                )
+                .title("Typst IDE")
+                .inner_size(980.0, 700.0)
+                .min_inner_size(640.0, 480.0)
+                .build();
+                match result {
+                    Ok(_) => {
+                        let _ = std::fs::write(&tutorial_flag, "");
+                    }
+                    Err(e) => eprintln!("Failed to open tutorial window: {e}"),
+                }
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
