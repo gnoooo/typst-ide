@@ -1,18 +1,22 @@
 # Welcome to Typst IDE
 
-Typst IDE is a local editor for [Typst](https://typst.app) — a modern and powerful typesetting language.
+Typst IDE is a local editor for [Typst](https://typst.app), a modern and powerful typesetting language, a mix between LaTeX and Markdown.
 
 The interface has two main areas:
+- **The editor** (left): This is where you write the text, structures and other elements of your document.
+- **The preview** (right): The preview of your document compiled by Typst.
 
-- ^edit_note^ **The editor** (left): where you write your Typst document.
-- ^visibility^ **The preview** (right): the rendered output, updated automatically.
+As soon as you write text in the document, it is automatically updated in the preview.
 
-Type some text in the editor: the preview updates instantly.
-
+Example:
 ```typst
 #set text(size: 14pt)
 
-== Introduction
+= Introduction
 
 Hello *world*! This document is compiled live.
 ```
+
+Note:
+- Small, not very complex documents are rendered almost instantly.
+- Heavy documents (more than 18 pages with many complex structures and images) are rendered more slowly.

@@ -2,9 +2,14 @@
 
 use std::io::ErrorKind;
 
-use crate::state::BibliographyDbState;
-use typst_ide_core::database::bibliography_db::{self};
+use serde::Serialize;
 use typst_ide_core::features::bibliography;
+
+#[derive(Serialize)]
+pub struct ProjectBibFile {
+    pub title: String,
+    pub path: String,
+}
 
 #[tauri::command]
 pub fn create_bib_file_if_missing(filepath: &str) -> Result<bool, String> {
@@ -42,9 +47,21 @@ pub fn add_entry_to_bib(
     }
 }
 
+/// Lists the .bib files of the project (fresh scan of the fs, sorted by name).
+/// This replaces the old database-backed list: it is called on every opening
+/// of the bibliography window, so the list always matches the disc.
 #[tauri::command]
-pub fn get_all_bibs(project_path: &str) -> Result<Vec<String>, String> {
-    bibliography::get_all_bibs(project_path).map_err(|e| e.to_string())
+pub fn get_project_bibliographies(project_path: &str) -> Result<Vec<ProjectBibFile>, String> {
+    let mut files = bibliography::get_all_bibs(project_path).map_err(|e| e.to_string())?;
+    files.sort();
+
+    Ok(files
+        .into_iter()
+        .map(|name| ProjectBibFile {
+            title: name.trim_end_matches(".bib").to_string(),
+            path: format!("{}/{}", project_path, name),
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -79,37 +96,5 @@ pub fn delete_bib_source_value(
     match out {
         Ok(_) => Ok(true),
         Err(_) => Ok(false),
-    }
-}
-
-#[tauri::command]
-pub fn synchronize_bibliography_entries(
-    state: tauri::State<'_, BibliographyDbState>,
-    projectpath: &str,
-) {
-    let conn = match state.0.lock() {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("lock error: {e}");
-            return;
-        }
-    };
-
-    let bib_files = match get_all_bibs(projectpath) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("get_all_bibs error: {e}");
-            return;
-        }
-    };
-
-    for bib_file in bib_files {
-        let title = bib_file.trim_end_matches(".bib").to_string();
-        let path = format!("{}/{}", projectpath, bib_file);
-
-        // Update project_path for existing entries (e.g. from before the migration)
-        let _ = bibliography_db::set_entry_project_path(&conn, &path, projectpath);
-        // Insert new entries if they don't exist yet
-        let _ = bibliography_db::add_entry(&conn, &title, "ieee", &path, projectpath, false);
     }
 }

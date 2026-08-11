@@ -7,7 +7,6 @@ use tokio::sync::Semaphore;
 /// Tauri-managed state for the notes database
 pub struct NotesDbState(pub Mutex<rusqlite::Connection>);
 pub struct HistoryDbState(pub Mutex<rusqlite::Connection>);
-pub struct BibliographyDbState(pub Mutex<rusqlite::Connection>);
 
 /// Semaphore that limits preview compilation to one at a time.
 /// The JS scheduler already ensures at most one in-flight invoke, but this is a

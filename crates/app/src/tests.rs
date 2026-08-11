@@ -8,19 +8,17 @@ use tauri::Manager;
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tokio::sync::Semaphore;
 
-use crate::state::{BibliographyDbState, CompileState, HistoryDbState, NotesDbState};
-use typst_ide_core::database::{bibliography_db, history_db, notes_db};
+use crate::state::{CompileState, HistoryDbState, NotesDbState};
+use typst_ide_core::database::{history_db, notes_db};
 
-/// Builds a mock Tauri app with in-memory SQLite databases for all three stores.
+/// Builds a mock Tauri app with in-memory SQLite databases for notes/history.
 fn mock_app() -> tauri::App<tauri::test::MockRuntime> {
     let notes = notes_db::init_db(":memory:").unwrap();
     let history = history_db::init_db(":memory:").unwrap();
-    let bibliography = bibliography_db::init_db(":memory:").unwrap();
 
     mock_builder()
         .manage(NotesDbState(Mutex::new(notes)))
         .manage(HistoryDbState(Mutex::new(history)))
-        .manage(BibliographyDbState(Mutex::new(bibliography)))
         .manage(CompileState(Arc::new(Semaphore::new(1))))
         .build(mock_context(noop_assets()))
         .unwrap()
@@ -113,61 +111,6 @@ fn history_crud_through_commands() {
         crate::commands::db::get_history(app.state::<HistoryDbState>())
             .unwrap()
             .is_empty()
-    );
-}
-
-#[test]
-fn bibliography_crud_through_commands() {
-    let app = mock_app();
-
-    let inserted = crate::commands::db::add_bibliography_entry(
-        app.state::<BibliographyDbState>(),
-        "IEEEA".into(),
-        "ieee".into(),
-        "bibs/main.bib".into(),
-        "/home/user/report".into(),
-        true,
-    )
-    .unwrap();
-    assert!(inserted);
-
-    let bibs = crate::commands::db::get_bibliography(
-        app.state::<BibliographyDbState>(),
-        "/home/user/report".into(),
-    )
-    .unwrap();
-    assert_eq!(bibs.len(), 1);
-    assert_eq!(bibs[0].title, "IEEEA");
-
-    crate::commands::db::update_bibliography_entry(
-        app.state::<BibliographyDbState>(),
-        bibs[0].id.clone(),
-        "Zotero".into(),
-        "apa".into(),
-        "bibs/zotero.bib".into(),
-        false,
-    )
-    .unwrap();
-
-    let updated = crate::commands::db::get_bibliography(
-        app.state::<BibliographyDbState>(),
-        "/home/user/report".into(),
-    )
-    .unwrap();
-    assert_eq!(updated[0].style, "apa");
-
-    crate::commands::db::delete_bibliography_entry(
-        app.state::<BibliographyDbState>(),
-        bibs[0].id.clone(),
-    )
-    .unwrap();
-    assert!(
-        crate::commands::db::get_bibliography(
-            app.state::<BibliographyDbState>(),
-            "/home/user/report".into(),
-        )
-        .unwrap()
-        .is_empty()
     );
 }
 

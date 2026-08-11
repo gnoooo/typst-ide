@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::Manager;
 use tokio::sync::Semaphore;
-use typst_ide_core::database::{bibliography_db, history_db, notes_db};
+use typst_ide_core::database::{history_db, notes_db};
 
 use commands::bibliography;
 use commands::db;
@@ -20,7 +20,7 @@ use commands::fs;
 use commands::misc;
 use commands::preview;
 use commands::templates;
-use state::{BibliographyDbState, CompileState, HistoryDbState, NotesDbState};
+use state::{CompileState, HistoryDbState, NotesDbState};
 
 /// Initialises one of the SQLite databases, showing a native error dialog and
 /// returning the error if anything goes wrong (instead of panicking).
@@ -72,14 +72,6 @@ fn main() {
             let history_conn =
                 init_db_with_dialog("history", &history_db_path, history_db::init_db)?;
             app.manage(HistoryDbState(Mutex::new(history_conn)));
-
-            let bibliography_db_path = data_dir.join("bibliography.db");
-            let bibliography_conn = init_db_with_dialog(
-                "bibliography",
-                &bibliography_db_path,
-                bibliography_db::init_db,
-            )?;
-            app.manage(BibliographyDbState(Mutex::new(bibliography_conn)));
 
             // Semaphore(1): at most one Typst compile at a time
             app.manage(CompileState(Arc::new(Semaphore::new(1))));
@@ -139,18 +131,13 @@ fn main() {
             db::get_history,
             db::delete_history_entry,
             db::update_history_entry,
-            db::add_bibliography_entry,
-            db::get_bibliography,
-            db::delete_bibliography_entry,
-            db::update_bibliography_entry,
             bibliography::create_bib_file_if_missing,
             bibliography::parse_bib_file,
             bibliography::add_entry_to_bib,
-            bibliography::get_all_bibs,
+            bibliography::get_project_bibliographies,
             bibliography::replace_whole_bib_source,
             bibliography::delete_whole_bib_source,
             bibliography::delete_bib_source_value,
-            bibliography::synchronize_bibliography_entries,
             export::pick_pdf_path,
             export::export_pdf,
             misc::set_webview_zoom,

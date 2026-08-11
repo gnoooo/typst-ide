@@ -2,11 +2,12 @@
 
 The **Edit** > **Manage bibliographies** menu lists the project's `.bib` files.
 
-- ^add^ **Add**: creates a new `.bib` file and declares it in the project;
-- click a bibliography to manage its **references**: add, edit or delete entries;
-- change the bibliography's **title**, **style** (IEEE, APA...) or **path**;
-- the code editor (`{ }`) edits the raw contents of the `.bib` file.
+- **Add**: creates a new `.bib` source file.
+- Click a bibliography to manage its **references**: add, edit or delete entries.
+- Change the **title**, **style** (IEEE, APA, etc.) or **path** of the bibliography.
+- The code editor (^code^) allows editing the raw contents of the `.bib` file.
 
+Inserting a bibliography in the project:
 ```typst
 #bibliography("refs.bib", style: "ieee")
 ```

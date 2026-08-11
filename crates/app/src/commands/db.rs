@@ -1,8 +1,7 @@
-// Database commands: notes, history, and bibliography
+// Database commands: notes and history
 
-use crate::state::{BibliographyDbState, HistoryDbState, NotesDbState};
+use crate::state::{HistoryDbState, NotesDbState};
 use typst_ide_core::database::{
-    bibliography_db::{self},
     history_db::{self},
     notes_db::{self, Note},
 };
@@ -124,54 +123,4 @@ pub fn update_history_entry(
 ) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| e.to_string())
-}
-
-/// ################################################
-/// Bibliography DB
-
-#[tauri::command]
-pub fn add_bibliography_entry(
-    state: tauri::State<'_, BibliographyDbState>,
-    title: String,
-    style: String,
-    path: String,
-    project_path: String,
-    full: bool,
-) -> Result<bool, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    let inserted = bibliography_db::add_entry(&conn, &title, &style, &path, &project_path, full)
-        .map_err(|e| e.to_string())?;
-    Ok(inserted)
-}
-
-#[tauri::command]
-pub fn get_bibliography(
-    state: tauri::State<'_, BibliographyDbState>,
-    project_path: String,
-) -> Result<Vec<bibliography_db::BibliographyEntry>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::get_bibliography(&conn, &project_path).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn delete_bibliography_entry(
-    state: tauri::State<'_, BibliographyDbState>,
-    id: String,
-) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::delete_bibliography_entry(&conn, &id).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn update_bibliography_entry(
-    state: tauri::State<'_, BibliographyDbState>,
-    id: String,
-    title: String,
-    style: String,
-    path: String,
-    full: bool,
-) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    bibliography_db::update_bibliography_entry(&conn, &id, &title, &style, &path, full)
-        .map_err(|e| e.to_string())
 }

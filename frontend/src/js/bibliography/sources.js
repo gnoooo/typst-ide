@@ -122,7 +122,7 @@ function rebuildSourcesList(filterText) {
       btn.addEventListener("click", async () => {
         const citeKey = btn.dataset.citekey;
         const field = btn.dataset.field;
-        invoke("delete_bib_source_value", {
+        await invoke("delete_bib_source_value", {
           filepath: _sourceFilepath,
           citeKeyToEdit: citeKey,
           keyToDelete: field

@@ -1,16 +1,7 @@
 # Using templates
 
-Templates are ready-to-use Typst projects: library, test files, images and fonts included.
+Templates are ready-to-use Typst projects: document model, images and fonts.
 
-Open the manager via **Edit** > **Manage templates**:
-
-- ^note_add^ **New**: create a template with its library and test file;
-- ^download^ **Instantiate**: copy the template into your current project (images and fonts included).
-
-```typst
-#import "lib.typ": *
-
-#show: template.with(title: "My report")
-
-= Content
-```
+Open the manager via the **Edit** > **Manage templates** menu:
+- **New template** to create a template with its default files.
+- **Instantiate** (^add_box^): copies the template into your current project.

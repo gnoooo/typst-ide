@@ -1,13 +1,17 @@
 # Inserting structures
 
-The **#** toolbar button opens a menu of ready-made structures: ^grid_view^ table, grid, rectangle and figure.
+The **#** toolbar button opens a menu of ready-made structures:
+  - **Table**: To present information, results, etc.
+  - **Grid**: Borderless table to arrange the document elements (e.g. image on the left, text on the right).
+  - **Rectangle**: Rectangle, with the possibility of inserting text into it.
+  - **Figure**: Image with a caption.
 
-A modal guides you: dimensions, alignments, borders, colors... The generated code is inserted at the cursor.
+A modal guides you: dimensions, alignments, borders, colors, etc. The generated code is inserted at the cursor position.
 
 ```typst
 #table(
   columns: 2,
-  rows: 2,
+  
   [Name], [Age],
   [Alice], [34],
 )

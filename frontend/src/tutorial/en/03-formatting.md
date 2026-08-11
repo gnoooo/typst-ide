@@ -10,4 +10,8 @@ _italic text_
 #underline[underlined text]
 ```
 
-Tip: select a word and use `Ctrl + B`, `Ctrl + I` or `Ctrl + U`.
+Tip: select a word then use `Ctrl + B`, `Ctrl + I` or `Ctrl + U`.
+
+Other types of formatting are available (such as highlighting, with `#highlight[...]`), the limit being what Typst offers.
+
+For more information: https://typst.app/docs/tutorial/formatting/

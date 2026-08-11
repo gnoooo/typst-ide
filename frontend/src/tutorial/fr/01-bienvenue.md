@@ -18,5 +18,5 @@ Bonjour *le monde* ! Ce document est compilé en direct.
 ```
 
 Note :
-- Les petits documents très peu complexes seront rendus presque intantanément.
-- Les documents lourds (>18 pages avec beaucoup de structures complexes et d'images) seront rendu plus lentement.
+- Les petits documents très peu complexes seront rendus presque instantanément.
+- Les documents lourds (>18 pages avec beaucoup de structures complexes et d'images) seront rendus plus lentement.

@@ -98,18 +98,6 @@ async function createBibliography() {
           <p id="bibliography-entry-title">${t('bib.title_label')}</p>
           <input id="bibliography-entry-title-input" type="text" placeholder="${t('bib.title_placeholder')}" style="width:100%;" required/>
         </div>
-
-        <div class="flex gap-2 items-center">
-          <input id="bibliography-entry-full-input" type="checkbox" value="full" required/>
-          <label id="bibliography-entry-full">${t('bib.full_checkbox')}</label>
-        </div>
-
-        <div>
-          <p id="bibliography-entry-style">${t('bib.style_label')}</p>
-          <select id="bibliography-entry-style-input" style="width:100%;" required>
-            <option value="ieee" selected>IEEE</option>
-          </select>
-        </div>
     </div>
   `;
   openModal({
@@ -122,24 +110,14 @@ async function createBibliography() {
         const title = body.querySelector("#bibliography-entry-title-input").value;
         const projectPath = getCurrentProject().path;
         const filepath = `${projectPath}/${title}.bib`;
-        const full = body.querySelector("#bibliography-entry-full-input").checked ? true : false;
-        const style = body.querySelector("#bibliography-entry-style-input").value;
 
         try {
           const created = await invoke("create_bib_file_if_missing", { filepath });
-          let inserted = false;
           if (!created) {
             showToast("error", t('bib.create_file_error'));
-            return;
           } else {
-            inserted = await invoke("add_bibliography_entry", { title, path: filepath, projectPath, full, style })
-          }
-
-          if (inserted) {
             showToast("success", t('bib.created'));
             close();
-          } else {
-            showToast("error", t('bib.exists'));
           }
         } catch (err) {
           showToast("error", t('bib.create_error', { error: err }));
@@ -158,7 +136,7 @@ function attachBibliographyListeners(entryEl, entry) {
   })
 
   const deleteBtn = entryEl.querySelector('.delete-bibliography-entry-btn');
-  deleteBtn?.addEventListener('click', () => deleteBibliographyEntry(entry.id));
+  deleteBtn?.addEventListener('click', () => deleteBibliographyEntry(entry));
 
   const editBtn = entryEl.querySelector('.edit-bibliography-entry-btn');
   editBtn?.addEventListener('click', () => editBibliographyEntry(entry));
@@ -168,8 +146,8 @@ function attachBibliographyListeners(entryEl, entry) {
 }
 
 async function fetchBibEntries() {
-  await invoke("synchronize_bibliography_entries", { projectpath: getCurrentProject()?.path });
-  _bibEntries = await invoke("get_bibliography", { projectPath: getCurrentProject()?.path });
+  const files = await invoke("get_project_bibliographies", { projectPath: getCurrentProject()?.path });
+  _bibEntries = files.map(f => ({ title: f.title, path: f.path }));
 }
 
 export async function openBibliography() {
@@ -225,16 +203,6 @@ async function editBibliographyEntry(entry) {
           <p id="bibliography-entry-title">${t('bib.title_label')}</p>
           <input id="bibliography-entry-title-input" type="text" placeholder="${t('bib.title_placeholder')}" style="width:100%;" value="${entry.title}" required/>
         </div>
-
-        <div class="flex gap-2 items-center">
-          <input id="bibliography-entry-full-input" type="checkbox" value="full" ${entry.full ? 'checked' : ''}/>
-          <label id="bibliography-entry-full">${t('bib.full_checkbox')}</label>
-        </div>
-
-        <div>
-          <p id="bibliography-entry-style">${t('bib.style_label')}</p>
-          <input id="bibliography-entry-style-input" type="text" placeholder="${t('bib.style_placeholder')}" style="width:100%;" value="${entry.style}" required/>
-        </div>
     </div>
   `;
   openModal({
@@ -245,8 +213,6 @@ async function editBibliographyEntry(entry) {
       { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
       { label: t('modal.edit'), primary: true, onClick: async (close) => {
         const newTitle = body.querySelector("#bibliography-entry-title-input").value;
-        const full = body.querySelector("#bibliography-entry-full-input").checked ? true : false;
-        const style = body.querySelector("#bibliography-entry-style-input").value;
 
         try {
           const projectPath = getCurrentProject().path;
@@ -256,14 +222,6 @@ async function editBibliographyEntry(entry) {
           if (newTitle !== entry.title) {
             await invoke("rename_file", { oldPath: oldPath, newPath: newPath });
           }
-
-          await invoke("update_bibliography_entry", {
-            id: entry.id,
-            title: newTitle,
-            style,
-            path: newPath,
-            full
-          });
 
           showToast("success", t('bib.updated'));
           close();
@@ -318,13 +276,13 @@ async function rawBibliographyEntry(entry) {
   });
 }
 
-async function deleteBibliographyEntry(entryId) {
+async function deleteBibliographyEntry(entry) {
     const confirmed = await showConfirm({
         title: t('bib.delete_title'),
         message: t('bib.delete_message'),
     });
     if (confirmed) {
-        await invoke('delete_bibliography_entry', { id: entryId });
+        await invoke('delete_file_or_dir', { path: entry.path });
         closeBibliography();
         showToast("success", t('bib.deleted'));
         openBibliography();
