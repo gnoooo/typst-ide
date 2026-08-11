@@ -330,42 +330,50 @@ pub fn compile_to_preview_html(
 
     let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
 
-    // 1. Acquire / update the persistent world
+    // 1. Acquire / update the persistent world.
+    //    The mutex guard is scoped to compile+diagnostics only and dropped
+    //    BEFORE the SVG rendering phase, so a concurrent call to
+    //    `invalidate_preview_file_cache` / `resolve_click` does not stall
+    //    behind the whole compile+render pipeline.
     let t_world = Instant::now();
-    let mut world_guard = preview_world_cache().lock().unwrap();
-    match world_guard.as_mut() {
-        Some((world, cached_root)) if *cached_root == root_str => {
-            // Same project root: update only the source; keep file cache warm.
-            world.reset_source(content);
+    let (document, jump_pos, world_ms, compile_ms) = {
+        let mut world_guard = preview_world_cache().lock().unwrap();
+        match world_guard.as_mut() {
+            Some((world, cached_root)) if *cached_root == root_str => {
+                // Same project root: update only the source; keep file cache warm.
+                world.reset_source(content);
+            }
+            _ => {
+                // First compile or root changed: create a fresh world.
+                let new_world = create_world_with_root(&root_str, content);
+                *world_guard = Some((new_world, root_str));
+            }
         }
-        _ => {
-            // First compile or root changed: create a fresh world.
-            let new_world = create_world_with_root(&root_str, content);
-            *world_guard = Some((new_world, root_str));
-        }
-    }
-    let (world, _) = world_guard.as_mut().unwrap();
-    let world_ms = t_world.elapsed().as_millis() as u64;
+        let (world, _) = world_guard.as_mut().unwrap();
+        let world_ms = t_world.elapsed().as_millis() as u64;
 
-    // 2. Compile
-    // comemo automatically memoizes internal typst functions (eval, layout…) using
-    // `Tracked<World>` access tracking. Because we reuse the same world with a stable
-    // FileId (via Source::replace), comemo can reuse results for unchanged parts of the
-    // document. evict(30) keeps the cache bounded: entries not hit in 30 compilations
-    // are evicted, preventing unbounded memory growth.
-    let t_compile = Instant::now();
-    let document: PagedDocument = typst::compile(world as &_)
-        .output
-        .map_err(|errors| collect_diagnostics(&errors, world))?;
-    typst::comemo::evict(30);
-    let compile_ms = t_compile.elapsed().as_millis() as u64;
+        // 2. Compile
+        // comemo automatically memoizes internal typst functions (eval, layout…) using
+        // `Tracked<World>` access tracking. Because we reuse the same world with a stable
+        // FileId (via Source::replace), comemo can reuse results for unchanged parts of the
+        // document. evict(30) keeps the cache bounded: entries not hit in 30 compilations
+        // are evicted, preventing unbounded memory growth.
+        let t_compile = Instant::now();
+        let document: PagedDocument = typst::compile(world as &_)
+            .output
+            .map_err(|errors| collect_diagnostics(&errors, world))?;
+        typst::comemo::evict(30);
+        let compile_ms = t_compile.elapsed().as_millis() as u64;
 
-    // Compute the preview jump position corresponding to the editor cursor
-    let jump_pos = cursor.and_then(|(line, col)| {
-        let source = world.source(world.main()).ok()?;
-        let offset = monaco_pos_to_byte(source.text(), line, col);
-        find_precise_cursor_position(&document, &source, offset)
-    });
+        // Compute the preview jump position corresponding to the editor cursor
+        let jump_pos = cursor.and_then(|(line, col)| {
+            let source = world.source(world.main()).ok()?;
+            let offset = monaco_pos_to_byte(source.text(), line, col);
+            find_precise_cursor_position(&document, &source, offset)
+        });
+
+        (document, jump_pos, world_ms, compile_ms)
+    };
 
     // 3. Render pages to SVG (with per-page cache)
     let t_svg = Instant::now();

@@ -67,20 +67,42 @@ function _buildPreviewHtml(pages) {
     return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <style>${_PREVIEW_CSS}</style>\n</head>\n<body>\n${body}\n</body>\n</html>`;
 }
 
+/** Max time spent writing SVG innerHTML before yielding to the event loop (ms). */
+const DOM_WRITE_BUDGET_MS = 8;
+
+/** Resolves on the next macrotask. Lets the event loop process input (Monaco
+ * keystrokes share this thread) between chunks of preview DOM work. */
+function _yieldToEventLoop() {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 /**
  * Applies an incremental DOM update to the preview iframe.
  * Only updates `<div class="page">` elements whose hash has changed.
  * Adds or removes page divs as needed when the page count changes.
+ *
+ * The update is chunked: after every ~8ms of synchronous DOM work the event
+ * loop gets a chance to run, so keyboard input is processed between pages
+ * instead of freezing for the whole update (large documents have hundreds
+ * of KB of SVG markup per page).
+ *
  * @param {HTMLIFrameElement} frame
  * @param {Array<{svg: string, hash: string}>} pages
+ * @returns {Promise<void>}
  */
-function _applyIncrementalUpdate(frame, pages) {
+async function _applyIncrementalUpdate(frame, pages) {
     const doc = frame.contentDocument;
     if (!doc?.body) return;
 
+    // Generation guard: if a new project was loaded while this chunked update
+    // was yielding, abort and let the new preview take over.
+    const generation = _frameGeneration;
+
     const existingDivs = Array.from(doc.querySelectorAll('.page'));
+    let lastYield = performance.now();
 
     for (let i = 0; i < pages.length; i++) {
+        if (generation !== _frameGeneration) return;
         const { svg, hash } = pages[i];
         if (i < existingDivs.length) {
             // Update only if the page content changed
@@ -93,6 +115,12 @@ function _applyIncrementalUpdate(frame, pages) {
             div.className = 'page';
             div.innerHTML = svg + '\n';
             doc.body.appendChild(div);
+        }
+        const now = performance.now();
+        if (now - lastYield > DOM_WRITE_BUDGET_MS) {
+            await _yieldToEventLoop();
+            lastYield = performance.now();
+            if (generation !== _frameGeneration) return;
         }
     }
     // Remove pages that no longer exist (document shrank)
@@ -153,8 +181,10 @@ const DEBOUNCE_MAX = 500;
 const DEBOUNCE_THRESHOLD = 5_000;
 /** Characters at which debounce reaches its max */
 const DEBOUNCE_CEIL = 50_000;
-/** Minimum gap between end of one compile and start of the next (ms) */
-const THROTTLE_GAP = 80;
+/** Minimum gap between end of one compile and start of the next (ms, small docs) */
+const THROTTLE_GAP_MIN = 100;
+/** Maximum gap between end of one compile and start of the next (ms, large docs) */
+const THROTTLE_GAP_MAX = 400;
 
 /**
  * Returns a debounce delay that scales with document size
@@ -167,6 +197,20 @@ function adaptiveDebounce(charCount) {
     if (charCount >= DEBOUNCE_CEIL) return DEBOUNCE_MAX;
     const ratio = (charCount - DEBOUNCE_THRESHOLD) / (DEBOUNCE_CEIL - DEBOUNCE_THRESHOLD);
     return Math.round(DEBOUNCE_MIN + ratio * (DEBOUNCE_MAX - DEBOUNCE_MIN));
+}
+
+/**
+ * Returns a compile-to-compile throttle gap that scales with document size.
+ *
+ * On large documents each compile cycle (compile + IPC + DOM write) is heavy;
+ * a longer gap lets the webview stay responsive while typing continuously.
+ * Small docs keep the short gap so the preview stays snappy.
+ */
+function adaptiveThrottleGap(charCount) {
+    if (charCount <= DEBOUNCE_THRESHOLD) return THROTTLE_GAP_MIN;
+    if (charCount >= DEBOUNCE_CEIL) return THROTTLE_GAP_MAX;
+    const ratio = (charCount - DEBOUNCE_THRESHOLD) / (DEBOUNCE_CEIL - DEBOUNCE_THRESHOLD);
+    return Math.round(THROTTLE_GAP_MIN + ratio * (THROTTLE_GAP_MAX - THROTTLE_GAP_MIN));
 }
 
 /**
@@ -194,6 +238,7 @@ export function initPreview(opts) {
     _frameInitialized = false;
     _clickHandlerSetup = false;
     _pageHashes = [];
+    _frameGeneration++;
     const { onChange, debounceMs } = opts;
 
     onChange(() => {
@@ -290,9 +335,10 @@ async function _runCompile() {
     if (!_opts) return;
 
     // Enforce a minimum gap between compiles so Monaco can breathe
+    const gap = adaptiveThrottleGap(_lastSourceLength ?? 0);
     const sinceLast = performance.now() - _lastCompileEnd;
-    if (_lastCompileEnd > 0 && sinceLast < THROTTLE_GAP) {
-        setTimeout(_runCompile, THROTTLE_GAP - sinceLast);
+    if (_lastCompileEnd > 0 && sinceLast < gap) {
+        setTimeout(_runCompile, gap - sinceLast);
         return;
     }
 
@@ -362,6 +408,13 @@ let _lastJumpPos = null;
 let _currentBlobUrl = null;
 /** Page hashes from the last successful compile, used for incremental DOM updates */
 let _pageHashes = [];
+
+/**
+ * Bumped on every initPreview() (project change). Chunked DOM updates capture
+ * it at start and abort early if it changed while they were yielding, so stale
+ * writes from a previous project never touch the new preview's contentDocument.
+ */
+let _frameGeneration = 0;
 
 /** Threshold (bytes) above which first-load Blob creation is delegated to the Web Worker */
 const WORKER_BLOB_THRESHOLD = 512_000;
@@ -555,7 +608,9 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
             // Only touch page divs whose hash has changed.
             // No iframe navigation → no full SVG re-parse → much faster for
             // large documents where only a few pages actually changed.
-            _applyIncrementalUpdate(frame, pages);
+            // Chunked: yields between pages so keystrokes are processed during
+            // the write instead of freezing the UI for the whole update.
+            await _applyIncrementalUpdate(frame, pages);
             // Resize the iframe shell to fit potentially new content height.
             // Must happen before scrollToJumpPos so the parent container's
             // scroll range reflects the new content height; otherwise the

@@ -58,9 +58,15 @@ pub async fn render_preview(
 /// Invalidates the file cache of the persistent preview world.
 /// Call this after saving a file that is imported by the main document so the
 /// next preview compilation picks up the changes from disk.
+///
+/// Runs on the blocking thread pool: the preview world mutex may be held by a
+/// running compile for seconds, so a synchronous version would freeze the UI
+/// (the command would run on the main thread).
 #[tauri::command]
-pub fn invalidate_file_cache() {
-    invalidate_preview_file_cache();
+pub async fn invalidate_file_cache() {
+    tauri::async_runtime::spawn_blocking(invalidate_preview_file_cache)
+        .await
+        .ok();
 }
 
 /// Resolves a click on the rendered preview to a source position (line, column).

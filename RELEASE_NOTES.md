@@ -1,5 +1,21 @@
 # Release Notes
 
+## v1.5.0
+
+### New in v1.5.0
+
+- **Tutorial (EN/FR)** : a 13-page interactive tutorial opens on first launch (welcome, projects, formatting, structures, images, preview, console, PDF export, notepad, files, bibliography, templates, keyboard shortcuts). Key UI elements are highlighted on screen while they are explained.
+- **Enhanced Typst syntax highlighting** : the Monaco tokenizer was rewritten with a dedicated rule set for all Typst constructs (headings, math, code, comments, strings, markup…), giving a much richer highlight in the editor.
+- **File manager polish** : the image preview thumbnail is now shown on the file name only, instead of the entire row.
+
+### Improvements
+
+- **Edits stay fluid while the document compiles** : preview DOM updates are now chunked (the SVG pages are written one batch at a time, yielding to the event loop in between), the compile-to-compile throttle gap adapts to the document size (100–400 ms), `invalidate_file_cache` no longer runs on the main thread, and the shared preview-world mutex is released before the SVG rendering phase. Typing during a recompilation is no longer blocked by the preview re-render.
+
+### Internals
+
+- **Bibliography without database** : the bibliography no longer lives in SQLite; entries are now read and written directly from/to the `.bib` files of the project. The bibliography database module was removed.
+
 ## v1.4.3
 
 ### New in v1.4.3
