@@ -11,6 +11,9 @@ Les items sont groupés par priorité.
 - [x] Retirer les `eprintln!` de debug laissés dans `crates/core/src/compiler/compile.rs` (cursor_jump, resolve_click)
 - [x] Supprimer le dossier vide `crates/build-all/` (pas de Cargo.toml, pas membre du workspace)
 - [x] Remplacer les `.expect("Failed to initialise … DB")` du setup (`crates/app/src/main.rs`) par une gestion d'erreur propre avec message utilisateur
+- [x] Export de PDF : `.pdf` non appliqué à la fin du fichier (changer la logique, l'utilisateur entre le nom du fichier, et automatiquement on ajoute `.pdf` à la fin, si `.pdf` est ajouté manuellement par l'utilisateur : on ajoute pas l'extension automatiquement)
+- [ ] Bug: Image dans l'éditeur qui a été updated (image générée par un script python), mais preview qui continue d'afficher l'ancienne image. Un déplacement hors d'un dossier (dossier `images/`) puis inversement (en remettant l'image dedans depuis Typst-IDE) a résolu le problème.
+  - Problème à creuser.
 
 ## Tests et CI
 
@@ -28,6 +31,9 @@ Les items sont groupés par priorité.
 - [ ] Recherche dans tout le projet (au-delà du find de Monaco dans le fichier courant)
 - [ ] Mise à jour automatique (`tauri-plugin-updater`) et signature des builds
 - [ ] Export des pages du preview en PNG/SVG (le PDF est seul export actuel)
+- [ ] Fonctionnalité de commentaire (ajout d'une typo "// COMMENT:" qui sera surligné + trouvable dans un "carnet de commentaire" (fenêtre popup) + ajout d'un bouton pour ajouter un commentaire)
+- [ ] Preview dans un autre onglet (Si activé : éditeur qui prend toute la place sur la fenêtre principale. Si fenêtre tuée (croix), l'affichage de Typst-IDE redevient normal)
+- [ ] 
 
 ## Divers
 
