@@ -56,5 +56,12 @@ jobs:
       - name: Check versions consistency, formatting and compilation
         run: ./manage.sh check
 
+      - name: Lint (clippy)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit
+
       - name: Run tests
         run: ./manage.sh test

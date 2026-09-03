@@ -131,10 +131,7 @@ pub fn read_template(app: tauri::AppHandle, name: String) -> Result<TemplateCont
         return Err(format!("Template '{}' introuvable.", name));
     }
     let lib_typ = std::fs::read_to_string(dir.join("lib.typ")).map_err(|e| e.to_string())?;
-    let test_typ = match std::fs::read_to_string(dir.join("test.typ")) {
-        Ok(content) => Some(content),
-        Err(_) => None,
-    };
+    let test_typ = std::fs::read_to_string(dir.join("test.typ")).ok();
     Ok(TemplateContent { lib_typ, test_typ })
 }
 

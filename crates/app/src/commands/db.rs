@@ -6,8 +6,8 @@ use typst_ide_core::database::{
     notes_db::{self, Note},
 };
 
-/// ####################################################
-/// Notes
+// ####################################################
+// Notes
 
 /// Adds a note to the database
 #[tauri::command]

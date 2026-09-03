@@ -227,7 +227,7 @@ fn best_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<
         if let FrameItem::Group(group) = item {
             if let Some((dist, point)) = best_glyph_in_frame(&group.frame, span, target_offset) {
                 let candidate = (dist, pos + point.transform(group.transform));
-                if best_global.as_ref().map_or(true, |(d, _)| dist < *d) {
+                if best_global.as_ref().is_none_or(|(d, _)| dist < *d) {
                     best_global = Some(candidate);
                 }
             }
@@ -235,7 +235,7 @@ fn best_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<
             for glyph in &text.glyphs {
                 if glyph.span.0 == span {
                     let dist = target_offset.abs_diff(glyph.span.1);
-                    if best_global.as_ref().map_or(true, |(d, _)| dist < *d) {
+                    if best_global.as_ref().is_none_or(|(d, _)| dist < *d) {
                         best_global = Some((dist, pos));
                     }
                 }
@@ -279,7 +279,7 @@ fn find_precise_cursor_position(
 
     for (page_idx, page) in document.pages().iter().enumerate() {
         if let Some((dist, point)) = best_glyph_in_frame(&page.frame, span, target_offset) {
-            let is_better = best.as_ref().map_or(true, |(d, ..)| dist < *d);
+            let is_better = best.as_ref().is_none_or(|(d, ..)| dist < *d);
             if is_better {
                 best = Some((dist, page_idx, point));
             }
@@ -402,11 +402,8 @@ pub fn compile_to_preview_html(
         })
         .collect();
     // Evict SVG cache entries for pages no longer in this document.
-    let current_hashes: std::collections::HashSet<u128> = document
-        .pages()
-        .iter()
-        .map(|p| typst_utils::hash128(p))
-        .collect();
+    let current_hashes: std::collections::HashSet<u128> =
+        document.pages().iter().map(typst_utils::hash128).collect();
     svg_guard.retain(|k, _| current_hashes.contains(k));
     drop(svg_guard);
     let svg_ms = t_svg.elapsed().as_millis() as u64;
@@ -477,12 +474,11 @@ pub fn resolve_click(
 /// (e.g. a `.typ` module, an image, a data file) so that the next compilation
 /// re-reads the updated content from disk.
 pub fn invalidate_preview_file_cache() {
-    if let Some(guard) = PREVIEW_WORLD.get() {
-        if let Ok(mut opt) = guard.lock() {
-            if let Some((world, _)) = opt.as_mut() {
-                world.reset_files();
-            }
-        }
+    if let Some(guard) = PREVIEW_WORLD.get()
+        && let Ok(mut opt) = guard.lock()
+        && let Some((world, _)) = opt.as_mut()
+    {
+        world.reset_files();
     }
 }
 

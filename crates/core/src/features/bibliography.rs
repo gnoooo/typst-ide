@@ -37,7 +37,7 @@ fn parse_entries(content: &str) -> Vec<EntrySpan> {
             if let Some(open_brace) = line.find('{') {
                 let entry_type = line[1..open_brace].trim().to_string();
                 let rest = &line[open_brace + 1..];
-                let key_end = rest.find(|c| c == ',' || c == '}').unwrap_or(rest.len());
+                let key_end = rest.find([',', '}']).unwrap_or(rest.len());
                 let cite_key = rest[..key_end].trim().to_string();
 
                 let opens = line.chars().filter(|&c| c == '{').count();
@@ -71,16 +71,16 @@ fn parse_entries(content: &str) -> Vec<EntrySpan> {
 
         if let Some((entry, _)) = &mut current {
             let trimmed = line.trim();
-            if !trimmed.is_empty() {
-                if let Some((key, value)) = trimmed.split_once('=') {
-                    let key = key.trim().to_string();
-                    let value = value
-                        .trim()
-                        .trim_end_matches(',')
-                        .trim_matches('"')
-                        .to_string();
-                    entry.data.insert(key, value);
-                }
+            if !trimmed.is_empty()
+                && let Some((key, value)) = trimmed.split_once('=')
+            {
+                let key = key.trim().to_string();
+                let value = value
+                    .trim()
+                    .trim_end_matches(',')
+                    .trim_matches('"')
+                    .to_string();
+                entry.data.insert(key, value);
             }
 
             brace_count += line.chars().filter(|&c| c == '{').count();
@@ -123,7 +123,10 @@ pub fn parse_bib_file(path: &str) -> Result<Vec<BibEntry>> {
         .collect())
 }
 
-pub fn check_if_entry_exists(filepath: &str, cite_key_tocheck: &str) -> Result<bool> {
+/// Returns `true` when `cite_key` is not used by any entry of the file.
+/// (Fits its name: the old `check_if_entry_exists` returned the inverted
+/// value, `false` when the entry existed.)
+pub fn is_cite_key_available(filepath: &str, cite_key_tocheck: &str) -> Result<bool> {
     let entries = parse_bib_file(filepath)?;
 
     for entry in entries {
@@ -167,12 +170,11 @@ pub fn add_entry_to_bib(
     cite_key: &str,
     json: &Value,
 ) -> Result<()> {
-    if !check_if_entry_exists(filepath, cite_key)? {
-        return Err(Error::new(ErrorKind::Other, "Entry already exists"));
+    if !is_cite_key_available(filepath, cite_key)? {
+        return Err(Error::other("Entry already exists"));
     }
 
     let mut file = OpenOptions::new()
-        .write(true)
         .create(true)
         .append(true)
         .open(filepath)?;
@@ -189,14 +191,12 @@ pub fn get_all_bibs(projectpath: &str) -> Result<Vec<String>> {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_file() {
-            if let Some(file_ext) = path.extension().and_then(|e| e.to_str()) {
-                if file_ext == "bib" {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        files.push(name.to_string());
-                    }
-                }
-            }
+        if path.is_file()
+            && let Some(file_ext) = path.extension().and_then(|e| e.to_str())
+            && file_ext == "bib"
+            && let Some(name) = path.file_name().and_then(|n| n.to_str())
+        {
+            files.push(name.to_string());
         }
     }
 
@@ -232,7 +232,7 @@ pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Valu
     }
 
     let new_data = entry.get("data").cloned().unwrap_or(Value::Null);
-    let new_entry_text = build_bib_entry(&new_entry_type, &new_cite_key, &new_data);
+    let new_entry_text = build_bib_entry(new_entry_type, new_cite_key, &new_data);
 
     let lines: Vec<&str> = content.lines().collect();
     let mut out = String::new();
@@ -294,14 +294,14 @@ pub fn delete_bib_source_value(
 
     if span.start < span.end {
         let mut kept: Vec<&str> = Vec::new();
-        for i in span.start + 1..span.end {
-            let trimmed = lines[i].trim();
+        for line in lines.iter().take(span.end).skip(span.start + 1) {
+            let trimmed = line.trim();
             if trimmed.is_empty() {
                 continue;
             }
             let key = trimmed.split('=').next().unwrap_or("").trim();
             if key != key_to_delete {
-                kept.push(lines[i]);
+                kept.push(line);
             }
         }
 

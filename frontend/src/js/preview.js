@@ -132,63 +132,12 @@ async function _applyIncrementalUpdate(frame, pages) {
 }
 
 // ### Web Worker for off-thread Blob creation ##################################
-
-/** @type {Worker|null} */
-let _blobWorker = null;
-/** @type {Map<number, (url: string) => void>} */
-const _blobCallbacks = new Map();
-let _blobIdCounter = 0;
-
-function getBlobWorker() {
-    if (!_blobWorker) {
-        _blobWorker = new Worker(
-            new URL('./preview-worker.js', import.meta.url),
-            { type: 'module' }
-        );
-        _blobWorker.onmessage = (e) => {
-            if (e.data?.type === 'blobReady') {
-                const cb = _blobCallbacks.get(e.data.id);
-                if (cb) {
-                    _blobCallbacks.delete(e.data.id);
-                    cb(e.data.url);
-                }
-            } else if (e.data?.type === 'blobError') {
-                const cb = _blobCallbacks.get(e.data.id);
-                if (cb) {
-                    _blobCallbacks.delete(e.data.id);
-                    cb.__reject(new Error(e.data.error || 'Preview worker failed'));
-                }
-            }
-        };
-        _blobWorker.onerror = (e) => {
-            // If the worker script itself fails to load (network, syntax),
-            // every pending callback needs to reject or the scheduler
-            // will hang forever waiting for `blobReady`.
-            const err = new Error('Preview worker crashed: ' + (e.message || 'unknown'));
-            _blobCallbacks.forEach((cb) => cb.__reject(err));
-            _blobCallbacks.clear();
-        };
-    }
-    return _blobWorker;
-}
-
-/**
- * Creates a Blob URL from HTML in a Web Worker, off the main thread.
- * Resolves with the URL or rejects if the worker reported an error.
- * @param {string} html
- * @returns {Promise<string>} blob URL
- */
-function createBlobUrlAsync(html) {
-    return new Promise((resolve, reject) => {
-        const id = ++_blobIdCounter;
-        // The worker uses `cb(url)` to resolve; we tag a `__reject` fn on
-        // the same callback object so `onerror` / `blobError` can reject.
-        const cb = (url) => resolve(url);
-        cb.__reject = reject;
-        _blobCallbacks.set(id, cb);
-        getBlobWorker().postMessage({ type: 'createBlob', html, id });
-    });
-}
+//
+// Note: the former `preview-worker.js` (off-thread Blob creation above a size
+// threshold) was removed. `initPreview()` only ever runs once, on an empty
+// editor, and the 512 KB threshold was never reached in practice, so the
+// worker was dead code. Blob creation from the HTML string on the main thread
+// is cheap relative to the SVG rendering that precedes it.
 
 // ### Adaptive debounce ########################################################
 
@@ -454,9 +403,6 @@ let _pageHashes = [];
  */
 let _frameGeneration = 0;
 
-/** Threshold (bytes) above which first-load Blob creation is delegated to the Web Worker */
-const WORKER_BLOB_THRESHOLD = 512_000;
-
 /** Whether the click-to-source handler has been set up on the iframe contentDocument */
 let _clickHandlerSetup = false;
 
@@ -472,7 +418,8 @@ let _clickHandlerSetup = false;
  * throughout the navigation. The parent container's scrollTop is never touched,
  * so the preview stays exactly where the user was reading.
  *
- * Large payloads use the Web Worker to build the Blob off the main thread.
+ * The Blob is built on the main thread: the HTML string is already in memory,
+ * so Blob creation is cheap compared to the SVG rendering that precedes it.
  *
  * @param {HTMLIFrameElement} frame
  * @param {string} html
@@ -485,18 +432,13 @@ async function loadHtml(frame, html) {
     }
 
     try {
-        if (html.length > WORKER_BLOB_THRESHOLD) {
-            _currentBlobUrl = await createBlobUrlAsync(html);
-        } else {
-            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-            _currentBlobUrl = URL.createObjectURL(blob);
-        }
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+        _currentBlobUrl = URL.createObjectURL(blob);
     } catch (err) {
-        // The previous `new Promise(async (resolve) => …)` swallowed
-        // async rejections and left this Promise pending forever. Now
-        // a real rejection (e.g. Blob/worker failure) propagates and
+        // A real rejection (e.g. Blob/URL failure) must propagate so
         // `_doCompile` can surface the error instead of hanging the
-        // scheduler.
+        // scheduler — the previous `new Promise(async (resolve) => …)`
+        // swallowed async rejections and left this pending forever.
         throw err;
     }
 

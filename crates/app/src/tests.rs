@@ -223,7 +223,11 @@ fn assert_within_rejects_symlinks_escaping_the_root() {
 
     // Existing file reached through the symlink: resolve and reject.
     let existing = crate::commands::fs::assert_within(&link.join("escaped.txt"), &roots);
-    assert!(existing.is_err(), "symlink to outside must be rejected: {:?}", existing);
+    assert!(
+        existing.is_err(),
+        "symlink to outside must be rejected: {:?}",
+        existing
+    );
 
     // Non-existent leaf deeper than the symlink: the deepest existing
     // ancestor is the symlink, resolving /outside — reject the write.

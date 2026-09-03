@@ -30,10 +30,10 @@ pub fn assert_within(
     // every symlink in it, so a hit means it really is inside a root.
     if let Ok(canonical) = std::fs::canonicalize(path) {
         for root in roots {
-            if let Ok(canon_root) = std::fs::canonicalize(root) {
-                if canonical.starts_with(&canon_root) {
-                    return Ok(canonical);
-                }
+            if let Ok(canon_root) = std::fs::canonicalize(root)
+                && canonical.starts_with(&canon_root)
+            {
+                return Ok(canonical);
             }
         }
         let display = canonical.to_string_lossy().into_owned();
@@ -48,10 +48,10 @@ pub fn assert_within(
     while !ancestor.exists() && ancestor.pop() {}
     if let Ok(canonical) = std::fs::canonicalize(&ancestor) {
         for root in roots {
-            if let Ok(canon_root) = std::fs::canonicalize(root) {
-                if canonical.starts_with(&canon_root) {
-                    return Ok(canonical);
-                }
+            if let Ok(canon_root) = std::fs::canonicalize(root)
+                && canonical.starts_with(&canon_root)
+            {
+                return Ok(canonical);
             }
         }
     }
@@ -162,16 +162,32 @@ pub struct ProjectInfo {
     content: String,
 }
 
-/// Opens an existing project directory: finds the first `.typ` file and returns its content
+/// Opens an existing project directory: finds a `.typ` file (preferring
+/// `main.typ` when present) and returns its content
 #[tauri::command]
 pub async fn open_project(dir_path: String) -> Result<ProjectInfo, String> {
     let dir = std::path::PathBuf::from(&dir_path);
     let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
-    let typ_path = entries
+    let mut typ_paths: Vec<std::path::PathBuf> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .find(|p| p.extension().map_or(false, |ext| ext == "typ"))
-        .ok_or_else(|| "Aucun fichier .typ trouvé dans ce dossier.".to_string())?;
+        .filter(|p| p.extension().is_some_and(|ext| ext == "typ"))
+        .collect();
+    // `read_dir` order is unspecified; opening the same project twice must
+    // yield the same file. `main.typ` is the Typst convention, fall back to
+    // the first `.typ` in alphabetical order.
+    let typ_path = if let Some(i) = typ_paths
+        .iter()
+        .position(|p| p.file_name().is_some_and(|n| n == "main.typ"))
+    {
+        Some(typ_paths.remove(i))
+    } else {
+        typ_paths.sort();
+        typ_paths.into_iter().next()
+    };
+    let Some(typ_path) = typ_path else {
+        return Err("Aucun fichier .typ trouvé dans ce dossier.".to_string());
+    };
 
     let content = std::fs::read_to_string(&typ_path).map_err(|e| e.to_string())?;
     let name = dir
@@ -285,12 +301,22 @@ fn collect_entries(
     for entry in read_dir {
         let entry = entry.map_err(|e| e.to_string())?;
         let path = entry.path();
-        let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
         let name = entry.file_name().to_string_lossy().into_owned();
         // Skip hidden files/dirs that start with '.'
         if name.starts_with('.') {
             continue;
         }
+        let sym_meta = std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
+        let is_link = sym_meta.file_type().is_symlink();
+        // Resolve for display only; a broken symlink degrades gracefully to
+        // an empty entry instead of aborting the whole listing.
+        let resolved = if is_link {
+            std::fs::metadata(&path).ok()
+        } else {
+            Some(sym_meta)
+        };
+        let is_dir = resolved.as_ref().is_some_and(|m| m.is_dir());
+        let size = resolved.as_ref().map_or(0, |m| m.len());
         let relative = path
             .strip_prefix(root)
             .unwrap_or(&path)
@@ -302,7 +328,7 @@ fn collect_entries(
             // yields OS-native separators (backslashes on Windows), which
             // collapses the file-manager tree into a flat list.
             .replace('\\', "/");
-        let ext = if path.is_file() {
+        let ext = if !is_dir {
             path.extension()
                 .unwrap_or_default()
                 .to_string_lossy()
@@ -313,15 +339,86 @@ fn collect_entries(
         out.push(FileEntry {
             name,
             relative_path: relative,
-            is_dir: path.is_dir(),
-            size: metadata.len(),
+            is_dir,
+            size,
             extension: ext,
         });
-        if path.is_dir() {
+        // Never recurse through symlinked directories : a `ln -s . self`
+        // inside the project would otherwise loop forever, and a symlink can
+        // point anywhere on disk (escaping the project roots).
+        if is_dir && !is_link {
             collect_entries(root, &path, out)?;
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FileEntry;
+
+    fn collect(root: &std::path::Path) -> Vec<FileEntry> {
+        let mut out = Vec::new();
+        super::collect_entries(root, root, &mut out).unwrap();
+        out
+    }
+
+    #[test]
+    fn collect_entries_flattens_a_small_tree() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("project");
+        std::fs::create_dir_all(root.join("sub/nested")).unwrap();
+        std::fs::write(root.join("main.typ"), "hello").unwrap();
+        std::fs::write(root.join("sub/nested/pic.png"), "x").unwrap();
+
+        let mut rels: Vec<String> = collect(&root)
+            .into_iter()
+            .map(|e| e.relative_path)
+            .collect();
+        rels.sort();
+        assert_eq!(
+            rels,
+            vec!["main.typ", "sub", "sub/nested", "sub/nested/pic.png"]
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn collect_entries_does_not_recurse_through_directory_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("project");
+        std::fs::create_dir_all(root.join("a")).unwrap();
+        std::fs::write(root.join("a/file.txt"), "x").unwrap();
+        // `ln -s . a/self` : recursing would loop forever.
+        symlink(".", root.join("a/self")).unwrap();
+
+        // The listing must terminate and contain the real file exactly once.
+        let mut rels: Vec<String> = collect(&root)
+            .into_iter()
+            .map(|e| e.relative_path)
+            .collect();
+        rels.sort();
+        assert_eq!(rels, vec!["a", "a/file.txt", "a/self"]);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn collect_entries_tolerates_broken_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        symlink("/nonexistent/target", root.join("dangling")).unwrap();
+
+        let rels: Vec<String> = collect(&root)
+            .into_iter()
+            .map(|e| e.relative_path)
+            .collect();
+        assert_eq!(rels, vec!["dangling"]);
+    }
 }
 
 /// Creates a directory (including parents if needed)
@@ -381,7 +478,11 @@ pub fn read_image_as_base64(
     assert_within(p, &root_refs)?;
     let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
     // Infer MIME type from extension
-    let ext = p.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+    let ext = p
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_lowercase();
     let mime = match ext.as_str() {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -481,7 +582,7 @@ pub async fn import_image_dialog(
     std::fs::copy(&file, &dest_path).map_err(|e| format!("Impossible de copier {name} : {e}"))?;
 
     Ok(dest_path
-        .strip_prefix(&std::path::PathBuf::from(&project_path))
+        .strip_prefix(std::path::PathBuf::from(&project_path))
         .unwrap_or(&dest_path)
         .to_string_lossy()
         .into_owned()
@@ -535,10 +636,7 @@ pub async fn import_folder_dialog(
         .ok_or_else(|| "Nom de dossier invalide.".to_string())?
         .to_string_lossy()
         .into_owned();
-    copy_dir_recursive(
-        &folder,
-        &dest_pb.join(&name),
-    )?;
+    copy_dir_recursive(&folder, &dest_pb.join(&name))?;
     Ok(name)
 }
 
