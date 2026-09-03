@@ -20,11 +20,19 @@
  */
 
 import { t } from '../i18n/index.js'
+import { escapeHtml } from './utils/escape.js'
 
 // ## Core ####################################################################
 
 /**
  * Open a modal with arbitrary content.
+ *
+ * `body` may be either a string (interpreted as plain text and escaped)
+ * or an HTMLElement (used as-is — caller is responsible for safely
+ * building it, e.g. via `createElement`/`textContent`). This avoids the
+ * historical XSS where backend-controlled content was interpolated into
+ * `innerHTML` strings.
+ *
  * @param {{
  *   title: string,
  *   body: string | HTMLElement,
@@ -46,25 +54,42 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
 
-    // Header
+    // Header (title is auto-escaped via textContent — no innerHTML).
     const header = document.createElement('div');
     header.className = 'ide-modal-header';
-    header.innerHTML = `<h2>${title}</h2>`;
+    const titleEl = document.createElement('h2');
+    titleEl.textContent = String(title ?? '');
+    header.appendChild(titleEl);
     if (closable) {
         const closeBtn = document.createElement('button');
         closeBtn.className = 'ide-modal-close-btn';
-        closeBtn.innerHTML = '&times;';
+        closeBtn.textContent = '\u00D7';
         closeBtn.addEventListener('click', () => close());
         header.appendChild(closeBtn);
     }
+
+    // Delegate clicks on `data-tauri-open-url` elements inside the modal
+    // to the Tauri opener plugin. This replaces the old `onclick="…"`
+    // inline handlers that lived in modal bodies (`structures.js`, ...)
+    // and would break a future strict CSP.
+    modal.addEventListener('click', (ev) => {
+        const target = ev.target.closest('[data-tauri-open-url]');
+        if (!target || !modal.contains(target)) return;
+        ev.preventDefault();
+        const url = target.getAttribute('data-tauri-open-url');
+        if (url && window.__TAURI__?.opener?.openUrl) {
+            window.__TAURI__.opener.openUrl(url);
+        }
+    });
     modal.appendChild(header);
 
-    // Body
+    // Body — `string` bodies are treated as plain text (auto-escaped,
+    // never interpreted as HTML). Use an HTMLElement to pass pre-built DOM.
     const bodyEl = document.createElement('div');
     bodyEl.className = 'ide-modal-body';
     if (typeof body === 'string') {
-        bodyEl.innerHTML = body;
-    } else {
+        bodyEl.textContent = body;
+    } else if (body instanceof HTMLElement) {
         bodyEl.appendChild(body);
     }
     modal.appendChild(bodyEl);
@@ -121,6 +146,12 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
 
 /**
  * Show a confirmation dialog.
+ *
+ * `message` is rendered as plain text (safe against XSS) — pass composed
+ * DOM via `bodyElement` instead if you need formatting. Filenames and
+ * other user-controlled input should be passed via `t()`-substituted
+ * translations here too; this helper never interprets the string as HTML.
+ *
  * @param {{ title: string, message: string, confirmLabel?: string, cancelLabel?: string }} opts
  * @returns {Promise<boolean>}
  */
@@ -128,9 +159,13 @@ export function showConfirm({ title, message, confirmLabel, cancelLabel }) {
     if (confirmLabel === undefined) confirmLabel = t('modal.confirm')
     if (cancelLabel === undefined) cancelLabel = t('modal.cancel')
     return new Promise((resolve) => {
+        const messageEl = document.createElement('p');
+        messageEl.className = 'ide-modal-message';
+        messageEl.textContent = String(message ?? '');
+
         const { close } = openModal({
             title,
-            body: `<p class="ide-modal-message">${message}</p>`,
+            body: messageEl,
             buttons: [
                 { label: cancelLabel,  primary: false, onClick: (c) => { resolve(false); c(); } },
                 { label: confirmLabel, primary: true,  onClick: (c) => { resolve(true);  c(); } },
@@ -150,13 +185,26 @@ export function showPrompt({ title, label, placeholder, defaultValue = '', valid
         const inputId = 'modal-prompt-input-' + Date.now();
         const errorId = 'modal-prompt-error-' + Date.now();
 
-        const bodyHtml = `
-            <label class="ide-modal-label">
-                ${label}
-                <input type="text" id="${inputId}" class="ide-modal-input" placeholder="${placeholder}" maxlength="80" autocomplete="off" />
-            </label>
-            <div class="ide-modal-error" id="${errorId}"></div>
-        `;
+        // Build the body with createElement / textContent so user-controlled
+        // `label` and `placeholder` strings are escaped on insertion.
+        const bodyEl = document.createElement('div');
+        const labelEl = document.createElement('label');
+        labelEl.className = 'ide-modal-label';
+        labelEl.setAttribute('for', inputId);
+        labelEl.textContent = String(label ?? '');
+        const inputEl = document.createElement('input');
+        inputEl.type = 'text';
+        inputEl.id = inputId;
+        inputEl.className = 'ide-modal-input';
+        inputEl.placeholder = String(placeholder ?? '');
+        inputEl.maxLength = 80;
+        inputEl.autocomplete = 'off';
+        labelEl.appendChild(inputEl);
+        const errorEl = document.createElement('div');
+        errorEl.className = 'ide-modal-error';
+        errorEl.id = errorId;
+        bodyEl.appendChild(labelEl);
+        bodyEl.appendChild(errorEl);
 
         let resolved = false;
         function done(value) {
@@ -165,7 +213,7 @@ export function showPrompt({ title, label, placeholder, defaultValue = '', valid
 
         const { close, overlay } = openModal({
             title,
-            body: bodyHtml,
+            body: bodyEl,
             buttons: [
                 { label: t('modal.cancel'),    primary: false, onClick: () => done(null) },
                 { label: t('modal.confirm'), primary: true,  onClick: () => tryConfirm() },
@@ -174,7 +222,7 @@ export function showPrompt({ title, label, placeholder, defaultValue = '', valid
         });
 
         const input   = overlay.querySelector(`#${inputId}`);
-        const errorEl = overlay.querySelector(`#${errorId}`);
+        const errEl   = overlay.querySelector(`#${errorId}`);
         if (input) {
             input.value = defaultValue;
             input.focus();
@@ -185,10 +233,10 @@ export function showPrompt({ title, label, placeholder, defaultValue = '', valid
 
         async function tryConfirm() {
             const value = input?.value.trim() ?? '';
-            if (!value) { errorEl.textContent = t('modal.required'); return; }
+            if (!value) { errEl.textContent = t('modal.required'); return; }
             if (validate) {
                 const result = await validate(value);
-                if (result !== true) { errorEl.textContent = result; return; }
+                if (result !== true) { errEl.textContent = result; return; }
             }
             done(value);
         }
@@ -210,20 +258,29 @@ export function showSelect({ title, label, optionsdata, validate }) {
     const selectId = 'modal-prompt-input-' + Date.now();
     const errorId = 'modal-prompt-error-' + Date.now();
 
-    let options = "";
+    // Build the body with createElement / textContent — option `value` and
+    // display name are escaped automatically, regardless of what keys the
+    // caller passes in `optionsdata`.
+    const bodyEl = document.createElement('div');
+    const labelEl = document.createElement('label');
+    labelEl.className = 'ide-modal-label';
+    labelEl.setAttribute('for', selectId);
+    labelEl.textContent = String(label ?? '');
+    const selectEl = document.createElement('select');
+    selectEl.id = selectId;
     Object.entries(optionsdata).forEach(([name, required]) => {
-      options += `<option value="${name.toLowerCase()}"${required ? " required" : ""}>${name}</option>`
+      const opt = document.createElement('option');
+      opt.value = String(name).toLowerCase();
+      opt.textContent = String(name);
+      if (required) opt.setAttribute('required', '');
+      selectEl.appendChild(opt);
     });
-
-    const bodyHtml = `
-      <label class="ide-modal-label">
-        ${label}
-        <select id="${selectId}">
-          ${options}
-        </select>
-      </label>
-      <div class="ide-modal-error" id="${errorId}"></div>
-    `;
+    labelEl.appendChild(selectEl);
+    const errorEl = document.createElement('div');
+    errorEl.className = 'ide-modal-error';
+    errorEl.id = errorId;
+    bodyEl.appendChild(labelEl);
+    bodyEl.appendChild(errorEl);
 
     let resolved = false;
     function done(value) {
@@ -232,7 +289,7 @@ export function showSelect({ title, label, optionsdata, validate }) {
 
     const { close, overlay } = openModal({
       title,
-      body: bodyHtml,
+      body: bodyEl,
       buttons: [
         { label: t('modal.cancel'),    primary: false, onClick: () => done(null) },
         { label: t('modal.confirm'), primary: true,  onClick: () => tryConfirm() },
@@ -241,15 +298,15 @@ export function showSelect({ title, label, optionsdata, validate }) {
     });
 
     const input   = overlay.querySelector(`#${selectId}`);
-    const errorEl = overlay.querySelector(`#${errorId}`);
+    const errEl   = overlay.querySelector(`#${errorId}`);
     input?.focus();
 
     async function tryConfirm() {
       const value = input?.value.trim() ?? '';
-      if (!value) { errorEl.textContent = t('modal.required'); return; }
+      if (!value) { errEl.textContent = t('modal.required'); return; }
       if (validate) {
         const result = await validate(value);
-        if (result !== true) { errorEl.textContent = result; return; }
+        if (result !== true) { errEl.textContent = result; return; }
       }
       done(value);
     }

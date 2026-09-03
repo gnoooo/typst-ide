@@ -16,11 +16,17 @@ const { invoke } = window.__TAURI__.core;
 /** @type {{ name: string, path: string, typFile: string } | null} */
 let currentProject = null;
 
-/** @type {Array<{ name: string, path: string, lastOpened: string }>} */
-let projectHistory = JSON.parse(localStorage.getItem('project-history') ?? '[]');
-
 /** Listeners called when a project is loaded/changed */
 const onChangeListeners = [];
+
+/**
+ * Returns the value to send as `projectRoot` argument to FS-scoped
+ * Tauri commands. Centralised so every call site passes the current
+ * project consistently.
+ */
+export function projectRootArg() {
+    return currentProject?.path ?? null;
+}
 
 export function onProjectChange(fn) {
     onChangeListeners.push(fn);
@@ -79,11 +85,13 @@ async function flushSave(content) {
     if (!currentProject || !pendingSave) return;
     const filePath = `${currentProject.path}/${currentProject.typFile}`;
     try {
-        await invoke('save_file', { path: filePath, content });
+        await invoke('save_file', { path: filePath, content, projectRoot: currentProject.path });
         pendingSave = false;
         notifySaveIndicator(false);
     } catch (err) {
         showToast('error', t('project.save_error', { error: err }));
+        // Retry on next keystroke via scheduleAutosave (which restarts the debounce).
+        // The unsaved indicator stays "unsaved" because pendingSave is still true.
     }
 }
 
@@ -101,14 +109,16 @@ export function unsavedBtnUpdate() {
 // ## Open indicator ################################################
 export function openProjectBtnUpdate() {
     // Blink unsaved indicator if the project isn't saved yet
+    const btn = document.getElementById('open-project-btn');
+    if (!btn) return;
     if (getCurrentProject() === null){
         // document.getElementById('open-project-btn')?.classList.remove('_open-project-btn-none');
-        document.getElementById('open-project-btn').classList.add("_open-project-blinking");
-        document.getElementById('open-project-btn').classList.add("_open-project-blinking:hover");
+        btn.classList.add("_open-project-blinking");
+        btn.classList.add("_open-project-blinking:hover");
     } else {
         // document.getElementById('open-project-btn')?.classList.add('_open-project-btn-none');
-        document.getElementById('open-project-btn').classList.remove("_open-project-blinking");
-        document.getElementById('open-project-btn').classList.remove("_open-project-blinking:hover");
+        btn.classList.remove("_open-project-blinking");
+        btn.classList.remove("_open-project-blinking:hover");
     }
 }
 
@@ -132,25 +142,6 @@ export function notifySaveIndicator(unsaved) {
         el.textContent = '✓';
         el.classList.remove('unsaved');
         el.title = t('toolbar.saved');
-    }
-}
-
-// ## Export PDF (save as PDF) #####################################
-
-export async function exportPDF(content) {
-    try {
-        const pdfData = await invoke('export_pdf', { source: content, root: currentProject?.path ?? null });
-        const blob = new Blob([pdfData], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentProject ? currentProject.name : 'document'}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-    } catch (err) {
-        showToast('error', t('project.pdf_error', { error: err }));
     }
 }
 

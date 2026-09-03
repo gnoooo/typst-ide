@@ -9,7 +9,7 @@ export function t(key, params = {}) {
   if (val === undefined) val = key
   if (params && Object.keys(params).length > 0) {
     Object.entries(params).forEach(([k, v]) => {
-      val = val.replace(`{${k}}`, v)
+      val = val.replaceAll(`{${k}}`, v)
     })
   }
   return val

@@ -132,8 +132,8 @@ export function registerShortcuts({
     run: () => onEditorZoomReset(),
   });
 
-  // ## Global shortcuts (not captured by Monaco) ####################
-  document.addEventListener(
+// ## Global shortcuts (not captured by Monaco) ####################
+document.addEventListener(
     "keydown",
     (e) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyN") {
@@ -143,6 +143,16 @@ export function registerShortcuts({
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyO") {
         e.preventDefault();
         onOpenProject();
+      }
+      // Ctrl+S : export to PDF via the same path as the toolbar Save button
+      // (the previous shortcut advertised in the README was never bound).
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        e.code === "KeyS"
+      ) {
+        e.preventDefault();
+        onExportPDF?.();
       }
       // Ctrl+/ : WebKitGTK swallows this before Monaco sees it, so we handle it here
       if (

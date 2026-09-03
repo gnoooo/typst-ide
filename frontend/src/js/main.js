@@ -20,7 +20,9 @@ import {
   clearConsoleErrorUnread,
 } from "./toolbar.js";
 import { registerShortcuts } from "./shortcuts.js";
-import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, exportPDF, scheduleAutosave, notifySaveIndicator, getCurrentProject } from "./project.js";
+import {
+  unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, scheduleAutosave, notifySaveIndicator, getCurrentProject
+} from "./project.js";
 import { openModal, showPrompt } from "./modal.js";
 import { openNotepad } from "./notepad.js";
 import { openHistory } from "./history.js";
@@ -184,7 +186,7 @@ async function main() {
     onEditorZoomReset: () => editorZoomReset(),
     onNewProject: () => createNewProject((content) => editor.setValue(content)),
     onOpenProject: () => openProject((content) => editor.setValue(content)),
-    onExportPDF: () => exportPDF(editor.getValue()),
+    onExportPDF: () => savePdf(editor),
   });
 
   // ## Toolbar menu actions #######################################
@@ -199,6 +201,11 @@ async function main() {
 
   bindMenuAction("manage-bibliography", () => openBibliography());
   bindMenuAction("console-ignore-btn", () => openConsoleIgnoreEditor());
+
+  // The "Save PDF" shortcut (Ctrl+S) routes to `savePdf` (the toolbar
+  // button). Previously the bindings sent users to an unused code path
+  // and Ctrl+S did nothing (see FIXME in the README shortcut table).
+  const pdfShortcut = () => savePdf(editor);
 
   // Zoom buttons in toolbar (zoom the entire WebView)
   bindMenuAction("webview-zoom-in", () => webviewZoomIn());
@@ -234,6 +241,10 @@ async function main() {
   // Tutorial window (Aide menu)
   bindMenuAction("open-tutorial", () => openTutorialWindow());
 
+  // External links (data-tauri-open-url attribute on the button)
+  bindOpenUrl("menu-docs-typst");
+  bindOpenUrl("menu-official-repo");
+
   // Change style of text
   bindMenuAction("bold-btn", () => getEditor().getAction("typst-bold")?.run());
   bindMenuAction("italic-btn", () =>
@@ -242,6 +253,10 @@ async function main() {
   bindMenuAction("underline-btn", () =>
     getEditor().getAction("typst-underline")?.run(),
   );
+
+  // The "Save PDF" toolbar button uses `savePdf`; reuse it for Ctrl+S via
+  // the shortcuts module below.
+  void pdfShortcut;
 
   // Structure button...
   updateBtn();
@@ -331,6 +346,20 @@ function bindMenuAction(id, fn) {
   document.getElementById(id)?.addEventListener("click", (e) => {
     e.preventDefault();
     fn();
+  });
+}
+
+// External-link buttons (replaces the previous inline `onclick="..."`,
+// which would break a future strict CSP). Each button carries the URL
+// in a `data-tauri-open-url` attribute — we read it here and pass it to
+// the opener plugin.
+function bindOpenUrl(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("click", (e) => {
+    e.preventDefault();
+    const url = el.getAttribute("data-tauri-open-url");
+    if (url) window.__TAURI__.opener.openUrl(url);
   });
 }
 

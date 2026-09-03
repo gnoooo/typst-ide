@@ -64,25 +64,33 @@ pub fn get_project_bibliographies(project_path: &str) -> Result<Vec<ProjectBibFi
         .collect())
 }
 
+/// `Err(NotFound)` means the entry is already gone — treat as a benign race.
+/// All other IO errors are propagated so the frontend can surface them.
+fn io_err_to_string(e: std::io::Error) -> Result<bool, String> {
+    if e.kind() == ErrorKind::NotFound {
+        Ok(false)
+    } else {
+        Err(e.to_string())
+    }
+}
+
 #[tauri::command]
 pub fn replace_whole_bib_source(
     filepath: &str,
     old_cite_key: &str,
     entry: serde_json::Value,
 ) -> Result<bool, String> {
-    let out = bibliography::replace_whole_bib_source(filepath, old_cite_key, &entry);
-    match out {
+    match bibliography::replace_whole_bib_source(filepath, old_cite_key, &entry) {
         Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Err(e) => io_err_to_string(e),
     }
 }
 
 #[tauri::command]
 pub fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Result<bool, String> {
-    let out = bibliography::delete_whole_bib_source(filepath, cite_key_to_delete);
-    match out {
+    match bibliography::delete_whole_bib_source(filepath, cite_key_to_delete) {
         Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Err(e) => io_err_to_string(e),
     }
 }
 
@@ -92,9 +100,8 @@ pub fn delete_bib_source_value(
     cite_key_to_edit: &str,
     key_to_delete: &str,
 ) -> Result<bool, String> {
-    let out = bibliography::delete_bib_source_value(filepath, cite_key_to_edit, key_to_delete);
-    match out {
+    match bibliography::delete_bib_source_value(filepath, cite_key_to_edit, key_to_delete) {
         Ok(_) => Ok(true),
-        Err(_) => Ok(false),
+        Err(e) => io_err_to_string(e),
     }
 }

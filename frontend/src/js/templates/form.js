@@ -1,6 +1,7 @@
 import { t } from '../../i18n/index.js';
 import { openModal, showConfirm } from '../modal.js';
 import { showToast } from '../toast.js';
+import { isUserCancelled } from '../utils/error-codes.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -203,7 +204,7 @@ async function createAssetSection(kind, root, name, editing) {
         renderPending();
       }
     } catch (err) {
-      if (String(err).includes('Aucun fichier sélectionné')) return;
+      if (isUserCancelled(err)) return;
       showToast('error', t(importErrorKey, { error: err }));
     }
   });
@@ -221,7 +222,7 @@ async function createAssetSection(kind, root, name, editing) {
         }
       }
     } catch (err) {
-      if (String(err).includes('Aucun dossier sélectionné')) return;
+      if (isUserCancelled(err)) return;
       showToast('error', t(importErrorKey, { error: err }));
     }
   });

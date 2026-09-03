@@ -283,13 +283,13 @@
                             </li>
                             <li class="separator"></li>
                             <li>
-                                <button onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/')">
+                                <button id="menu-docs-typst" data-tauri-open-url="https://typst.app/docs/">
                                     <span data-i18n="menu.docs_typst">Documentation Typst</span>
                                     <span class="material-symbols-outlined" style="font-size: 16px">open_in_new</span>
                                 </button>
                             </li>
                             <li>
-                                <button onclick="window.__TAURI__.opener.openUrl('https://github.com/gnoooo/typst-ide')">
+                                <button id="menu-official-repo" data-tauri-open-url="https://github.com/gnoooo/typst-ide">
                                     <span data-i18n="menu.official_repo">Repo officiel de Typst IDE</span>
                                     <span class="material-symbols-outlined" style="font-size: 16px">open_in_new</span>
                                 </button>
@@ -396,7 +396,7 @@
                     <div id="preview" class="preview-content">
                         <iframe
                             id="preview-frame"
-                            sandbox="allow-same-origin allow-scripts"
+                            sandbox="allow-same-origin"
                         ></iframe>
                     </div>
 

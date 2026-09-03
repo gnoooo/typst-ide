@@ -8,6 +8,7 @@ import { getEditor } from "../editor.js";
 import { wireGet } from "./wire.js";
 import { getFiles, filterFiles, addExpanded, removeExpandedWithPrefix } from "./state.js";
 import { getParentDir, isSelfOrDescendant, isMainSourceFile } from "./utils.js";
+import { isUserCancelled } from "../utils/error-codes.js";
 
 async function refreshTree(container) {
   return wireGet("refresh")(container);
@@ -41,6 +42,7 @@ export async function handleMove(relPath, targetDir, container, skipConfirm = fa
     await invoke("rename_file", {
       oldPath: `${project.path}/${relPath}`,
       newPath: `${project.path}/${newRelPath}`,
+      projectRoot: project.path,
     });
     await invoke("invalidate_file_cache");
     if (targetDir) addExpanded(targetDir);
@@ -89,6 +91,7 @@ export async function handleRename(relPath, container) {
     await invoke("rename_file", {
       oldPath: `${project.path}/${relPath}`,
       newPath: `${project.path}/${newRelPath}`,
+      projectRoot: project.path,
     });
     await invoke("invalidate_file_cache");
     if (parentDir) addExpanded(parentDir);
@@ -184,12 +187,12 @@ export async function handleReplace(relPath, container) {
   if (!confirmed) return;
 
   try {
-    const name = await invoke("replace_file", { path: `${project.path}/${relPath}` });
+    const name = await invoke("replace_file", { path: `${project.path}/${relPath}`, projectRoot: project.path });
     if (!name) return;
     await invoke("invalidate_file_cache");
     showToast("success", t('file.replaced', { name }));
   } catch (err) {
-    if (!err.includes("Aucun fichier sélectionné")) {
+    if (!isUserCancelled(err)) {
       showToast("error", t('file.replace_error', { error: err }));
     }
   }
@@ -202,7 +205,7 @@ export async function handleImport(container, destRel = "") {
   const destDir = destRel ? `${project.path}/${destRel}` : project.path;
 
   try {
-    const imported = await invoke("import_file_dialog", { destDir });
+    const imported = await invoke("import_file_dialog", { destDir, projectRoot: project.path });
     if (imported && imported.length > 0) {
       await invoke("invalidate_file_cache");
       if (destRel) addExpanded(destRel);
@@ -210,7 +213,7 @@ export async function handleImport(container, destRel = "") {
       await refreshTree(container);
     }
   } catch (err) {
-    if (!err.includes("Aucun fichier sélectionné")) {
+    if (!isUserCancelled(err)) {
       showToast("error", t('file.import_error', { error: err }));
     }
   }
@@ -231,7 +234,7 @@ export async function handleCreateFolder(container, parentRel = "") {
   const relPath = parentRel ? `${parentRel}/${name}` : name;
 
   try {
-    await invoke("create_dir", { dirPath: `${project.path}/${relPath}` });
+    await invoke("create_dir", { dirPath: `${project.path}/${relPath}`, projectRoot: project.path });
     await invoke("invalidate_file_cache");
     if (parentRel) addExpanded(parentRel);
     showToast("success", t('file.folder_created', { name }));
@@ -297,7 +300,7 @@ export async function handleDelete(relativePath, li, row, container) {
   if (!confirmed) return;
 
   try {
-    await invoke("delete_file_or_dir", { path: `${project.path}/${relativePath}` });
+    await invoke("delete_file_or_dir", { path: `${project.path}/${relativePath}`, projectRoot: project.path });
     await invoke("invalidate_file_cache");
     showToast("success", t('file.deleted', { name: relativePath }));
     filterFiles(f => f.relative_path !== relativePath && !f.relative_path.startsWith(relativePath + "/"));

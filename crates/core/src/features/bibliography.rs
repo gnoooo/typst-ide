@@ -150,7 +150,10 @@ pub fn build_bib_entry(entry_type: &str, cite_key: &str, json: &Value) -> String
                 Value::Bool(b) => b.to_string(),
                 _ => continue, // ignore whatever it is
             };
-            writeln!(entry, "\t{} = \"{}\",", key, value_str).unwrap();
+            // Encode `"` by doubling it (BibTeX adjacent-string concatenation).
+            // A value containing `"` would otherwise break the .bib syntax.
+            let encoded = value_str.replace('"', "\"\"").replace('\n', " ");
+            writeln!(entry, "\t{} = \"{}\",", key, encoded).unwrap();
         }
     }
 
@@ -475,5 +478,42 @@ mod tests {
         delete_bib_source_value(&path, "key", "title").unwrap();
         let entries = parse_bib_file(&path).unwrap();
         assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn build_escapes_double_quotes_in_values() {
+        // A value containing `"` must not produce an invalid .bib that re-parses
+        // as a different entry. The encoder doubles `"` (BibTeX string concatenation).
+        // `replace_whole_bib_source` always passes the `data` object directly,
+        // not nested under a "data" key — mirror that shape here.
+        let data = serde_json::json!({ "title": "She said \"hello\" loudly" });
+        let text = build_bib_entry("misc", "quoted", &data);
+        assert!(
+            text.contains(r#""She said ""hello"" loudly""#),
+            "expected doubled quote encoding in: {text}"
+        );
+    }
+
+    #[test]
+    fn round_trip_preserves_double_quoted_value() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("quoted.bib");
+        fs::write(&path, SAMPLE).unwrap();
+
+        let json = serde_json::json!({
+            "entry_type": "online",
+            "cite_key": "round",
+            "data": { "title": "He said \"hi\"", "author": "A, B" }
+        });
+        replace_whole_bib_source(path.to_str().unwrap(), "cpsat-primer", &json).unwrap();
+
+        // Parse the file back; the doubly-encoded "hi" round-trips to a single ".
+        let entries = parse_bib_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(entries[0].cite_key, "round");
+        assert!(
+            entries[0].data["title"].contains('"'),
+            "expected preserved quote, got {:?}",
+            entries[0].data["title"]
+        );
     }
 }

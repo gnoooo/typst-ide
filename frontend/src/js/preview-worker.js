@@ -15,15 +15,26 @@ self.onmessage = function (e) {
     const { type, html, id } = e.data;
 
     if (type === 'createBlob') {
-        if (_currentBlobUrl) {
-            URL.revokeObjectURL(_currentBlobUrl);
-            _currentBlobUrl = null;
+        try {
+            if (_currentBlobUrl) {
+                URL.revokeObjectURL(_currentBlobUrl);
+                _currentBlobUrl = null;
+            }
+
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            _currentBlobUrl = URL.createObjectURL(blob);
+
+            self.postMessage({ type: 'blobReady', url: _currentBlobUrl, id });
+        } catch (err) {
+            // Surface the error to the main thread rather than dying
+            // silently — the previous behaviour left `loadHtml` pending
+            // forever (it had no reject path on `createBlobUrlAsync`).
+            self.postMessage({
+                type: 'blobError',
+                id,
+                error: (err && err.message) || String(err) || 'unknown error',
+            });
         }
-
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        _currentBlobUrl = URL.createObjectURL(blob);
-
-        self.postMessage({ type: 'blobReady', url: _currentBlobUrl, id });
     }
 
     if (type === 'revoke') {

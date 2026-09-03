@@ -15,7 +15,10 @@
                 "width": 1200,
                 "height": 800
             }
-        ]
+        ],
+        "security": {
+            "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; frame-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost"
+        }
     },
     "plugins": {
         "opener": {

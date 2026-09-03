@@ -23,10 +23,13 @@ export async function refreshTree(container) {
   container.appendChild(loading);
 
   try {
-    setFiles(await invoke("list_directory", { dirPath: project.path }));
+    setFiles(await invoke("list_directory", { dirPath: project.path, projectRoot: project.path }));
     rebuildTreeView(container);
   } catch (err) {
-    container.innerHTML = `<p style="color:var(--error-text)">${t('file.error', { error: err })}</p>`;
+    const errMsg = document.createElement('p');
+    errMsg.style.color = 'var(--error-text)';
+    errMsg.textContent = t('file.error', { error: err });
+    container.replaceChildren(errMsg);
   }
 }
 
@@ -339,6 +342,7 @@ function attachRowUI(row, actions, node, container, li) {
 function setupImagePreview(nameSpan, relativePath) {
   let previewEl = null;
   let timer = null;
+  let stillHovering = false;
   const project = getCurrentProject();
   if (!project) return;
   const fullPath = `${project.path}/${relativePath}`;
@@ -357,9 +361,11 @@ function setupImagePreview(nameSpan, relativePath) {
   }
 
   nameSpan.addEventListener("mouseenter", (e) => {
+    stillHovering = true;
     timer = setTimeout(async () => {
       try {
-        const dataUrl = await invoke("read_image_as_base64", { path: fullPath });
+        const dataUrl = await invoke("read_image_as_base64", { path: fullPath, projectRoot: project.path });
+        if (!stillHovering) return;
         previewEl = document.createElement("div");
         previewEl.className = "file-tree-preview-tooltip";
         previewEl.style.position = "fixed";
@@ -389,6 +395,7 @@ function setupImagePreview(nameSpan, relativePath) {
   });
 
   nameSpan.addEventListener("mouseleave", () => {
+    stillHovering = false;
     clearTimeout(timer);
     if (previewEl) {
       previewEl.remove();

@@ -61,34 +61,57 @@ function rebuildHistoryList(filterText) {
     : _historyEntries;
 
   if (filtered.length === 0) {
-    container.innerHTML = filterText
-      ? `<p style="color:var(--text-muted)">${t('history.no_results')}</p>`
-      : `<p style="color:var(--text-muted)">${t('history.no_history')}</p>`;
+    const empty = document.createElement('p');
+    empty.style.color = 'var(--text-muted)';
+    empty.textContent = filterText ? t('history.no_results') : t('history.no_history');
+    container.replaceChildren(empty);
     return;
   }
 
   filtered.forEach(entry => {
     const entryEl = document.createElement('div');
     entryEl.className = 'history-entry';
-    entryEl.innerHTML = `
-<span class="flex gap-2">
-    <button class="history-entry-btn" id="history-${entry.id}">
-        <div class="history-entry-btn-title">${entry.name}</div>
-        <div class="history-entry-btn-content" style="font-family: ${getCurrentFontFamily()};">${entry.path}</div>
-    </button>
-    <div class="flex items-center gap-1">
-        <button class="action-btn delete-history-entry-btn" id="delete-${entry.id}">
-            <span class="material-symbols-outlined delete-history-entry-icon">delete</span>
-        </button>
-        <button class="action-btn edit-history-entry-btn" id="edit-${entry.id}">
-            <span class="material-symbols-outlined edit-history-entry-icon">edit</span>
-        </button>
-        <button class="action-btn view-history-entry-btn" id="view-${entry.id}">
-            <span class="material-symbols-outlined view-history-entry-icon">visibility</span>
-        </button>
-    </div>
-</span>
-    `;
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'flex gap-2';
+
+    const mainBtn = document.createElement('button');
+    mainBtn.className = 'history-entry-btn';
+    mainBtn.id = `history-${entry.id}`;
+
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'history-entry-btn-title';
+    titleDiv.textContent = String(entry.name ?? '');
+    mainBtn.appendChild(titleDiv);
+
+    const pathDiv = document.createElement('div');
+    pathDiv.className = 'history-entry-btn-content';
+    pathDiv.style.fontFamily = getCurrentFontFamily();
+    pathDiv.textContent = String(entry.path ?? '');
+    mainBtn.appendChild(pathDiv);
+
+    wrapper.appendChild(mainBtn);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex items-center gap-1';
+    for (const [suffix, icon] of [
+      ['delete-history-entry-btn', 'delete'],
+      ['edit-history-entry-btn',   'edit'],
+      ['view-history-entry-btn',   'visibility'],
+    ]) {
+      const btn = document.createElement('button');
+      btn.className = `action-btn ${suffix}`;
+      // Keep `id` for backwards compatibility with anyone querying by ID.
+      btn.id = `${suffix.replace('-history-entry-btn', '')}-${entry.id}`;
+      const span = document.createElement('span');
+      span.className = `material-symbols-outlined ${suffix}-icon`;
+      span.textContent = icon;
+      btn.appendChild(span);
+      actions.appendChild(btn);
+    }
+    wrapper.appendChild(actions);
+
+    entryEl.appendChild(wrapper);
 
     attachHistoryEntryListeners(entryEl, entry);
     container.appendChild(entryEl);
@@ -97,19 +120,35 @@ function rebuildHistoryList(filterText) {
 
 async function createHistoryEntry() {
     const body = document.createElement('div');
-    body.innerHTML = `
-<div class="history-entry-form>
-    <p id="history-entry-name">${t('history.select_path')}</p>
-    <button id="history-entry-path-btn" class="ide-button tool-btn">${t('modal.choose_folder')}</button>
-    <div><sub class="history-entry-path"><input id="history-entry-path-input" type="text" placeholder="${t('history.no_path')}" style="width:100%;"/></sub></div>
-</div>
-    `;
+    body.className = 'history-entry-form';
+
+    const nameP = document.createElement('p');
+    nameP.id = 'history-entry-name';
+    nameP.textContent = t('history.select_path');
+    body.appendChild(nameP);
+
+    const folderBtn = document.createElement('button');
+    folderBtn.id = 'history-entry-path-btn';
+    folderBtn.className = 'ide-button tool-btn';
+    folderBtn.textContent = t('modal.choose_folder');
+    body.appendChild(folderBtn);
+
+    const wrap = document.createElement('div');
+    const sub = document.createElement('sub');
+    sub.className = 'history-entry-path';
+    const input = document.createElement('input');
+    input.id = 'history-entry-path-input';
+    input.type = 'text';
+    input.placeholder = t('history.no_path');
+    input.style.width = '100%';
+    sub.appendChild(input);
+    wrap.appendChild(sub);
+    body.appendChild(wrap);
+
     let path;
-    body.querySelector('#history-entry-path-btn').addEventListener('click', async () => {
+    folderBtn.addEventListener('click', async () => {
         path = await invoke('open_folder_dialog');
-        if (path) {
-            body.querySelector('#history-entry-path-input').value = path;
-        }
+        if (path) input.value = path;
     });
 
     openModal({
@@ -158,19 +197,36 @@ async function deleteHistoryEntry(entryId) {
 
 async function editHistoryEntry(entry) {
     const body = document.createElement('div');
-    body.innerHTML = `
-<div class="history-entry-form>
-    <p id="history-entry-name">${t('history.select_path')}</p>
-    <button id="history-entry-path-btn" class="ide-button tool-btn">${t('modal.choose_folder')}</button>
-    <div><sub class="history-entry-path"><input id="history-entry-path-input" type="text" value="${entry.path}" placeholder="${t('history.no_path')}" style="width:100%;"/></sub></div>
-</div>
-    `;
+    body.className = 'history-entry-form';
+
+    const nameP = document.createElement('p');
+    nameP.id = 'history-entry-name';
+    nameP.textContent = t('history.select_path');
+    body.appendChild(nameP);
+
+    const folderBtn = document.createElement('button');
+    folderBtn.id = 'history-entry-path-btn';
+    folderBtn.className = 'ide-button tool-btn';
+    folderBtn.textContent = t('modal.choose_folder');
+    body.appendChild(folderBtn);
+
+    const wrap = document.createElement('div');
+    const sub = document.createElement('sub');
+    sub.className = 'history-entry-path';
+    const input = document.createElement('input');
+    input.id = 'history-entry-path-input';
+    input.type = 'text';
+    input.value = String(entry.path ?? '');
+    input.placeholder = t('history.no_path');
+    input.style.width = '100%';
+    sub.appendChild(input);
+    wrap.appendChild(sub);
+    body.appendChild(wrap);
+
     let newPath;
-    body.querySelector('#history-entry-path-btn').addEventListener('click', async () => {
+    folderBtn.addEventListener('click', async () => {
         newPath = await invoke('open_folder_dialog');
-        if (newPath) {
-            body.querySelector('#history-entry-path-input').value = newPath;
-        }
+        if (newPath) input.value = newPath;
     });
 
     openModal({
@@ -234,16 +290,34 @@ async function viewHistoryEntry(entry) {
       content = t('history.preview_unreadable', { error: err });
     }
 
+    const meta = document.createElement('div');
+    meta.id = 'note-preview-metadata';
+    const pathLine = document.createElement('p');
+    pathLine.textContent = t('history.path_label', { path: entry.path });
+    const nameLine = document.createElement('p');
+    nameLine.textContent = t('history.name_label', { name: entry.name });
+    const createdLine = document.createElement('p');
+    createdLine.textContent = t('notepad.created_at', { date: createdAtDate, time: createdAtTime });
+    const updatedLine = document.createElement('p');
+    updatedLine.textContent = t('notepad.updated_at', { date: updatedAtDate, time: updatedAtTime });
+    meta.appendChild(pathLine);
+    meta.appendChild(nameLine);
+    meta.appendChild(createdLine);
+    meta.appendChild(updatedLine);
+
+    // PREVIEW: render the project main file content as PLAIN TEXT (escaped),
+    // not as HTML. The previous innerHTML sink executed arbitrary `<script>`
+    // inside a project file as soon as the user clicked the eye icon in the
+    // history list (see SECURITY audit: S1).
+    const contentDiv = document.createElement('div');
+    contentDiv.id = 'note-preview-content';
+    contentDiv.style.fontFamily = getCurrentFontFamily();
+    contentDiv.textContent = String(content ?? '');
+
     const body = document.createElement('div');
-    body.innerHTML = `
-<div id="note-preview-metadata">
-    <p>${t('history.path_label', { path: entry.path })}</p>
-    <p>${t('history.name_label', { name: entry.name })}</p>
-    <p>${t('notepad.created_at', { date: createdAtDate, time: createdAtTime })}</p>
-    <p>${t('notepad.updated_at', { date: updatedAtDate, time: updatedAtTime })}</p>
-</div>
-<div id="note-preview-content" style="font-family:${getCurrentFontFamily()};">${content}</div>
-    `;
+    body.appendChild(meta);
+    body.appendChild(contentDiv);
+
     openModal({
         title: t('history.preview_title'),
         body: body,

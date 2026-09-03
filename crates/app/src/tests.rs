@@ -160,3 +160,77 @@ fn preview_compiles_valid_source_and_diagnostics_for_bad_source() {
         }
     }
 }
+
+// ---------------------------------------------------------------
+// assert_within scoping
+// ---------------------------------------------------------------
+
+#[test]
+fn assert_within_accepts_paths_inside_the_root() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir_all(root.join("images")).unwrap();
+
+    let ok = crate::commands::fs::assert_within(
+        &root.join("images/logo.png"),
+        &[std::path::Path::new(root.to_str().unwrap())],
+    );
+    assert!(ok.is_ok());
+
+    // Leaf that does not exist yet must also pass (we are about to create it).
+    let future = crate::commands::fs::assert_within(
+        &root.join("not-yet-created/pasted.png"),
+        &[std::path::Path::new(root.to_str().unwrap())],
+    );
+    assert!(
+        future.is_ok(),
+        "uncreated leaf under the root should be allowed: {:?}",
+        future
+    );
+}
+
+#[test]
+fn assert_within_rejects_paths_outside_the_root() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir_all(&root).unwrap();
+    let outside = dir.path().join("elsewhere");
+    std::fs::create_dir_all(&outside).unwrap();
+
+    let rejected = crate::commands::fs::assert_within(
+        &outside.join("secret.txt"),
+        &[std::path::Path::new(root.to_str().unwrap())],
+    );
+    assert!(rejected.is_err());
+}
+
+#[cfg(unix)]
+#[test]
+fn assert_within_rejects_symlinks_escaping_the_root() {
+    use std::os::unix::fs::symlink;
+
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("project");
+    std::fs::create_dir_all(&root).unwrap();
+    let outside = dir.path().join("outside");
+    std::fs::create_dir_all(&outside).unwrap();
+    std::fs::write(outside.join("escaped.txt"), "secret").unwrap();
+
+    let link = root.join("link-to-outside");
+    symlink(&outside, &link).unwrap();
+
+    let roots = [std::path::Path::new(root.to_str().unwrap())];
+
+    // Existing file reached through the symlink: resolve and reject.
+    let existing = crate::commands::fs::assert_within(&link.join("escaped.txt"), &roots);
+    assert!(existing.is_err(), "symlink to outside must be rejected: {:?}", existing);
+
+    // Non-existent leaf deeper than the symlink: the deepest existing
+    // ancestor is the symlink, resolving /outside — reject the write.
+    let future = crate::commands::fs::assert_within(&link.join("not-there.txt"), &roots);
+    assert!(
+        future.is_err(),
+        "write under a symlink escaping the root must be rejected: {:?}",
+        future
+    );
+}

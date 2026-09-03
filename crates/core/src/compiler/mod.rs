@@ -1,9 +1,6 @@
 pub mod compile;
-pub mod export;
 
 pub use compile::{
     ClickResult, DiagnosticInfo, JumpPos, PreviewResult, compile_to_pdf, compile_to_preview_html,
-    create_default_world, create_html_world, create_world_with_root, invalidate_preview_file_cache,
-    resolve_click,
+    create_default_world, create_world_with_root, invalidate_preview_file_cache, resolve_click,
 };
-// pub use export::export_to_pdf;

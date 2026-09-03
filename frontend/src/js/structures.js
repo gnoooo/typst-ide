@@ -103,7 +103,7 @@ export const STRUCT_ELEMENTS = [
             </div>
           </div>
           <p
-            onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/reference/model/table/')"
+            data-tauri-open-url="https://typst.app/docs/reference/model/table/"
             style="cursor:pointer;color:var(--color-link);text-decoration: underline;display:flex;width:fit-content;"
           >More information...</p>
         </div>
@@ -138,7 +138,7 @@ export const STRUCT_ELEMENTS = [
                   cells += `[],`;
                 }
                 cells += `\n`;
-                if (i !== cols - 1) cells += `\t`;
+                if (i !== rows - 1) cells += `\t`;
               }
               const typst_code = `#table(\n${cols_code}${rows_code}${inset_code}${align_code}${cells})\n`;
               const editor = getEditor();
@@ -252,7 +252,7 @@ export const STRUCT_ELEMENTS = [
         </div>
 
         <p
-          onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/reference/layout/grid/')"
+          data-tauri-open-url="https://typst.app/docs/reference/layout/grid/"
           style="cursor:pointer;color:var(--color-link);text-decoration: underline;display:flex;width:fit-content;"
         >More information...</p>
       </div>
@@ -287,7 +287,7 @@ export const STRUCT_ELEMENTS = [
                   cells += `[],`;
                 }
                 cells += `\n`;
-                if (i !== cols - 1) cells += `\t`;
+                if (i !== rows - 1) cells += `\t`;
               }
               const typst_code = `#grid(\n${cols_code}${rows_code}${inset_code}${align_code}${cells})\n`;
               const editor = getEditor();
@@ -459,7 +459,7 @@ export const STRUCT_ELEMENTS = [
           </div>
 
           <p
-            onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/reference/visualize/rect/')"
+            data-tauri-open-url="https://typst.app/docs/reference/visualize/rect/"
             style="cursor:pointer;color:var(--color-link);text-decoration: underline;display:flex;width:fit-content;"
           >More information...</p>
         </div>
@@ -547,7 +547,7 @@ export const STRUCT_ELEMENTS = [
         if (!project?.path) return;
         try {
           const fullPath = path.startsWith('/') ? path : `${project.path}/${path}`;
-          const dataUrl = await window.__TAURI__.core.invoke('read_image_as_base64', { path: fullPath });
+          const dataUrl = await window.__TAURI__.core.invoke('read_image_as_base64', { path: fullPath, projectRoot: project.path });
           img.src = dataUrl;
           img.style.display = '';
           empty.style.display = 'none';
@@ -610,7 +610,7 @@ export const STRUCT_ELEMENTS = [
           />
 
           <p
-            onclick="window.__TAURI__.opener.openUrl('https://typst.app/docs/reference/model/figure/')"
+            data-tauri-open-url="https://typst.app/docs/reference/model/figure/"
             style="cursor:pointer;color:var(--color-link);text-decoration:underline;display:flex;width:fit-content;"
           >More information...</p>
         </div>
@@ -664,7 +664,7 @@ export const STRUCT_ELEMENTS = [
 // Since the button have the editor font....
 export function updateBtn() {
   const btn = document.getElementById('structures-menu');
-  btn.style.fontFamily = getCurrentFontFamily();
+  if (btn) btn.style.fontFamily = getCurrentFontFamily();
 
   const dropdown = document.getElementById("structures-dropdown");
   if (!dropdown) setBtnIcon(false);

@@ -2,6 +2,7 @@ import { t } from '../../i18n/index.js';
 import { showConfirm } from '../modal.js';
 import { showToast } from '../toast.js';
 import { getCurrentProject } from '../project.js';
+import { isAlreadyExists } from '../utils/error-codes.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -21,7 +22,7 @@ export async function instantiateTemplate(name) {
 
   const ok = await showConfirm({
     title: t('template.instantiate_confirm_title'),
-    message: `${t('template.instantiate_confirm_message', { name })}<br><br><code style="padding:4px 8px;background:var(--bg-hover);border-radius:var(--radius-sm);font-family:monospace;">#import "${name}/lib.typ": *</code>`,
+    message: t('template.instantiate_confirm_message', { name }),
     confirmLabel: t('template.instantiate'),
   });
   if (!ok) return;
@@ -30,7 +31,7 @@ export async function instantiateTemplate(name) {
     await copy(name, project.path, false);
     showToast('success', t('template.instantiated', { name }));
   } catch (err) {
-    if (!String(err).includes('existe déjà')) {
+    if (!isAlreadyExists(err)) {
       showToast('error', t('template.instantiate_error', { error: err }));
       return;
     }

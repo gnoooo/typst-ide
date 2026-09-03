@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title data-i18n="tutorial.title">Tutoriel</title>
+      <script type="module" crossorigin src="./tutorial.js"></script>
+      <link rel="modulepreload" crossorigin href="./chunk.js">
+      <link rel="modulepreload" crossorigin href="./style.js">
+      <link rel="modulepreload" crossorigin href="./preload-helper.js">
+      <link rel="modulepreload" crossorigin href="./i18n.js">
+      <link rel="stylesheet" crossorigin href="./style.css">
+    </head>
+    <body>
+        <div id="tutorial-app">
+            <header class="tut-header">
+                <div class="tut-brand">
+                    <span class="material-symbols-outlined tut-brand-icon">school</span>
+                    <span data-i18n="tutorial.title">Tutoriel</span>
+                </div>
+                <div class="tut-langs">
+                    <button type="button" data-lang="fr" data-i18n="lang.french">Français</button>
+                    <button type="button" data-lang="en" data-i18n="lang.english">English</button>
+                </div>
+            </header>
+
+            <div class="tut-body">
+                <nav class="tut-sidebar">
+                    <div class="tut-sidebar-title" data-i18n="tutorial.steps">Étapes</div>
+                    <div id="tut-step-list"></div>
+                </nav>
+
+                <main class="tut-content">
+                    <article id="tut-article" class="markdown"></article>
+                    <footer class="tut-footer">
+                        <button type="button" id="tut-prev" data-i18n="tutorial.prev">Précédent</button>
+                        <div id="tut-progress"></div>
+                        <button type="button" id="tut-next" data-i18n="tutorial.next">Suivant</button>
+                    </footer>
+                </main>
+            </div>
+        </div>
+
+    </body>
+</html>

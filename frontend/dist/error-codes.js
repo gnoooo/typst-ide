@@ -1,0 +1,1 @@
+import{n as e}from"./chunk.js";function t(e){let t=String(e??``).match(/^ERR::([A-Z_]+)/);return t?t[1]:null}function n(e){return t(e)===`USER_CANCELLED`}function r(e){return t(e)===`ALREADY_EXISTS`}var i=e((()=>{}));export{r as n,n as r,i as t};

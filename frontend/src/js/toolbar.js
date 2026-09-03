@@ -151,14 +151,16 @@ export function writeToConsole(type, text) {
     const el = document.getElementById('console-content');
     if (!el) return;
 
-    while (el.children.length > MAX_LOG_ENTRIES){
-        el.removeChild(el.firstChild);
-    }
-
     const line = document.createElement('div');
     line.className = `log-${type}`;
     line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
     el.appendChild(line);
+
+    // Trim AFTER append so the invariant is exactly MAX_LOG_ENTRIES (not +1).
+    while (el.children.length > MAX_LOG_ENTRIES){
+        el.removeChild(el.firstChild);
+    }
+
     el.scrollTop = el.scrollHeight;
 }
 

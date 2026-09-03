@@ -11,7 +11,7 @@ name = "typst-ide"
 path = "src/main.rs"
 
 [dependencies]
-tauri = { version = "2.1", features = ["devtools", "test"] }
+tauri = { version = "2.1", features = [] }
 tokio = { version = "1", features = ["sync"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -29,3 +29,4 @@ tauri-build = { version = "2.0", features = [] }
 
 [dev-dependencies]
 tempfile = "3"
+tauri = { version = "2.1", features = ["devtools", "test"] }

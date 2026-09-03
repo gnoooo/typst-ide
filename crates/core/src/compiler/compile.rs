@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::env;
+#[cfg(test)]
 use std::fs;
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
@@ -64,14 +65,18 @@ pub struct DiagnosticInfo {
 }
 
 /// Converts a byte offset in `text` to a 1-based (line, column) pair.
+/// Columns are counted in **UTF-16 code units** (Monaco's unit), not
+/// Unicode code points. They agree for BMP characters and differ only for
+/// astral characters (e.g. emoji), where one code point maps to two
+/// UTF-16 units.
 fn byte_to_line_col(text: &str, byte: usize) -> (u32, u32) {
     let safe = byte.min(text.len());
     let before = &text[..safe];
     let line = before.bytes().filter(|&b| b == b'\n').count() as u32;
     let col = before
         .rfind('\n')
-        .map(|i| before[i + 1..].chars().count())
-        .unwrap_or_else(|| before.chars().count()) as u32;
+        .map(|i| before[i + 1..].encode_utf16().count())
+        .unwrap_or_else(|| before.encode_utf16().count()) as u32;
     (line + 1, col + 1)
 }
 
@@ -294,11 +299,6 @@ pub fn create_default_world(content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(current_dir(), content.to_owned())
 }
 
-/// Creates a world configured for HTML export (`Feature::Html` enabled)
-pub fn create_html_world(content: &str) -> TypstWrapperWorld {
-    TypstWrapperWorld::new_for_html(current_dir(), content.to_owned())
-}
-
 /// Creates a world rooted at a custom path
 pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
     TypstWrapperWorld::new(root.to_owned(), content.to_owned())
@@ -501,7 +501,10 @@ pub fn compile_to_pdf(root: Option<&str>, content: &str) -> Result<Vec<u8>, Stri
 }
 
 /// Compiles a Typst document to PDF and writes it to the specified output path
-pub fn compile(
+/// (test-only; kept here because it documents the canonical end-to-end
+///  flow and avoids duplicating the wiring in the test body.)
+#[cfg(test)]
+fn compile(
     world: &TypstWrapperWorld,
     output: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -531,5 +534,17 @@ mod tests {
 
         let extracted_text = extract_text(&output_path).expect("Error extracting text from PDF");
         assert!(extracted_text.contains("Writing a test"));
+    }
+
+    #[test]
+    fn byte_to_line_col_uses_utf16_units() {
+        // Monaco uses UTF-16 columns. The previous implementation used
+        // Unicode chars, which differs for astral characters (emoji etc.)
+        // that take two UTF-16 code units. Lock in the UTF-16 contract.
+        let text = "ab😀cd"; // '😀' (U+1F600) = 4 UTF-8 bytes, 2 UTF-16 units
+        let (line, col_before) = byte_to_line_col(text, 2); // before the emoji
+        assert_eq!((line, col_before), (1, 3)); // 1-based, col 3
+        let (line, col_after) = byte_to_line_col(text, 6); // after the emoji
+        assert_eq!((line, col_after), (1, 5)); // +2 UTF-16 units
     }
 }

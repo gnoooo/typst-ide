@@ -57,33 +57,48 @@ function rebuildBibList(filterText) {
     : _bibEntries;
 
   if (filtered.length === 0) {
-    container.innerHTML = filterText
-      ? `<p style="color:var(--text-muted)">${t('bib.no_results')}</p>`
-      : `<p style="color:var(--text-muted)">${t('bib.no_entries')}</p>`;
+    const empty = document.createElement('p');
+    empty.style.color = 'var(--text-muted)';
+    empty.textContent = filterText ? t('bib.no_results') : t('bib.no_entries');
+    container.replaceChildren(empty);
     return;
   }
 
   filtered.forEach(entry => {
     const entryEl = document.createElement('div');
     entryEl.className = 'bibliography-entry';
-    entryEl.innerHTML = `
-      <div class="flex gap-2">
-        <button class="bibliography-entry-btn" id="bibliography-${entry.title}">
-            <div class="bibliography-entry-btn-title">${entry.title}</div>
-        </button>
-        <div class="flex items-center gap-1 ml-2">
-          <button class="action-btn delete-bibliography-entry-btn self-center" id="delete-${entry.title}">
-            <span class="material-symbols-outlined delete-bibliography-entry-icon">delete</span>
-          </button>
-          <button class="action-btn edit-bibliography-entry-btn self-center" id="edit-${entry.title}">
-            <span class="material-symbols-outlined edit-bibliography-entry-icon">edit</span>
-          </button>
-          <button class="action-btn raw-bibliography-entry-btn self-center" id="raw-${entry.title}">
-            <span class="material-symbols-outlined raw-bibliography-entry-icon">code</span>
-          </button>
-        </div>
-      </div>
-    `;
+
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+
+    const mainBtn = document.createElement('button');
+    mainBtn.className = 'bibliography-entry-btn';
+    mainBtn.id = `bibliography-${entry.title}`;
+    const titleDiv = document.createElement('div');
+    titleDiv.className = 'bibliography-entry-btn-title';
+    titleDiv.textContent = String(entry.title ?? '');
+    mainBtn.appendChild(titleDiv);
+    row.appendChild(mainBtn);
+
+    const actions = document.createElement('div');
+    actions.className = 'flex items-center gap-1 ml-2';
+    for (const [suffix, icon] of [
+      ['delete-bibliography-entry-btn', 'delete'],
+      ['edit-bibliography-entry-btn',   'edit'],
+      ['raw-bibliography-entry-btn',   'code'],
+    ]) {
+      const btn = document.createElement('button');
+      btn.className = `action-btn ${suffix} self-center`;
+      btn.id = `${suffix.replace('-bibliography-entry-btn', '')}-${entry.title}`;
+      const span = document.createElement('span');
+      span.className = `material-symbols-outlined ${suffix}-icon`;
+      span.textContent = icon;
+      btn.appendChild(span);
+      actions.appendChild(btn);
+    }
+    row.appendChild(actions);
+
+    entryEl.appendChild(row);
 
     attachBibliographyListeners(entryEl, entry);
     container.appendChild(entryEl);
@@ -91,40 +106,53 @@ function rebuildBibList(filterText) {
 }
 
 async function createBibliography() {
-  const body = document.createElement("div");
-  body.innerHTML = `
-    <div class="bibliography-entry-form">
-        <div>
-          <p id="bibliography-entry-title">${t('bib.title_label')}</p>
-          <input id="bibliography-entry-title-input" type="text" placeholder="${t('bib.title_placeholder')}" style="width:100%;" required/>
-        </div>
-    </div>
-  `;
+  const body = document.createElement('div');
+  body.className = 'bibliography-entry-form';
+
+  const wrap = document.createElement('div');
+  const titleP = document.createElement('p');
+  titleP.id = 'bibliography-entry-title';
+  titleP.textContent = t('bib.title_label');
+  wrap.appendChild(titleP);
+
+  const titleInput = document.createElement('input');
+  titleInput.id = 'bibliography-entry-title-input';
+  titleInput.type = 'text';
+  titleInput.placeholder = t('bib.title_placeholder');
+  titleInput.style.width = '100%';
+  titleInput.required = true;
+  wrap.appendChild(titleInput);
+  body.appendChild(wrap);
+
   openModal({
     title: t('bib.add_title'),
     body: body,
-    width: "50%",
+    width: '50%',
     buttons: [
-      { label: t('modal.cancel'), primary: false, onclick: (close) => close() },
+      { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
       { label: t('modal.add'), primary: true, onClick: async (close) => {
-        const title = body.querySelector("#bibliography-entry-title-input").value;
-        const projectPath = getCurrentProject().path;
+        const title = titleInput.value;
+        const projectPath = getCurrentProject()?.path;
+        if (!projectPath) {
+          showToast('error', t('bib.no_project'));
+          return;
+        }
         const filepath = `${projectPath}/${title}.bib`;
 
         try {
-          const created = await invoke("create_bib_file_if_missing", { filepath });
+          const created = await invoke('create_bib_file_if_missing', { filepath });
           if (!created) {
-            showToast("error", t('bib.create_file_error'));
+            showToast('error', t('bib.create_file_error'));
           } else {
-            showToast("success", t('bib.created'));
+            showToast('success', t('bib.created'));
             close();
           }
         } catch (err) {
-          showToast("error", t('bib.create_error', { error: err }));
+          showToast('error', t('bib.create_error', { error: err }));
         }
       }}
     ]
-  })
+  });
 }
 
 
@@ -196,31 +224,45 @@ export function closeBibliography() {
 }
 
 async function editBibliographyEntry(entry) {
-    const body = document.createElement("div");
-  body.innerHTML = `
-    <div class="bibliography-entry-form">
-        <div>
-          <p id="bibliography-entry-title">${t('bib.title_label')}</p>
-          <input id="bibliography-entry-title-input" type="text" placeholder="${t('bib.title_placeholder')}" style="width:100%;" value="${entry.title}" required/>
-        </div>
-    </div>
-  `;
+    const body = document.createElement('div');
+    body.className = 'bibliography-entry-form';
+
+    const wrap = document.createElement('div');
+    const titleP = document.createElement('p');
+    titleP.id = 'bibliography-entry-title';
+    titleP.textContent = t('bib.title_label');
+    wrap.appendChild(titleP);
+
+    const titleInput = document.createElement('input');
+    titleInput.id = 'bibliography-entry-title-input';
+    titleInput.type = 'text';
+    titleInput.placeholder = t('bib.title_placeholder');
+    titleInput.style.width = '100%';
+    titleInput.value = String(entry.title ?? ''); // was: `value="${entry.title}"` — attribute injection vector
+    titleInput.required = true;
+    wrap.appendChild(titleInput);
+    body.appendChild(wrap);
+
   openModal({
     title: t('bib.edit_title'),
     body: body,
-    width: "50%",
+    width: '50%',
     buttons: [
       { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
       { label: t('modal.edit'), primary: true, onClick: async (close) => {
-        const newTitle = body.querySelector("#bibliography-entry-title-input").value;
+        const newTitle = titleInput.value;
 
         try {
-          const projectPath = getCurrentProject().path;
+          const projectPath = getCurrentProject()?.path;
+          if (!projectPath) {
+            showToast("error", t('bib.no_project'));
+            return;
+          }
           const oldPath = entry.path;
           const newPath = `${projectPath}/${newTitle}.bib`;
 
           if (newTitle !== entry.title) {
-            await invoke("rename_file", { oldPath: oldPath, newPath: newPath });
+            await invoke("rename_file", { oldPath: oldPath, newPath: newPath, projectRoot: projectPath });
           }
 
           showToast("success", t('bib.updated'));
@@ -248,7 +290,8 @@ async function rawBibliographyEntry(entry) {
   textarea.style.tabSize = "2";
 
   try {
-    const content = await invoke("read_file", { path: entry.path });
+    const projectRoot = getCurrentProject()?.path ?? null;
+    const content = await invoke("read_file", { path: entry.path, projectRoot });
     textarea.value = content;
   } catch (err) {
     showToast("error", t('bib.read_error', { error: err }));
@@ -265,7 +308,7 @@ async function rawBibliographyEntry(entry) {
       { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
       { label: t('modal.save'), primary: true, onClick: async (close) => {
         try {
-          await invoke("save_file", { path: entry.path, content: textarea.value });
+          await invoke("save_file", { path: entry.path, content: textarea.value, projectRoot: getCurrentProject()?.path ?? null });
           showToast("success", t('bib.file_saved'));
           close();
         } catch (err) {
@@ -282,9 +325,14 @@ async function deleteBibliographyEntry(entry) {
         message: t('bib.delete_message'),
     });
     if (confirmed) {
-        await invoke('delete_file_or_dir', { path: entry.path });
+        try {
+            await invoke('delete_file_or_dir', { path: entry.path, projectRoot: getCurrentProject()?.path ?? null });
+            showToast("success", t('bib.deleted'));
+        } catch (err) {
+            showToast("error", t('bib.delete_error', { error: err }));
+            return;
+        }
         closeBibliography();
-        showToast("success", t('bib.deleted'));
         openBibliography();
     };
 }

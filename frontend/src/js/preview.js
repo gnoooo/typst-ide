@@ -146,27 +146,46 @@ function getBlobWorker() {
             { type: 'module' }
         );
         _blobWorker.onmessage = (e) => {
-            if (e.data.type === 'blobReady') {
+            if (e.data?.type === 'blobReady') {
                 const cb = _blobCallbacks.get(e.data.id);
                 if (cb) {
                     _blobCallbacks.delete(e.data.id);
                     cb(e.data.url);
                 }
+            } else if (e.data?.type === 'blobError') {
+                const cb = _blobCallbacks.get(e.data.id);
+                if (cb) {
+                    _blobCallbacks.delete(e.data.id);
+                    cb.__reject(new Error(e.data.error || 'Preview worker failed'));
+                }
             }
+        };
+        _blobWorker.onerror = (e) => {
+            // If the worker script itself fails to load (network, syntax),
+            // every pending callback needs to reject or the scheduler
+            // will hang forever waiting for `blobReady`.
+            const err = new Error('Preview worker crashed: ' + (e.message || 'unknown'));
+            _blobCallbacks.forEach((cb) => cb.__reject(err));
+            _blobCallbacks.clear();
         };
     }
     return _blobWorker;
 }
 
 /**
- * Creates a Blob URL from HTML in a Web Worker, off the main thread
+ * Creates a Blob URL from HTML in a Web Worker, off the main thread.
+ * Resolves with the URL or rejects if the worker reported an error.
  * @param {string} html
  * @returns {Promise<string>} blob URL
  */
 function createBlobUrlAsync(html) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const id = ++_blobIdCounter;
-        _blobCallbacks.set(id, resolve);
+        // The worker uses `cb(url)` to resolve; we tag a `__reject` fn on
+        // the same callback object so `onerror` / `blobError` can reject.
+        const cb = (url) => resolve(url);
+        cb.__reject = reject;
+        _blobCallbacks.set(id, cb);
         getBlobWorker().postMessage({ type: 'createBlob', html, id });
     });
 }
@@ -239,6 +258,15 @@ export function initPreview(opts) {
     _clickHandlerSetup = false;
     _pageHashes = [];
     _frameGeneration++;
+    // Reset the scheduler flags too: if a previous `_runCompile` ever
+    // got stuck (e.g. `loadHtml` hung because the Blob worker failed),
+    // `_compileRunning` would stay `true` forever and block all future
+    // compiles. Since `initPreview` is the only place that re-arms the
+    // scheduler, doing it here fully resets the state.
+    _compileRunning = false;
+    _pendingRun = false;
+    _debounceTimer = undefined;
+    _lastCompileEnd = 0;
     const { onChange, debounceMs } = opts;
 
     onChange(() => {
@@ -333,6 +361,16 @@ function scheduleCompile() {
 
 async function _runCompile() {
     if (!_opts) return;
+
+    // If a compile is already in flight, coalesce into a single pending
+    // run. The throttled `_runCompile` reschedules itself via
+    // `setTimeout` (in the throttle branch and in the `finally` below)
+    // without ever checking whether a compile is running, so without this
+    // gate two calls could end up running `_doCompile` concurrently.
+    if (_compileRunning) {
+        _pendingRun = true;
+        return;
+    }
 
     // Enforce a minimum gap between compiles so Monaco can breathe
     const gap = adaptiveThrottleGap(_lastSourceLength ?? 0);
@@ -440,29 +478,39 @@ let _clickHandlerSetup = false;
  * @param {string} html
  * @returns {Promise<void>} resolves once the new content is rendered
  */
-function loadHtml(frame, html) {
-    return new Promise(async (resolve) => {
-        if (_currentBlobUrl) {
-            URL.revokeObjectURL(_currentBlobUrl);
-            _currentBlobUrl = null;
-        }
+async function loadHtml(frame, html) {
+    if (_currentBlobUrl) {
+        URL.revokeObjectURL(_currentBlobUrl);
+        _currentBlobUrl = null;
+    }
 
+    try {
         if (html.length > WORKER_BLOB_THRESHOLD) {
             _currentBlobUrl = await createBlobUrlAsync(html);
         } else {
             const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
             _currentBlobUrl = URL.createObjectURL(blob);
         }
+    } catch (err) {
+        // The previous `new Promise(async (resolve) => …)` swallowed
+        // async rejections and left this Promise pending forever. Now
+        // a real rejection (e.g. Blob/worker failure) propagates and
+        // `_doCompile` can surface the error instead of hanging the
+        // scheduler.
+        throw err;
+    }
 
-        // First load only: start at 100%/100% (no content to preserve)
-        // On reloads, intentionally keep the existing px dimensions so the parent container's scrollTop is never clamped while the iframe is navigating to the new content
-        if (!_frameInitialized) {
-            frame.style.width  = '100%';
-            frame.style.height = '100%';
-        }
+    // First load only: start at 100%/100% (no content to preserve)
+    // On reloads, intentionally keep the existing px dimensions so the parent container's scrollTop is never clamped while the iframe is navigating to the new content
+    if (!_frameInitialized) {
+        frame.style.width  = '100%';
+        frame.style.height = '100%';
+    }
 
+    return new Promise((resolve, reject) => {
         const onLoad = () => {
             frame.removeEventListener('load', onLoad);
+            frame.removeEventListener('error', onError);
             _frameInitialized = true;
             requestAnimationFrame(() => {
                 if (frame.contentDocument?.body) {
@@ -472,12 +520,23 @@ function loadHtml(frame, html) {
                     frame.style.overflow = 'hidden auto';
                     frame.style.width  = '';
                 }
-                const zoomInput = document.getElementById('zoom-input');
+                // The previous code read `#zoom-input` here, but the
+                // actual id in the DOM is `zoom-preview-input`
+                // (see index.html). The lookup silently no-op'd; use the
+                // correct id now so the zoom field reflects the rendered
+                // zoom on first load.
+                const zoomInput = document.getElementById('zoom-preview-input');
                 if (zoomInput) zoomInput.value = previewZoom;
                 resolve();
             });
         };
+        const onError = () => {
+            frame.removeEventListener('load', onLoad);
+            frame.removeEventListener('error', onError);
+            reject(new Error('iframe failed to load preview content'));
+        };
         frame.addEventListener('load', onLoad);
+        frame.addEventListener('error', onError);
         frame.src = _currentBlobUrl;
     });
 }
@@ -647,7 +706,10 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
         const writeMs = Math.round(performance.now() - tWrite);
         onDiagnostics?.([]);
         onSuccess?.();
-        if (timings) {
+        // Profiling is gated behind a localStorage flag (default off) so
+        // successful compiles stay silent in the console. Set
+        // `preview-debug=true` in localStorage to enable.
+        if (timings && typeof localStorage !== 'undefined' && localStorage.getItem('preview-debug') === 'true') {
             console.log(
                 `[Profiling] monde: ${timings.world_ms}ms | compil: ${timings.compile_ms}ms` +
                 ` | SVG: ${timings.svg_ms}ms | total Rust: ${timings.total_ms}ms` +

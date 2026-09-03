@@ -13,6 +13,8 @@
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
+use super::fs::validate_name_segment;
+
 /// Returns the absolute path of the templates root directory, creating it if needed.
 fn templates_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app
@@ -160,6 +162,10 @@ pub fn rename_template(
     name: String,
     new_name: String,
 ) -> Result<(), String> {
+    // `name` joins under `templates_root` directly — it MUST be a single
+    // path segment, otherwise `..` would let it escape the templates
+    // directory. (`new_name` is validated inside `template_dir`.)
+    validate_name_segment(&name)?;
     let root = templates_root(&app)?;
     let old = root.join(&name);
     let new = template_dir(&app, &new_name)?;
@@ -196,11 +202,16 @@ pub fn copy_template_to_project(
     dest_dir: String,
     overwrite: Option<bool>,
 ) -> Result<String, String> {
+    validate_name_segment(&template_name)?;
     let src = template_dir(&app, &template_name)?;
     if !src.exists() {
         return Err(format!("Template '{}' introuvable.", template_name));
     }
-    let dest = PathBuf::from(&dest_dir).join(&template_name);
+    let dest_base = PathBuf::from(&dest_dir);
+    if dest_base.as_os_str().is_empty() {
+        return Err("Destination directory is empty".to_string());
+    }
+    let dest = dest_base.join(&template_name);
     if dest.exists() {
         if !overwrite.unwrap_or(false) {
             return Err(format!(

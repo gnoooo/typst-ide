@@ -92,9 +92,14 @@ function rebuildNotesList(filterText) {
   const hasProject = _projectNotes.some(filterNote);
 
   if (!hasGlobal && !hasProject) {
-    container.innerHTML = filterText
-      ? `<p style="color:var(--text-muted)">${t('notepad.no_results')}</p>`
-      : `<p>${t('notepad.no_notes')}</p>`;
+    const empty = document.createElement('p');
+    if (filterText) {
+      empty.style.color = 'var(--text-muted)';
+      empty.textContent = t('notepad.no_results');
+    } else {
+      empty.textContent = t('notepad.no_notes');
+    }
+    container.replaceChildren(empty);
     return;
   }
 
@@ -128,25 +133,46 @@ function rebuildNotesList(filterText) {
 function buildNoteElement(note) {
   const noteEl = document.createElement('div');
   noteEl.className = 'note-item';
-  noteEl.innerHTML = `
-<span class="flex gap-2">
-    <button class="note-btn" id="note-${note.id}">
-        <div class="note-btn-title">${note.title}</div>
-        <div class="note-btn-content" style="font-family: ${getCurrentFontFamily()};">${note.content}</div>
-    </button>
-    <div class="flex items-center gap-1">
-        <button class="action-btn delete-note-btn" id="delete-${note.id}">
-            <span class="material-symbols-outlined delete-note-icon">delete</span>
-        </button>
-        <button class="action-btn edit-note-btn" id="edit-${note.id}">
-            <span class="material-symbols-outlined edit-note-icon">edit</span>
-        </button>
-        <button class="action-btn view-note-btn" id="view-${note.id}">
-            <span class="material-symbols-outlined view-note-icon">visibility</span>
-        </button>
-    </div>
-</span>
-  `;
+
+  const wrapper = document.createElement('span');
+  wrapper.className = 'flex gap-2';
+
+  const mainBtn = document.createElement('button');
+  mainBtn.className = 'note-btn';
+  mainBtn.id = `note-${note.id}`;
+
+  const titleDiv = document.createElement('div');
+  titleDiv.className = 'note-btn-title';
+  titleDiv.textContent = String(note.title ?? '');
+  mainBtn.appendChild(titleDiv);
+
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'note-btn-content';
+  contentDiv.style.fontFamily = getCurrentFontFamily();
+  contentDiv.textContent = String(note.content ?? '');
+  mainBtn.appendChild(contentDiv);
+
+  wrapper.appendChild(mainBtn);
+
+  const actions = document.createElement('div');
+  actions.className = 'flex items-center gap-1';
+  for (const [suffix, icon] of [
+    ['delete-note-btn', 'delete'],
+    ['edit-note-btn',   'edit'],
+    ['view-note-btn',   'visibility'],
+  ]) {
+    const btn = document.createElement('button');
+    btn.className = `action-btn ${suffix}`;
+    btn.id = `${suffix.replace('-note-btn', '')}-${note.id}`;
+    const span = document.createElement('span');
+    span.className = `material-symbols-outlined ${suffix}-icon`;
+    span.textContent = icon;
+    btn.appendChild(span);
+    actions.appendChild(btn);
+  }
+  wrapper.appendChild(actions);
+
+  noteEl.appendChild(wrapper);
   return noteEl;
 }
 
@@ -155,28 +181,52 @@ function buildNoteElement(note) {
  */
 function createNote(scope='project') {
     const body = document.createElement('div');
-    body.innerHTML = `
-<input type="text" placeholder="${t('notepad.note_title')}" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;" />
-<label for="scope">${t('notepad.scope_label')}</label>
-<select name="scope" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;">
-    <option value="global" ${scope === 'global' ? 'selected' : ''}>${t('notepad.scope_global')}</option>
-    <option value="project" ${scope === 'project' ? 'selected' : ''}>${t('notepad.scope_project')}</option>
-</select>
-<textarea placeholder="${t('notepad.note_content')}" style="width:100%;height:150px;padding:0.5rem;font-size:1rem;"/>
-    `;
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = t('notepad.note_title');
+    titleInput.style.cssText = 'width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;';
+    body.appendChild(titleInput);
+
+    const scopeLabel = document.createElement('label');
+    scopeLabel.setAttribute('for', 'scope');
+    scopeLabel.textContent = t('notepad.scope_label');
+    body.appendChild(scopeLabel);
+
+    const scopeSelect = document.createElement('select');
+    scopeSelect.name = 'scope';
+    scopeSelect.id = 'scope';
+    scopeSelect.style.cssText = 'width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;';
+    for (const [value, label] of [
+      ['global',  t('notepad.scope_global')],
+      ['project', t('notepad.scope_project')],
+    ]) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      if (scope === value) opt.selected = true;
+      scopeSelect.appendChild(opt);
+    }
+    body.appendChild(scopeSelect);
+
+    const textarea = document.createElement('textarea');
+    textarea.placeholder = t('notepad.note_content');
+    textarea.style.cssText = 'width:100%;height:150px;padding:0.5rem;font-size:1rem;';
+    body.appendChild(textarea);
+
     openModal({
         title: t('notepad.add_note'),
         body: body,
         width: '75%',
         buttons: [
             { label: t('modal.add'), primary: true, onClick: async (close) => {
-                const title = body.querySelector('input')?.value.trim();
-                const text = body.querySelector('textarea')?.value.trim();
-                const scope = body.querySelector('select')?.value;
+                const title = titleInput.value.trim();
+                const text = textarea.value.trim();
+                const scopeSel = scopeSelect.value;
 
                 if (title && text) {
                     let project_id;
-                    if (scope == 'project'){
+                    if (scopeSel == 'project'){
                         if (!getCurrentProject()) {
                             showToast("warning", t('notepad.no_project'));
                             return;
@@ -185,8 +235,12 @@ function createNote(scope='project') {
                     } else {
                         project_id = null;
                     }
-                    invoke('add_note', { title, content: text, scope, projectId: project_id });
-                    close();
+                    try {
+                        await invoke('add_note', { title, content: text, scope: scopeSel, projectId: project_id });
+                        close();
+                    } catch (err) {
+                        showToast("error", t('notepad.create_error', { error: err }));
+                    }
                 }
             }}
         ]
@@ -230,15 +284,42 @@ async function editNote(note) {
     body.style.display = 'flex';
     body.style.flexDirection = 'column';
     body.style.height = '100%';
-    body.innerHTML = `
-<input type="text" placeholder="${t('notepad.note_title')}" value="${note.title}" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;" />
-<label for="scope">${t('notepad.scope_label')}</label>
-<select name="scope" style="width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;">
-    <option value="global" ${note.scope === 'global' ? 'selected' : ''}>${t('notepad.scope_global')}</option>
-    <option value="project" ${note.scope === 'project' ? 'selected' : ''}>${t('notepad.scope_project')}</option>
-</select>
-<textarea placeholder="${t('notepad.note_content')}" style="flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;font-family:${getCurrentFontFamily()};">${note.content}</textarea>
-    `;
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.placeholder = t('notepad.note_title');
+    titleInput.value = String(note.title ?? '');
+    titleInput.style.cssText = 'width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;';
+    body.appendChild(titleInput);
+
+    const scopeLabel = document.createElement('label');
+    scopeLabel.setAttribute('for', 'scope');
+    scopeLabel.textContent = t('notepad.scope_label');
+    body.appendChild(scopeLabel);
+
+    const scopeSelect = document.createElement('select');
+    scopeSelect.name = 'scope';
+    scopeSelect.id = 'scope';
+    scopeSelect.style.cssText = 'width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;';
+    for (const [value, label] of [
+      ['global',  t('notepad.scope_global')],
+      ['project', t('notepad.scope_project')],
+    ]) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      if (note.scope === value) opt.selected = true;
+      scopeSelect.appendChild(opt);
+    }
+    body.appendChild(scopeSelect);
+
+    const textarea = document.createElement('textarea');
+    textarea.placeholder = t('notepad.note_content');
+    textarea.style.cssText = 'flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;';
+    textarea.style.fontFamily = getCurrentFontFamily();
+    textarea.value = String(note.content ?? '');
+    body.appendChild(textarea);
+
     openModal({
         title: t('notepad.edit_note'),
         body: body,
@@ -246,9 +327,9 @@ async function editNote(note) {
         height: '75%',
         buttons: [
             { label: t('modal.save'), primary: true, onClick: async (close) => {
-                const title = body.querySelector('input')?.value.trim();
-                const text = body.querySelector('textarea')?.value.trim();
-                const scope = body.querySelector('select')?.value;
+                const title = titleInput.value.trim();
+                const text = textarea.value.trim();
+                const scope = scopeSelect.value;
 
                 if (title && text) {
                     let project_id;
@@ -257,16 +338,20 @@ async function editNote(note) {
                     } else {
                         project_id = null;
                     }
-                    invoke('update_note', {
-                        noteId: note.id,
-                        title,
-                        content: text,
-                        scope,
-                        projectId: project_id
-                    });
-                    close();
-                    closeNotepad();
-                    openNotepad(); // Refresh the notepad
+                    try {
+                        await invoke('update_note', {
+                            noteId: note.id,
+                            title,
+                            content: text,
+                            scope,
+                            projectId: project_id
+                        });
+                        close();
+                        closeNotepad();
+                        openNotepad(); // Refresh the notepad
+                    } catch (err) {
+                        showToast("error", t('notepad.update_error', { error: err }));
+                    }
                 }
             }}
         ]
@@ -297,17 +382,32 @@ function viewNote(note) {
     });
     const scopeLabel = note.scope === 'global' ? t('notepad.scope_global_label') : t('notepad.scope_project_label')
 
+    const meta = document.createElement('div');
+    meta.id = 'note-preview-metadata';
+    for (const line of [
+      t('notepad.created_at', { date: createdAtDate, time: createdAtTime }),
+      t('notepad.updated_at', { date: updatedAtDate, time: updatedAtTime }),
+      t('notepad.scope_info',  { scope: scopeLabel }),
+    ]) {
+      const p = document.createElement('p');
+      p.textContent = line;
+      meta.appendChild(p);
+    }
+
+    // PREVIEW: render the note content as plain text (escaped) — was an
+    // innerHTML sink exploited via crafted note titles/content.
+    const contentDiv = document.createElement('div');
+    contentDiv.id = 'note-preview-content';
+    contentDiv.style.fontFamily = getCurrentFontFamily();
+    contentDiv.textContent = String(note.content ?? '');
+
     const body = document.createElement('div');
-    body.innerHTML = `
-<div id="note-preview-metadata">
-    <p>${t('notepad.created_at', { date: createdAtDate, time: createdAtTime })}</p>
-    <p>${t('notepad.updated_at', { date: updatedAtDate, time: updatedAtTime })}</p>
-    <p>${t('notepad.scope_info', { scope: scopeLabel })}</p>
-</div>
-<div id="note-preview-content" style="font-family:${getCurrentFontFamily()};">${note.content}</div>
-    `;
+    body.appendChild(meta);
+    body.appendChild(contentDiv);
+
     openModal({
-        title: note.title,
+        // Title goes through openModal which now renders via textContent (safe).
+        title: note.title ?? '',
         body,
         width: '75%',
         buttons: [],
