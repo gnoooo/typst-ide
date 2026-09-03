@@ -12,8 +12,8 @@ Les items sont groupés par priorité.
 - [x] Supprimer le dossier vide `crates/build-all/` (pas de Cargo.toml, pas membre du workspace)
 - [x] Remplacer les `.expect("Failed to initialise … DB")` du setup (`crates/app/src/main.rs`) par une gestion d'erreur propre avec message utilisateur
 - [x] Export de PDF : `.pdf` non appliqué à la fin du fichier (changer la logique, l'utilisateur entre le nom du fichier, et automatiquement on ajoute `.pdf` à la fin, si `.pdf` est ajouté manuellement par l'utilisateur : on ajoute pas l'extension automatiquement)
-- [ ] Bug: Image dans l'éditeur qui a été updated (image générée par un script python), mais preview qui continue d'afficher l'ancienne image. Un déplacement hors d'un dossier (dossier `images/`) puis inversement (en remettant l'image dedans depuis Typst-IDE) a résolu le problème.
-  - Problème à creuser.
+- [x] Bug: Image dans l'éditeur qui a été updated (image générée par un script python), mais preview qui continue d'afficher l'ancienne image. Un déplacement hors d'un dossier (dossier `images/`) puis inversement (en remettant l'image dedans depuis Typst-IDE) a résolu le problème.
+  - Corrigé en septembre 2026 : le monde Typst persistant servait les fichiers importés depuis son cache sans vérifier le disque. Ajout d'une détection de fichier périmé (empreinte taille + mtime, `stat` ~gratuit à chaque accès cache dans `TypstWrapperWorld::file`) : un fichier réécrit en place est relu automatiquement à la compilation suivante. Le preview recompile aussi au focus de la fenêtre pour couvrir le cas où rien n'est tapé dans l'éditeur.
 
 ## Tests et CI
 

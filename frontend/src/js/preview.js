@@ -232,6 +232,16 @@ export function initPreview(opts) {
 
     scheduleCompile();
 
+    // Recompile when the window regains focus: files imported by the document
+    // (images, modules…) may have been rewritten externally without any editor
+    // change; the world's staleness check picks those up on the next compile.
+    // Mirrors the focus handler of file-sync.js.
+    window.addEventListener('focus', () => {
+        const autoCompile = document.getElementById('auto-compile');
+        if (autoCompile && !autoCompile.checked) return;
+        scheduleCompile();
+    });
+
     // Auto-fit preview zoom to pane width when the pane is resized.
     // A debounce prevents loops when zoom changes slightly affect the pane width.
     // A 20px threshold filters out scrollbar-width changes (~15px) from zoom-induced scrollbar toggling.

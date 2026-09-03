@@ -161,6 +161,68 @@ fn preview_compiles_valid_source_and_diagnostics_for_bad_source() {
     }
 }
 
+/// Two valid 1×1 PNGs (red / blue) used to rewrite an image file in place.
+const PNG_RED: &[u8] = &[
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+    0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+    0x00, 0x03, 0x01, 0x01, 0x00, 0xC9, 0xFE, 0x92, 0xEF, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+    0x44, 0xAE, 0x42, 0x60, 0x82,
+];
+const PNG_BLUE: &[u8] = &[
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+    0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x60, 0x60, 0xF8, 0x0F,
+    0x00, 0x01, 0x03, 0x01, 0x00, 0x08, 0x89, 0xC2, 0xEC, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+    0x44, 0xAE, 0x42, 0x60, 0x82,
+];
+const PNG_RED_B64: &str =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
+const PNG_BLUE_B64: &str =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNgYPgPAAEDAQAIicLsAAAAAElFTkSuQmCC";
+
+#[test]
+fn preview_picks_up_image_rewritten_externally() {
+    let app = mock_app();
+
+    // Unique project root per test: the persistent preview world (keyed by
+    // root) is a process-wide static, so cross-test state must not leak.
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_string_lossy().to_string();
+    let source = "#image(\"img.png\")\n".to_string();
+
+    let render = || {
+        let result = tauri::async_runtime::block_on(crate::commands::preview::render_preview(
+            app.state::<CompileState>(),
+            source.clone(),
+            Some(root.clone()),
+            None,
+        ));
+        result.unwrap_or_else(|e| {
+            panic!(
+                "source must compile: {:?}",
+                e.iter().map(|d| &d.message).collect::<Vec<_>>()
+            )
+        })
+    };
+
+    std::fs::write(dir.path().join("img.png"), PNG_RED).unwrap();
+    let v1 = render();
+    assert!(v1.pages[0].svg.contains(PNG_RED_B64));
+
+    // External rewrite of the image file in place — no invalidation command,
+    // same world, same source. The staleness check must re-read the file.
+    std::fs::write(dir.path().join("img.png"), PNG_BLUE).unwrap();
+    let v2 = render();
+    assert!(v2.pages[0].svg.contains(PNG_BLUE_B64));
+    assert_ne!(v1.pages[0].hash, v2.pages[0].hash);
+
+    // Third compile with nothing changed: hash stays stable (memoization
+    // reuses the page, no spurious re-render).
+    let v3 = render();
+    assert_eq!(v2.pages[0].hash, v3.pages[0].hash);
+}
+
 // ---------------------------------------------------------------
 // assert_within scoping
 // ---------------------------------------------------------------

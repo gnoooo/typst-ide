@@ -31,3 +31,4 @@ name = "typst_as_library"
 
 [dev-dependencies]
 typst-pdf = "0.15"
+tempfile = "3"
