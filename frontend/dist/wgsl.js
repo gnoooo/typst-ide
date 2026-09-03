@@ -1,4 +1,4 @@
-import{n as e}from"./chunk.js";function t(e){let t=[],n=e.split(/\t+|\r+|\n+| +/);for(let e=0;e<n.length;++e)n[e].length>0&&t.push(n[e]);return t}var n,r,i,a,o,s,c,l,u,d,f,p,m,h;e((()=>{n={comments:{lineComment:`//`,blockComment:[`/*`,`*/`]},brackets:[[`{`,`}`],[`[`,`]`],[`(`,`)`]],autoClosingPairs:[{open:`[`,close:`]`},{open:`{`,close:`}`},{open:`(`,close:`)`}],surroundingPairs:[{open:`{`,close:`}`},{open:`[`,close:`]`},{open:`(`,close:`)`}]},r=t(`true false`),i=t(`
+import{d as e}from"./i18n.js";function t(e){let t=[],n=e.split(/\t+|\r+|\n+| +/);for(let e=0;e<n.length;++e)n[e].length>0&&t.push(n[e]);return t}var n,r,i,a,o,s,c,l,u,d,f,p,m,h;e((()=>{n={comments:{lineComment:`//`,blockComment:[`/*`,`*/`]},brackets:[[`{`,`}`],[`[`,`]`],[`(`,`)`]],autoClosingPairs:[{open:`[`,close:`]`},{open:`{`,close:`}`},{open:`(`,close:`)`}],surroundingPairs:[{open:`{`,close:`}`},{open:`[`,close:`]`},{open:`(`,close:`)`}]},r=t(`true false`),i=t(`
 			  alias
 			  break
 			  case
