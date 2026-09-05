@@ -566,6 +566,15 @@ div.toolbar-row>#preview-manage-btn{
     margin: 0 auto;
 }
 
+#comment-book-btn {
+    padding: 2px 6px 0 6px;
+}
+#comment-book-icon {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
 /*  Bold / Italic / Underline group  */
 #bold-btn {
     font-size: 15px;

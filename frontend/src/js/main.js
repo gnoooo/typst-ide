@@ -25,6 +25,7 @@ import {
 } from "./project.js";
 import { openModal, showPrompt } from "./modal.js";
 import { openNotepad } from "./notepad.js";
+import { initComments, openCommentBook, insertComment, openKeytagManager } from "./comments/index.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
@@ -133,6 +134,9 @@ async function main() {
 
   initTheme((theme) => setEditorTheme(theme));
 
+  // ## Comment feature (keytags) #####################################
+  initComments(editor);
+
   // ## External file change detection ################################
   initFileSync();
 
@@ -228,6 +232,12 @@ async function main() {
   // Notepad buttons
   bindMenuAction("open-notepad", () => openNotepad());
   bindMenuAction("notepad-btn", () => openNotepad());
+
+  // Comment book / keytag buttons
+  bindMenuAction("open-comment-book", () => openCommentBook());
+  bindMenuAction("comment-book-btn", () => openCommentBook());
+  bindMenuAction("insert-comment", () => insertComment());
+  bindMenuAction("manage-keytags", () => openKeytagManager());
 
   // File manager buttons
   const openFileManager = () => import('./manage_files/index.js').then((m) => m.openFileManager());
