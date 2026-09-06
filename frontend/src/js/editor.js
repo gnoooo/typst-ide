@@ -41,6 +41,7 @@ export function createEditor(container) {
         fontFamily: savedFamily || "'Fira Code', 'Cascadia Code', 'Courier New', monospace",
         fontLigatures: true,
         minimap: { enabled: false },
+        glyphMargin: true, // gutter lane for keytag markers (comments feature)
         scrollBeyondLastLine: false,
         wordWrap: 'on',
         automaticLayout: true,
