@@ -215,13 +215,12 @@ function pickKeytag(keytags) {
     cancel.addEventListener("click", () => done(null));
     body.appendChild(cancel);
 
-    const modal = openModal({
+    const { close } = openModal({
       title: t('comment.pick_tag'),
       body,
       width: "340px",
       buttons: [],
       onClose: () => done(null),
     });
-    const { close } = modal;
   });
 }

@@ -23,7 +23,7 @@ const RESCAN_DEBOUNCE_MS = 200;
  * (context-aware: no false positives on `//` inside strings/URLs, and
  * multi-line block comments supported).
  */
-export function getCommentEntries(model) {
+function getCommentEntries(model) {
   if (!model) return [];
   const text = model.getValue();
   return findKeytagComments(commentSpansFromBuffer(text), getKeytags());
@@ -72,8 +72,10 @@ export function initComments(editor) {
   const contentSub = editor.onDidChangeModelContent(scheduleRescan);
   const modelSub = editor.onDidChangeModel(() => {
     // A new model invalidates the previous decorations (they were tied to
-    // the old one): purge and rescan the new content.
+    // the old one): purge and rescan the new content. clearHighlights also
+    // removes the stylesheet, so rebuild it before reapplying decorations.
     clearHighlights(editor);
+    refreshKeytagStyles(getKeytags());
     rescan();
   });
   const disposeSub = editor.onDidDispose(dispose);

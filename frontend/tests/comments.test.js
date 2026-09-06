@@ -20,7 +20,6 @@ import {
   getKeytags,
   saveKeytags,
   resetKeytags,
-  getKeytagByKeyword,
   getContrastTextColor,
   isValidKeyword,
   onChange,
@@ -315,15 +314,6 @@ describe('keytags registry', () => {
     const list = resetKeytags();
     expect(list.map((k) => k.id)).toEqual(DEFAULTS.map((k) => k.id));
     expect(localStorage.getItem('comments.keytags.v1')).toBeNull();
-  });
-
-  it('getKeytagByKeyword finds only enabled tags', () => {
-    expect(getKeytagByKeyword('todo:')?.id).toBe('todo');
-    expect(getKeytagByKeyword('TODO')).toBeNull(); // colon required
-    expect(getKeytagByKeyword('unknown:')).toBeNull();
-
-    saveKeytags([{ id: 'todo', keyword: 'TODO:', label: 'TODO', color: '#eab308', enabled: false }]);
-    expect(getKeytagByKeyword('todo:')).toBeNull();
   });
 
   it('isValidKeyword rejects whitespace and comment markers', () => {

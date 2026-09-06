@@ -149,11 +149,29 @@ export function registerShortcuts({
   editor.addAction({
     id: "keytag-open-book",
     label: t('shortcut.open_comment_book'),
-    run: () => onOpenCommentBook(),
+    // No Monaco keybinding: WebKitGTK turns Ctrl+Alt+<letter> into AltGr
+    // (µ on French layouts), so it is handled globally below.
+    run: () => openMarkerBook(),
   });
 
 // ## Global shortcuts (not captured by Monaco) ####################
-document.addEventListener(
+
+  // Ctrl+Alt+<letter> is ALSO AltGr on ISO/French layouts (AltGr+M = "µ"),
+  // and WebKitGTK reports that combo inconsistently: sometimes without
+  // ctrlKey, sometimes as a bare keypress without a usable keydown. Three
+  // paths cover every case; the guard prevents a double-open when several
+  // fire for one keystroke.
+  let lastBookOpen = 0;
+  const isMKey = (e) =>
+    e.code === "KeyM" || e.key === "µ" || e.key === "μ" || e.key === "M" || e.key === "m";
+  function openMarkerBook() {
+    const now = Date.now();
+    if (now - lastBookOpen < 400) return;
+    lastBookOpen = now;
+    onOpenCommentBook();
+  }
+
+  document.addEventListener(
     "keydown",
     (e) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyN") {
@@ -183,18 +201,24 @@ document.addEventListener(
         e.preventDefault();
         editor.getAction("editor.action.commentLine")?.run();
       }
-      // Ctrl+Alt+M : open the marker book. Ctrl+Alt+<letter> doubles as
-      // AltGr on ISO/French layouts (AltGr+M types "µ"), which WebKitGTK
-      // consumes before Monaco can see it — handle it here and stop the
-      // text insertion.
-      if (
-        (e.ctrlKey || e.metaKey) &&
-        e.altKey &&
-        !e.shiftKey &&
-        e.code === "KeyM"
-      ) {
+      // Ctrl+Alt+M : open the marker book. Do not require ctrlKey — when
+      // the combo is seen as AltGr, WebKitGTK may report altKey only.
+      if (e.altKey && !e.shiftKey && isMKey(e)) {
         e.preventDefault();
-        onOpenCommentBook();
+        openMarkerBook();
+      }
+    },
+    true,
+  );
+
+  // Old WebKitGTK builds deliver AltGr+M as keypress("µ") without a usable
+  // keydown; catch it there as well.
+  document.addEventListener(
+    "keypress",
+    (e) => {
+      if (e.altKey && (e.key === "µ" || e.key === "μ")) {
+        e.preventDefault();
+        openMarkerBook();
       }
     },
     true,

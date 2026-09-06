@@ -21,7 +21,7 @@ const ALPHA = 0.22;
 /** Decoration collections, one per editor. */
 const _collections = new WeakMap();
 
-export function hexToRgba(hex, alpha) {
+function hexToRgba(hex, alpha) {
   const h = hex.replace("#", "");
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);

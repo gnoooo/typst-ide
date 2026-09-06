@@ -20,9 +20,6 @@
  * resetKeytags() -> Keytag[]
  *   Clears the stored list and returns the built-in defaults.
  *
- * getKeytagByKeyword(keyword) -> Keytag | null
- *   First ENABLED keytag whose keyword matches (case-insensitive).
- *
  * onChange(cb) -> unsubscribe
  *   Registers a listener fired after save/reset (manager → highlights).
  */
@@ -127,12 +124,6 @@ export function resetKeytags() {
   localStorage.removeItem(STORAGE_KEY);
   _emit();
   return getKeytags();
-}
-
-/** First enabled keytag whose keyword matches `keyword` (case-insensitive). */
-export function getKeytagByKeyword(keyword) {
-  const needle = keyword.toLowerCase();
-  return getKeytags().find((kt) => kt.enabled && kt.keyword.toLowerCase() === needle) ?? null;
 }
 
 // ## Text contrast ###########################################################
