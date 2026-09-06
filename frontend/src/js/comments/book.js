@@ -13,7 +13,7 @@ import { openModal } from '../modal.js';
 import { getEditor } from '../editor.js';
 import { findKeytagComments } from './scan.js';
 import { commentSpansFromBuffer } from './tokens.js';
-import { getKeytags } from './keytags.js';
+import { getKeytags, getContrastTextColor } from './keytags.js';
 import { openKeytagManager } from './keytag-manager.js';
 
 export function openCommentBook() {
@@ -57,7 +57,7 @@ export function openCommentBook() {
       chip.className = "btn";
       chip.textContent = label;
       chip.style.cssText = color
-        ? `background:${color};color:#fff;border:none;`
+        ? `background:${color};color:${getContrastTextColor(color)};border:none;`
         : "border:1px solid var(--border);";
       chip.addEventListener("click", () => {
         filterTagId = tagId === filterTagId ? null : tagId;
@@ -102,7 +102,7 @@ export function openCommentBook() {
     const chip = document.createElement("span");
     chip.textContent = entry.keytag.label;
     chip.style.cssText =
-      `background:${entry.keytag.color};color:#fff;border-radius:var(--radius-sm);` +
+      `background:${entry.keytag.color};color:${getContrastTextColor(entry.keytag.color)};border-radius:var(--radius-sm);` +
       "flex:none;padding:1px 8px;font-size:11px;font-weight:600;";
     row.appendChild(chip);
 
@@ -199,7 +199,7 @@ function pickKeytag(keytags) {
       const chip = document.createElement("span");
       chip.textContent = kt.keyword;
       chip.style.cssText =
-        `background:${kt.color};color:#fff;border-radius:var(--radius-sm);` +
+        `background:${kt.color};color:${getContrastTextColor(kt.color)};border-radius:var(--radius-sm);` +
         "padding:1px 8px;font-size:12px;font-weight:600;";
       const label = document.createElement("span");
       label.textContent = kt.label;

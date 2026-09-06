@@ -191,6 +191,8 @@ async function main() {
     onNewProject: () => createNewProject((content) => editor.setValue(content)),
     onOpenProject: () => openProject((content) => editor.setValue(content)),
     onExportPDF: () => savePdf(editor),
+    onInsertComment: () => insertComment(),
+    onOpenCommentBook: () => openCommentBook(),
   });
 
   // ## Toolbar menu actions #######################################

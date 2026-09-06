@@ -273,7 +273,9 @@ div.toolbar-row>#preview-manage-btn{
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-md);
-    min-width: 240px;
+    /* Large enough for label + shortcut kbd clusters (e.g. ctrl alt M). */
+    min-width: 300px;
+    max-width: calc(100vw - 24px);
     z-index: 1000;
     list-style: none;
     padding: 4px 0;
@@ -301,6 +303,8 @@ div.toolbar-row>#preview-manage-btn{
     font-size: 12px;
     text-align: left;
     gap: 16px;
+    /* Labels + kbd clusters must never wrap. */
+    white-space: nowrap;
 }
 
 .dropdown li button:hover,

@@ -134,3 +134,25 @@ export function getKeytagByKeyword(keyword) {
   const needle = keyword.toLowerCase();
   return getKeytags().find((kt) => kt.enabled && kt.keyword.toLowerCase() === needle) ?? null;
 }
+
+// ## Text contrast ###########################################################
+
+/** WCAG relative luminance of an "#rrggbb" color (0 = black, 1 = white). */
+function relativeLuminance(hex) {
+  const h = hex.replace("#", "");
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+  const linear = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+
+/**
+ * Text color that stays readable on a custom keytag color: picks black or
+ * white by keeping the higher WCAG contrast ratio against the background.
+ */
+export function getContrastTextColor(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return "#fff";
+  const l = relativeLuminance(hex);
+  const withWhite = (1.05) / (l + 0.05);
+  const withBlack = (l + 0.05) / 0.05;
+  return withWhite >= withBlack ? "#fff" : "#111";
+}

@@ -21,6 +21,7 @@ import {
   saveKeytags,
   resetKeytags,
   getKeytagByKeyword,
+  getContrastTextColor,
   isValidKeyword,
   onChange,
 } from '../src/js/comments/keytags.js';
@@ -345,5 +346,23 @@ describe('keytags registry', () => {
     expect(fired).toBe(1);
     resetKeytags();
     expect(fired).toBe(1);
+  });
+
+  it('getContrastTextColor picks the higher-contrast text color (WCAG)', () => {
+    // Dark backgrounds → white text.
+    expect(getContrastTextColor('#111111')).toBe('#fff');
+    expect(getContrastTextColor('#000000')).toBe('#fff');
+    expect(getContrastTextColor('#003366')).toBe('#fff');
+    // Light backgrounds → dark text.
+    expect(getContrastTextColor('#ffff00')).toBe('#111');
+    expect(getContrastTextColor('#ffffff')).toBe('#111');
+    expect(getContrastTextColor('#ffd700')).toBe('#111');
+    // Mid-tones: black still beats white in contrast ratio
+    // (e.g. #ef4444: 5.6 vs 3.8), so the rule returns dark text.
+    expect(getContrastTextColor('#ef4444')).toBe('#111');
+    expect(getContrastTextColor('#eab308')).toBe('#111');
+    // Invalid input falls back to white.
+    expect(getContrastTextColor('red')).toBe('#fff');
+    expect(getContrastTextColor('')).toBe('#fff');
   });
 });

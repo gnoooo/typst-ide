@@ -34,6 +34,8 @@ import {
  * @param {() => void} opts.onEditorZoomReset
  * @param {() => void} opts.onNewProject
  * @param {() => void} opts.onOpenProject
+ * @param {() => Promise<boolean>} opts.onInsertComment
+ * @param {() => void} opts.onOpenCommentBook
  */
 export function registerShortcuts({
   editor,
@@ -43,6 +45,8 @@ export function registerShortcuts({
   onEditorZoomReset,
   onNewProject,
   onOpenProject,
+  onInsertComment,
+  onOpenCommentBook,
 }) {
   // ## Monaco custom actions ########################################
   const KM = monaco.KeyMod;
@@ -132,6 +136,22 @@ export function registerShortcuts({
     run: () => onEditorZoomReset(),
   });
 
+  // ## Comment feature (keytags) ###################################
+  editor.addAction({
+    id: "keytag-insert-comment",
+    label: t('shortcut.insert_comment'),
+    keybindings: [KM.CtrlCmd | KM.Shift | KC.KeyM],
+    // Also exposed in the editor's context menu.
+    contextMenuGroupId: "9_keytags",
+    run: () => onInsertComment(),
+  });
+
+  editor.addAction({
+    id: "keytag-open-book",
+    label: t('shortcut.open_comment_book'),
+    run: () => onOpenCommentBook(),
+  });
+
 // ## Global shortcuts (not captured by Monaco) ####################
 document.addEventListener(
     "keydown",
@@ -162,6 +182,19 @@ document.addEventListener(
       ) {
         e.preventDefault();
         editor.getAction("editor.action.commentLine")?.run();
+      }
+      // Ctrl+Alt+M : open the marker book. Ctrl+Alt+<letter> doubles as
+      // AltGr on ISO/French layouts (AltGr+M types "µ"), which WebKitGTK
+      // consumes before Monaco can see it — handle it here and stop the
+      // text insertion.
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        e.altKey &&
+        !e.shiftKey &&
+        e.code === "KeyM"
+      ) {
+        e.preventDefault();
+        onOpenCommentBook();
       }
     },
     true,
