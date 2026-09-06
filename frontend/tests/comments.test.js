@@ -2,13 +2,20 @@
  * tests/comments.test.js
  *  Unit tests for the keytag comment feature.
  *
- *  scan.js      : pure parser (positions are Monaco columns = UTF-16 units).
- *  keytags.js   : registry, localStorage persistence, default merging.
+ *  tokens.js   : span extraction (Monaco tokens + regex fallback).
+ *  scan.js     : keytag matching against spans (UTF-16 Monaco columns).
+ *  keytags.js  : registry, localStorage persistence, default merging.
+ *
  *  A minimal localStorage stub is installed because vitest 4 runs in the
  *  node environment by default.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { findKeytagComments } from '../src/js/comments/scan.js';
+import {
+  commentSpansFromText,
+  commentSpansFromTokens,
+  isCommentToken,
+} from '../src/js/comments/tokens.js';
 import {
   getKeytags,
   saveKeytags,
@@ -37,13 +44,147 @@ beforeEach(() => {
   };
 });
 
-// ## scan.js ###############################################################
+// ## Helper: scan text with the regex-span fallback ########################
+
+const scanText = (text, keytags = getKeytags()) =>
+  findKeytagComments(commentSpansFromText(text), keytags);
+
+// ## commentSpansFromText ###################################################
+
+describe('commentSpansFromText (regex fallback)', () => {
+  it('splits line comments into one span per line', () => {
+    const spans = commentSpansFromText('// a\n// b');
+    expect(spans.map((s) => s.text)).toEqual(['// a', '// b']);
+    expect(spans[0]).toMatchObject({ line: 1, col: 1 });
+    expect(spans[1]).toMatchObject({ line: 2, col: 1 });
+  });
+
+  it('keeps positions in UTF-16 units', () => {
+    const spans = commentSpansFromText('é😀 x // c');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].col).toBe(7); // 6 UTF-16 units before the marker
+  });
+
+  it('extracts single- and multi-line block comments', () => {
+    const spans = commentSpansFromText('a /* b */ c\n/* d\ne */');
+    expect(spans.map((s) => s.text)).toEqual(['/* b */', '/* d\ne */']);
+  });
+
+  it('splits two closed blocks on one line', () => {
+    const spans = commentSpansFromText('/* a */ /* b */');
+    expect(spans.map((s) => s.text)).toEqual(['/* a */', '/* b */']);
+  });
+});
+
+// ## commentSpansFromTokens #################################################
+
+describe('commentSpansFromTokens (Monaco tokens)', () => {
+  // Synthetic token line helper: `span(texts, types)` builds Token[][] where
+  // each entry covers the whole line (offset 0) or empty line.
+  const line = (text, types) => {
+    const toks = [];
+    let offset = 0;
+    for (let i = 0; i < types.length; i++) {
+      // Each simulated token covers one "word"; keep offsets consistent with
+      // the real text only when the test cares about columns.
+      toks.push({ offset, type: types[i] });
+      offset += 3;
+    }
+    return toks;
+  };
+
+  it('merges a multi-line block comment into one span', () => {
+    const text = '/* a\nb */';
+    const tokens = [
+      [{ offset: 0, type: 'comment.typst' }],
+      [{ offset: 0, type: 'comment.typst' }, { offset: 3, type: 'comment.typst' }],
+    ];
+    const spans = commentSpansFromTokens(tokens, text);
+    expect(spans).toHaveLength(1);
+    expect(spans[0]).toMatchObject({ line: 1, col: 1 });
+    expect(spans[0].text).toBe('/* a\nb */');
+  });
+
+  it('keeps adjacent line comments as separate spans', () => {
+    const text = '// a\n// b';
+    const tokens = [
+      [{ offset: 0, type: 'comment.typst' }],
+      [{ offset: 0, type: 'comment.typst' }],
+    ];
+    const spans = commentSpansFromTokens(tokens, text);
+    expect(spans.map((s) => s.text)).toEqual(['// a', '// b']);
+  });
+
+  it('does not span line comments across lines', () => {
+    const text = '// a\nx';
+    const tokens = [
+      [{ offset: 0, type: 'comment.typst' }],
+      [{ offset: 0, type: 'text.typst' }],
+    ];
+    const spans = commentSpansFromTokens(tokens, text);
+    expect(spans.map((s) => s.text)).toEqual(['// a']);
+  });
+
+  it('ignores non-comment tokens (no false positive on strings)', () => {
+    const text = '#let x = "// TODO: fake"';
+    const tokens = [
+      [
+        { offset: 0, type: 'keyword.typst' },
+        { offset: 4, type: 'variable.typst' },
+        { offset: 6, type: 'operator.typst' },
+        { offset: 9, type: 'string.typst' },
+      ],
+    ];
+    expect(commentSpansFromTokens(tokens, text)).toEqual([]);
+  });
+
+  it('splits closed block and line comment on the same line', () => {
+    const text = '/* c */ // d';
+    const tokens = [
+      [
+        { offset: 0, type: 'comment.typst' },  // "/* c */"
+        { offset: 7, type: 'default.typst' },  // " "
+        { offset: 8, type: 'comment.typst' },  // "// d"
+      ],
+    ];
+    const spans = commentSpansFromTokens(tokens, text);
+    expect(spans.map((s) => s.text)).toEqual(['/* c */', '// d']);
+  });
+
+  it('flushes an unclosed block when the tokenizer leaves the state', () => {
+    const text = '/* a\nx';
+    const tokens = [
+      [{ offset: 0, type: 'comment.typst' }],
+      [{ offset: 0, type: 'text.typst' }],
+    ];
+    const spans = commentSpansFromTokens(tokens, text);
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('/* a');
+  });
+
+  it('handles an unclosed block at end of file', () => {
+    const text = '/* TODO: x';
+    const tokens = [[{ offset: 0, type: 'comment.typst' }]];
+    const spans = commentSpansFromTokens(tokens, text);
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('/* TODO: x');
+  });
+
+  it('isCommentToken accepts comment and comment.<lang>', () => {
+    expect(isCommentToken('comment')).toBe(true);
+    expect(isCommentToken('comment.typst')).toBe(true);
+    expect(isCommentToken('string.typst')).toBe(false);
+    expect(isCommentToken('commentary')).toBe(false);
+  });
+});
+
+// ## scan.js ################################################################
 
 describe('findKeytagComments', () => {
   const keytags = getKeytags();
 
   it('finds a line comment with TODO:', () => {
-    const entries = findKeytagComments('= Chapter\n// TODO: fix the title\nHello', keytags);
+    const entries = scanText('= Chapter\n// TODO: fix the title\nHello', keytags);
     expect(entries).toHaveLength(1);
     expect(entries[0].keytag.id).toBe('todo');
     expect(entries[0].message).toBe('fix the title');
@@ -53,74 +194,67 @@ describe('findKeytagComments', () => {
   });
 
   it('matches case-insensitively', () => {
-    const entries = findKeytagComments('// todo: check this\n// NOTE: and this', keytags);
+    const entries = scanText('// todo: check this\n// NOTE: and this', keytags);
     expect(entries.map((e) => e.keytag.id)).toEqual(['todo', 'note']);
   });
 
   it('ignores comments without a known keytag', () => {
-    const entries = findKeytagComments('// plain comment\n// FIXME', keytags);
+    const entries = scanText('// plain comment\n// FIXME', keytags);
     expect(entries).toHaveLength(0);
   });
 
   it('requires the colon (no false positive on //TODO, plain)', () => {
-    const entries = findKeytagComments('// TODO without colon', keytags);
-    expect(entries).toHaveLength(0);
-    expect(findKeytagComments('//NOTE: nospace', keytags)).toHaveLength(1);
+    expect(scanText('// TODO without colon', keytags)).toHaveLength(0);
+    expect(scanText('//NOTE: nospace', keytags)).toHaveLength(1);
   });
 
   it('matches with leading whitespace inside the comment', () => {
-    const entries = findKeytagComments('//   TODO: aligned', keytags);
-    expect(entries).toHaveLength(1);
+    const entries = scanText('//   TODO: aligned', keytags);
     const cols = [entries[0].startColumn, entries[0].messageColumn];
     expect(cols).toEqual([1, 11]); // "//   TODO: " → first message char at col 11
   });
 
   it('lists an empty message as empty string', () => {
-    const entries = findKeytagComments('// NOTE:', keytags);
-    expect(entries).toHaveLength(1);
+    const entries = scanText('// NOTE:', keytags);
     expect(entries[0].message).toBe('');
   });
 
   it('handles single-line block comments', () => {
-    const entries = findKeytagComments('Some text /* FIXME: crash here */ more', keytags);
+    const entries = scanText('Some text /* FIXME: crash here */ more', keytags);
     expect(entries).toHaveLength(1);
     expect(entries[0].keytag.id).toBe('fixme');
     expect(entries[0].message).toBe('crash here');
     expect(entries[0].startColumn).toBe(11);
   });
 
-  it('ignores plain block comments and multi-line openers', () => {
-    expect(findKeytagComments('/* not a tag */', keytags)).toHaveLength(0);
-    // Multi-line block opener: not supported in v1, must not match.
-    expect(findKeytagComments('/* TODO: spans\nmore', keytags)).toHaveLength(0);
+  it('handles multi-line block comments', () => {
+    const entries = scanText('/* TODO: first line\nsecond line */', keytags);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].message).toBe('first line\nsecond line');
+    expect(entries[0].line).toBe(1);
+    expect(entries[0].startColumn).toBe(1);
   });
 
   it('reports columns in UTF-16 code units (Monaco contract)', () => {
-    // '😀' = 2 UTF-16 units; JS indices are UTF-16, so Monaco columns
-    // already agree with the scanner.
-    const entries = findKeytagComments('é😀 x // TODO: unicode', keytags);
-    expect(entries).toHaveLength(1);
-    // "é😀 x " is 6 UTF-16 units → marker starts at column 7.
-    expect(entries[0].startColumn).toBe(7);
+    const entries = scanText('é😀 x // TODO: unicode', keytags);
+    expect(entries[0].startColumn).toBe(7); // 6 UTF-16 units before the marker
     expect(entries[0].message).toBe('unicode');
   });
 
-  it('takes only the earliest comment marker on a line', () => {
-    const entries = findKeytagComments('// TODO: keep, // FIXME: not this', keytags);
-    expect(entries).toHaveLength(1);
-    expect(entries[0].message).toBe('keep, // FIXME: not this');
+  it('takes only the earliest keytag on a line', () => {
+    expect(scanText('// TODO: keep, and FIXME: not this', keytags)).toHaveLength(1);
   });
 
   it('skips disabled keytags', () => {
     const disabled = keytags.map((k) => ({ ...k, enabled: k.id !== 'comment' }));
-    const entries = findKeytagComments('// COMMENT: off\n// WARNING: on', disabled);
+    const entries = scanText('// COMMENT: off\n// WARNING: on', disabled);
     expect(entries).toHaveLength(1);
     expect(entries[0].keytag.id).toBe('warning');
   });
 
-  it('counts one entry per matching line', () => {
-    const text = ['// TODO: a', '// TODO: b', '// NOTE: c'].join('\n');
-    expect(findKeytagComments(text, keytags)).toHaveLength(3);
+  it('counts one entry per matching comment', () => {
+    const text = ['// TODO: a', '// TODO: b', '/* NOTE: c */'].join('\n');
+    expect(scanText(text, keytags)).toHaveLength(3);
   });
 });
 

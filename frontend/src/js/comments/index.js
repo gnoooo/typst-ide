@@ -13,9 +13,21 @@
 
 import { getKeytags, onChange } from './keytags.js';
 import { findKeytagComments } from './scan.js';
+import { commentSpansFromBuffer } from './tokens.js';
 import { applyHighlights, refreshKeytagStyles } from './highlights.js';
 
 const RESCAN_DEBOUNCE_MS = 200;
+
+/**
+ * Scans an editor model for keytag comments, using Monaco tokenization
+ * (context-aware: no false positives on `//` inside strings/URLs, and
+ * multi-line block comments supported).
+ */
+export function getCommentEntries(model) {
+  if (!model) return [];
+  const text = model.getValue();
+  return findKeytagComments(commentSpansFromBuffer(text), getKeytags());
+}
 
 /**
  * Wires the comment feature to `editor`.
@@ -28,10 +40,7 @@ export function initComments(editor) {
 
   function rescan() {
     timer = null;
-    const model = editor.getModel();
-    if (!model) return;
-    const entries = findKeytagComments(model.getValue(), getKeytags());
-    applyHighlights(editor, entries);
+    applyHighlights(editor, getCommentEntries(editor.getModel()));
   }
 
   function scheduleRescan() {

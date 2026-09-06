@@ -50,6 +50,7 @@ const MARKUP_RULES = [
 
     // Comments
     [/\/\*[^*\n]*\*\//, 'comment'],
+    [/\/\*/, 'comment', 'blockComment'],
     [/\/\/[^\n]*/, 'comment'],
 
     // Strong (*bold*) and emphasis (_italic_): only when the delimiter is
@@ -118,6 +119,7 @@ const MARKUP_RULES = [
 
 const CODE_RULES = [
     [/\/\*[^*\n]*\*\//, 'comment'],
+    [/\/\*/, 'comment', 'blockComment'],
     [/\/\/[^\n]*/, 'comment'],
 
     // Strings can span lines
@@ -187,6 +189,14 @@ const tokenizer = {
 
     // Code inside { ... } (may span lines)
     code: CODE_RULES,
+
+    // Block comments /* ... */ (may span lines)
+    blockComment: [
+        [/[^*\n]+/, 'comment'],
+        [/\*/, 'comment'],
+        [/\*\//, 'comment', '@pop'],
+        [/\n/, 'comment'],
+    ],
 
     // "..." strings inside code (may span lines)
     string: [

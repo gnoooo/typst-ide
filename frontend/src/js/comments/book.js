@@ -12,6 +12,7 @@ import { t } from '../../i18n/index.js';
 import { openModal } from '../modal.js';
 import { getEditor } from '../editor.js';
 import { findKeytagComments } from './scan.js';
+import { commentSpansFromBuffer } from './tokens.js';
 import { getKeytags } from './keytags.js';
 import { openKeytagManager } from './keytag-manager.js';
 
@@ -127,7 +128,8 @@ export function openCommentBook() {
 
   function refreshEntries() {
     const keytags = getKeytags().filter((kt) => kt.enabled);
-    entries = findKeytagComments(model.getValue(), keytags);
+    const text = model.getValue();
+    entries = findKeytagComments(commentSpansFromBuffer(text), keytags);
     rebuild();
   }
 
