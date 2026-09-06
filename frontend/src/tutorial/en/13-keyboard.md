@@ -9,6 +9,8 @@
 | `Ctrl + F` / `Ctrl + H` | Search / Replace |
 | `Ctrl + G` | Go to line |
 | `Ctrl + /` | Comment line |
+| `Ctrl + Shift + M` | Add a marker |
+| `Ctrl + Alt + M` | Marker book |
 | `Ctrl + E` | Show console |
 | `Ctrl + Shift + + / - / 0` | Window zoom |
 | `Ctrl + Alt + + / - / 0` | Editor zoom |

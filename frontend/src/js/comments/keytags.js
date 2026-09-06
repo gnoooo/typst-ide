@@ -120,6 +120,23 @@ export function saveKeytags(list) {
   _emit();
 }
 
+/**
+ * Validates the manager form (pure): returns the first error as a
+ * translation key, or null when the list is ready to save.
+ * @param {Array<{keyword: string}>} rows
+ * @returns {'comment.invalid_keyword'|'comment.duplicate_keyword'|null}
+ */
+export function findKeytagListError(rows) {
+  const seen = new Map();
+  for (const row of rows) {
+    if (!isValidKeyword(row.keyword)) return 'comment.invalid_keyword';
+    const key = row.keyword.toLowerCase();
+    if (seen.has(key)) return 'comment.duplicate_keyword';
+    seen.set(key, row);
+  }
+  return null;
+}
+
 export function resetKeytags() {
   localStorage.removeItem(STORAGE_KEY);
   _emit();

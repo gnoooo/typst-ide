@@ -14,6 +14,7 @@ import { getEditor } from '../editor.js';
 import { findKeytagComments } from './scan.js';
 import { commentSpansFromBuffer } from './tokens.js';
 import { getKeytags, getContrastTextColor } from './keytags.js';
+import { buildEntryRow } from './entry.js';
 import { openKeytagManager } from './keytag-manager.js';
 
 export function openCommentBook() {
@@ -91,39 +92,17 @@ export function openCommentBook() {
       return;
     }
 
-    for (const entry of visible) list.appendChild(buildEntryRow(entry));
-  }
-
-  function buildEntryRow(entry) {
-    const row = document.createElement("button");
-    row.className = "note-btn";
-    row.style.cssText = "text-align:left;display:flex;align-items:center;gap:8px;";
-
-    const chip = document.createElement("span");
-    chip.textContent = entry.keytag.label;
-    chip.style.cssText =
-      `background:${entry.keytag.color};color:${getContrastTextColor(entry.keytag.color)};border-radius:var(--radius-sm);` +
-      "flex:none;padding:1px 8px;font-size:11px;font-weight:600;";
-    row.appendChild(chip);
-
-    const msg = document.createElement("span");
-    msg.className = "note-btn-content";
-    msg.textContent = entry.message || t('comment.empty_message');
-    msg.style.cssText = "color:var(--text);";
-    row.appendChild(msg);
-
-    const line = document.createElement("span");
-    line.className = "note-btn-content";
-    line.textContent = t('comment.line', { line: entry.line });
-    line.style.cssText = "color:var(--text-muted);margin-left:auto;flex:none;";
-    row.appendChild(line);
-
-    row.addEventListener("click", () => {
-      editor.setPosition({ lineNumber: entry.line, column: entry.messageColumn });
-      editor.revealPositionInCenter({ lineNumber: entry.line, column: entry.messageColumn });
-      setTimeout(() => editor.focus(), 0);
-    });
-    return row;
+    for (const entry of visible)
+      list.appendChild(
+        buildEntryRow(entry, {
+          emptyMessage: t('comment.empty_message'),
+          lineLabel: (line) => t('comment.line', { line }),
+        }, (e) => {
+          editor.setPosition({ lineNumber: e.line, column: e.messageColumn });
+          editor.revealPositionInCenter({ lineNumber: e.line, column: e.messageColumn });
+          setTimeout(() => editor.focus(), 0);
+        }),
+      );
   }
 
   function refreshEntries() {

@@ -9,6 +9,8 @@
 | `Ctrl + F` / `Ctrl + H` | Chercher / Remplacer |
 | `Ctrl + G` | Aller à la ligne |
 | `Ctrl + /` | Commenter la ligne |
+| `Ctrl + Shift + M` | Ajouter un marqueur |
+| `Ctrl + Alt + M` | Carnet de marqueurs |
 | `Ctrl + E` | Afficher la console |
 | `Ctrl + Shift + + / - / 0` | Zoom de la fenêtre |
 | `Ctrl + Alt + + / - / 0` | Zoom de l'éditeur |

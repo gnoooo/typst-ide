@@ -99,6 +99,13 @@ The notes have to scopes:
 You can delete, edit and preview a entire note using the buttons on the right side of each note.
 
 
+## Markers
+
+Typst IDE recognizes special comments (**markers**) like `// TODO: fix this` or `/* FIXME: … */`. Each marker has a keyword, a label and a color you can fully customize (menu **Edit** > **Manage markers**: five come by default: TODO, NOTE, COMMENT, FIXME, WARNING).
+
+Marker lines are highlighted in the editor (with the tag in bold), a colored dot appears in the gutter and a stripe in the scrollbar. The **marker book** (toolbar button or `Ctrl + Alt + M`) lists all markers of the current document: search, filter, click to jump to the line, and `Ctrl + Shift + M` inserts a marker at the cursor. Only real comments are detected, so `//` inside strings or URLs never triggers a marker.
+
+
 # Philosophy
 In the next paragraphs, I will refer to the official online Typst platform as "**Typst.app**".
 

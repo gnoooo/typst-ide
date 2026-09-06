@@ -10,7 +10,12 @@
 
 import { t } from '../../i18n/index.js';
 import { openModal, showConfirm } from '../modal.js';
-import { getKeytags, saveKeytags, resetKeytags, isValidKeyword } from './keytags.js';
+import {
+  getKeytags,
+  saveKeytags,
+  resetKeytags,
+  findKeytagListError,
+} from './keytags.js';
 
 export function openKeytagManager() {
   let rows = getKeytags().map(cloneRow);
@@ -91,16 +96,8 @@ export function openKeytagManager() {
   }
 
   function validate() {
-    const seen = new Map();
-    for (const row of rows) {
-      if (!isValidKeyword(row.keyword)) {
-        return t('comment.invalid_keyword');
-      }
-      const key = row.keyword.toLowerCase();
-      if (seen.has(key)) return t('comment.duplicate_keyword');
-      seen.set(key, row);
-    }
-    return null;
+    const err = findKeytagListError(rows);
+    return err ? t(err) : null;
   }
 
   function onSave(close) {
