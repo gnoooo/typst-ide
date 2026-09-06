@@ -14,7 +14,7 @@
 import { getKeytags, onChange } from './keytags.js';
 import { findKeytagComments } from './scan.js';
 import { commentSpansFromBuffer } from './tokens.js';
-import { applyHighlights, refreshKeytagStyles } from './highlights.js';
+import { applyHighlights, clearHighlights, refreshKeytagStyles } from './highlights.js';
 
 const RESCAN_DEBOUNCE_MS = 200;
 
@@ -31,6 +31,12 @@ export function getCommentEntries(model) {
 
 /**
  * Wires the comment feature to `editor`.
+ *
+ * Lifecycle: decorations follow the editor. When the model is replaced
+ * (`onDidChangeModel`, e.g. switching files via setModel) the old
+ * decorations are purged and the new model is scanned; when the editor is
+ * disposed, everything (decorations, stylesheet, listeners) is cleaned up.
+ *
  * @param {import('monaco-editor').editor.IStandaloneCodeEditor} editor
  */
 export function initComments(editor) {
@@ -48,12 +54,30 @@ export function initComments(editor) {
     timer = setTimeout(rescan, RESCAN_DEBOUNCE_MS);
   }
 
+  function dispose() {
+    if (timer) clearTimeout(timer);
+    timer = null;
+    clearHighlights(editor);
+    unsubKeytags();
+    contentSub.dispose();
+    modelSub.dispose();
+    disposeSub.dispose();
+  }
+
   refreshKeytagStyles(getKeytags());
-  editor.onDidChangeModelContent(scheduleRescan);
-  onChange(() => {
+  const unsubKeytags = onChange(() => {
     refreshKeytagStyles(getKeytags());
     rescan();
   });
+  const contentSub = editor.onDidChangeModelContent(scheduleRescan);
+  const modelSub = editor.onDidChangeModel(() => {
+    // A new model invalidates the previous decorations (they were tied to
+    // the old one): purge and rescan the new content.
+    clearHighlights(editor);
+    rescan();
+  });
+  const disposeSub = editor.onDidDispose(dispose);
+
   rescan();
 }
 
