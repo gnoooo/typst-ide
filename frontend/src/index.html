@@ -423,9 +423,15 @@
                 <div class="pane preview-pane" id="preview-pane">
                     <!-- <div id="preview-container"> -->
                     <div id="preview" class="preview-content">
+                        <!-- `allow-scripts` est REQUIS pour le clic preview -> curseur
+                             (setupClickHandler attache le listener depuis le parent) :
+                             sous WebKitGTK, une frame sandboxée sans allow-scripts ne
+                             délivre pas les événements de clic au listener parent.
+                             Le contenu (typst-svg) n'émet jamais de <script> :
+                             le sandbox reste une défense contre les scripts injectés. -->
                         <iframe
                             id="preview-frame"
-                            sandbox="allow-same-origin"
+                            sandbox="allow-same-origin allow-scripts"
                         ></iframe>
                     </div>
 

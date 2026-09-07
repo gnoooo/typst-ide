@@ -543,4 +543,43 @@ mod tests {
         let (line, col_after) = byte_to_line_col(text, 6); // after the emoji
         assert_eq!((line, col_after), (1, 5)); // +2 UTF-16 units
     }
+
+    #[test]
+    fn resolve_click_maps_preview_click_to_source_position() {
+        // Mirrors the production flow: render_preview warms the persistent
+        // world cache, then resolve_click reuses it to map a click.
+        let root = Some("/tmp/opencode/click-test-root".to_string());
+        let content = "Hello world";
+
+        let res = compile_to_preview_html(root.as_deref(), content, None)
+            .map_err(|d| d.iter().map(|x| x.message.clone()).collect::<Vec<_>>().join("; "))
+            .expect("compile_to_preview_html should succeed for plain text");
+        assert!(!res.pages.is_empty());
+
+        // Default page: A4 with 2.5cm margins. The first line starts at
+        // ~(70.9pt, 70.9pt) in 11pt text. Sweep a small grid of candidate
+        // points across the first line to tolerate font metric differences.
+        let mut best: Option<ClickResult> = None;
+        for y in [72.0f64, 74.0, 76.0, 78.0, 80.0] {
+            for x in [75.0f64, 80.0, 85.0, 90.0, 95.0, 100.0] {
+                if let Some(res) = resolve_click(root.as_deref(), content, 1, x, y) {
+                    best = Some(res);
+                    break;
+                }
+            }
+            if best.is_some() {
+                break;
+            }
+        }
+        let res = best.expect("a click on 'Hello world' must resolve to a source position");
+        assert_eq!(res.line, 1, "click on first line must map to line 1");
+        // 'Hello world' is 11 chars; the click column must fall inside it.
+        assert!(
+            (1..=content.len() as u32 + 1).contains(&res.column),
+            "column {} out of range for {:?}",
+            res.column,
+            content
+        );
+        println!("resolve_click -> line {}, col {}", res.line, res.column);
+    }
 }

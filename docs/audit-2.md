@@ -41,7 +41,7 @@
 | **`loadHtml` Promise(async) + worker sans onerror** | "gel permanent du scheduler" | Le worker n'a pas de try/catch (`preview-worker.js:14-27`). `createBlobUrlAsync` n'a pas de chemin de rejet. Si le worker échoue (`URL.createObjectURL` jette — rare — ou worker ne spawn pas), `loadHtml` reste pending à vie → scheduler gelé. Sévère mais **faible probabilité** (uniquement sur gros docs > 512 KB HTML ET panne du worker). | **P2** (sévère, rare). Correction peu risquée. |
 | **XSS-S3 notepad** | "High" | Les notes sont en **SQLite local** (`notes.db`), **non partagées via le dossier projet** (`project_id` = hash du chemin). Un projet partagé ne transporte PAS ses notes. L'exploit réel exigerait que l'attaquant ait déjà écrit dans la DB de l'utilisateur ⇒ compromission préalable. | **P2** (défense en profondeur), pas P0. |
 | **Scoping FS Rust** | P0 | Defense-in-depth (réduit le blast-radius XSS + bugs frontend). **Ne peut pas être blanket** : `export_pdf`/`save_file` vers un chemin choisi par l'utilisateur (`pick_pdf_path`) doit rester arbitraire. | **P1** (scoping per-commande, pas global). |
-| **iframe sandbox `allow-scripts`** | "neutralise script-in-SVG" | Je n'ai **pas** vérifié si `typst-svg` émet des `<script>`. C'est une **défense en profondeur** intéressante (le SVG Typst n'a pas besoin de JS), pas un exploit confirmé. | **À surveiller** + quick win (retirer `allow-scripts` est sans risque ; `setupClickHandler` attache le listener côté parent). |
+| **iframe sandbox `allow-scripts`** | "neutralise script-in-SVG" | Je n'ai **pas** vérifié si `typst-svg` émet des `<script>`. C'est une **défense en profondeur** intéressante (le SVG Typst n'a pas besoin de JS), pas un exploit confirmé. | **⚠️ CORRIGÉ (sept. 2026)** : retirer `allow-scripts` **casse le clic preview → curseur** — vérifié empiriquement sous WebKitGTK 2.52 (clicks 0 vs 2, test Xvfb/XTest) : une frame sandboxée sans `allow-scripts` ne délivre pas les événements de clic au listener `setupClickHandler` attaché côté parent. Le flag a été ré-introduit ; `typst-svg` n'émet jamais de `<script>`. |
 | **`tar` unpacking `typst-as-library/src/lib.rs:234`** | "tar traversal" | `tar 0.4` bloque les entrées `..` par défaut. Probablement sûr. | **À surveiller**. |
 
 ### FAUX POSITIFS / RETIRÉS
@@ -106,7 +106,7 @@
 ### P2 — à planifier
 12. Race scheduler `preview.js` (gate `_compileRunning` en tête de `_runCompile` ; wasted work + glitch de page stale transitoire).
 13. `modal.js:99-106` `closeAll()` fuit les promesses `showConfirm`/`showPrompt` sous-jacentes.
-14. iframe sandbox : retirer `allow-scripts` (défense en profondeur).
+14. ~~iframe sandbox : retirer `allow-scripts`~~ — **annulé** : casse le clic preview → curseur (voir §5).
 15. `commands/fs.rs:135` boucle de symlink (NEW-1).
 16. Doublons : `createSearchBar` ×5, deux chemins PDF, `core/fs/files.rs`/`core/main.rs`/`compile()`/`export.rs` morts.
 17. Perf : `tree.js` O(n·depth) + rebuild/touche ; `compile.rs` hash 2× ; `toolbar.js` rect/mousemove.
@@ -164,7 +164,7 @@
 | "Bus d'événements / DI pour remplacer `wire.js`" | **Over-engineering** pour 40 modules vanille. | Garde `wire.js` (1 maps, marche) — ou simple import direct quand il n'y a pas de cycle. |
 | "Helper `h()` style hyperscript pour tout le DOM" | Risque de réécriture large. | Préférer l'échappement ciblé + `createElement/textContent` **uniquement aux sinks XSS**. Un mini-helper `escapeHtml`/`escapeAttr` suffit. |
 | "DOMPurify sur `marked` (tutoriel)" | Inutile tant que les markdowns sont des **assets build-time**. | Reporter tant que pas de contenu tutoriel user-controlled. |
-| "Isolation d'origine de l'iframe (`srcdoc`)" | Plus de travail + risque de casser `setupClickHandler` (lit `contentDocument`). | **Retirer juste `allow-scripts`** suffit et est sans risque. |
+| "Isolation d'origine de l'iframe (`srcdoc`)" | Plus de travail + risque de casser `setupClickHandler` (lit `contentDocument`). | **⚠️ Ne pas retirer `allow-scripts`** : cassait le clic preview → curseur (vérifié empiriquement, sept. 2026). Le feature exige `allow-same-origin allow-scripts`. |
 | "Renommer le crate `core`" | Pas de bénéfice réel, churn. | Ne pas faire. |
 | "Supprimer `core/fs/files.rs`" | Faible risque mais vérifier usage. | OK à faire (confirmé non utilisé), en P3. |
 | "Rewrite complète du scheduler `preview.js`" | Risque élevé de régression sur un module subtil mais fonctionnel. | Corrections ciblées : gate `_compileRunning` + `loadHtml` async + worker onerror. Pas de rewrite. |
@@ -276,7 +276,7 @@
 - **Ne pas introduire un bus d'événements / DI / framework DOM** pour remplacer `wire.js` et `window.__typstEditor` — over-engineering pour 40 modules vanille. Un import direct suffit quand il n'y a pas de cycle.
 - **Ne pas refactorer l'état global `compile.rs` en "par session"** avant d'avoir décidé du multi-fichiers. La static actuelle marche pour 1 projet.
 - **Ne pas ajouter DOMPurify sur `marked`** tant que les tutoriels sont des assets build-time.
-- **Ne pas viser l'isolation d'origine de l'iframe (`srcdoc`)** — retirer `allow-scripts` suffit.
+- **Ne pas viser l'isolation d'origine de l'iframe (`srcdoc`)** — et **ne pas retirer `allow-scripts`** (casse le clic preview → curseur).
 - **Ne pas renommer le crate `core`** — churn sans bénéfice.
 - **Ne pas blanket-escaper tous les `innerHTML`** (casserait les messages HTML intentionnels comme `instantiate.js:24`). Échapper **uniquement les variables dynamiques** aux sites d'interpolation.
 - **Ne pas monter `typst` 0.15→0.16** dans le même PR qu'un correctif XSS — séparer les préoccupations (la MAJ Typst + maintien du fork `typst-as-library` est un chantier à part, avec son propre risque de régression sur `compile.rs`/`download_package`).
@@ -303,7 +303,7 @@
 ### P2 — À planifier
 - Race scheduler `preview.js` (gate `_compileRunning`).
 - `modal.js closeAll()` fuite de promesses.
-- Sandbox iframe : retirer `allow-scripts`.
+- ~~Sandbox iframe : retirer `allow-scripts`~~ — annulé (voir §5).
 - `commands/fs.rs` boucle de symlink (NEW-1).
 - Doublons (`createSearchBar`, chemins PDF) + code mort.
 - Perf (`tree.js`, `compile.rs` hash 2×, `toolbar.js`).

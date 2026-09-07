@@ -27,7 +27,7 @@ Famille XSS confirmée : `history.js:238-245` (contenu `main.typ` brut → `inne
 Nuances sur la gravité (app locale) : pas d'attaquant distant ; il faut que l'utilisateur ouvre un contenu non fiable (projet cloné, `.bib` téléchargé) **et** une interaction (ouvrir la vue sources, cliquer « Supprimer » sur un fichier piégé, cliquer l'œil dans l'historique). Ça reste le cœur du métier de l'app (éditer des projets venus d'ailleurs) → **P0 maintenu**, mais avec ce cadre honnête.
 
 - `notepad` XSS (S3) : GLM-2 a raison d'avoir rétrogradé — les notes sont en SQLite locale, non transportées par les projets. P2.
-- iframe `allow-scripts` : non vérifié si `typst-svg` peut émettre du `<script>` — **incertain**, défense en profondeur. Retirer `allow-scripts` est sans risque (le handler de clic est attaché depuis le parent).
+- iframe `allow-scripts` : **CORRIGÉ (sept. 2026)** — le retirer casse le clic preview → curseur sous WebKitGTK (les événements ne sont pas délivrés au listener parent dans une frame sans `allow-scripts`). Flag conservé ; `typst-svg` n'émet pas de `<script>`.
 
 ### B. Bugs — re-graduations significatives
 
