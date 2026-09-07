@@ -1,5 +1,58 @@
 # Release Notes
 
+## v1.6.3
+
+### New in v1.6.3
+
+- **Renamed to "markers"** : the comment/keytag feature is now called **markers** everywhere (menus, marker book, manager, EN/FR translations).
+- **Keyboard shortcuts** : `Ctrl + Shift + M` inserts a marker at the cursor, `Ctrl + Alt + M` opens the marker book. Both are reliable on French/ISO layouts where WebKitGTK swallows AltGr combinations (global capture with a keypress fallback and a double-fire guard).
+- **Wider dropdown menus** : navbar dropdowns are large enough for label + shortcut key-caps (e.g. `ctrl alt M`) and their rows no longer wrap.
+
+### Fixes
+
+- **Decoration lifecycle** : marker highlights (and their stylesheet) are purged when the editor model is replaced or the editor is disposed, so no stale highlight survives a file switch.
+
+### Internals
+
+- **Refactor for testability** : pure modules extracted (`styles`, marker-book row builder, manager validation) and covered by new jsdom DOM tests — 75 tests in total.
+
+## v1.6.2
+
+### New in v1.6.2
+
+- **Context-aware marker detection** : markers are now found through the Monaco tokenizer, so `//` inside a string literal, an URL or raw code is never mistaken for a comment (no more false positives). Multi-line block comments (`/* … */`) are supported too, and the Monarch tokenizer now colors them correctly in the editor.
+- **Visual markers** : the marker line is highlighted in the marker color with the tag in **bold**; a colored **dot** appears in the editor gutter (centered, never overflowing the row) and a **stripe** in the scrollbar; hovering the line shows the keyword and the marker message.
+
+## v1.6.0
+
+### New in v1.6.0
+
+- **Markers (keytags)** : a modular comment-marker system. Write `// TODO: message` (or `/* FIXME: … */`) and Typst IDE recognizes it:
+  - Five markers ship by default (`TODO`, `NOTE`, `COMMENT`, `FIXME`, `WARNING`), each with its own highlight color, fully customizable (keyword, label, color, enable/disable, reset to defaults).
+  - Matching lines are highlighted, and the **marker book** (toolbar button or **Edit** menu) lists every marker of the current document: search, filter by marker, click to jump to the line.
+  - **Add a marker** inserts `// KEYTAG: ` at the cursor (with a picker when several markers are enabled).
+  - Marker lines also get a **glyph-margin dot** and a **scrollbar stripe**.
+
+## v1.5.2
+
+### Fixes
+
+- **Images and imported files updated outside Typst IDE** : a file (image, module…) rewritten on disk by an external script or editor is detected and re-read — the persistent Typst world no longer serves stale cached bytes (size + modification-time check on every cache access). The preview also refreshes when the window regains focus, without requiring a keystroke.
+
+## v1.5.1
+
+### New in v1.5.1
+
+- **PDF export** : the `.pdf` extension is appended automatically when the user only types a file name (and is not duplicated if already present).
+
+### Improvements
+
+- **Security/audit pass** : modal, history, notepad and bibliography windows are built with `textContent` instead of `innerHTML` (XSS hardening), a symlink-escape guard was added to file operations, and dead preview-worker code was removed.
+
+### For developers
+
+- **Tests + CI** : Rust unit/integration tests (via `tauri::test` mock apps), frontend unit tests (vitest), a PR CI workflow (build + tests) with clippy and `npm audit`, proper error handling replacing the database `.expect(...)` calls, and leftover debug `eprintln!` removed.
+
 ## v1.5.0
 
 ### New in v1.5.0
