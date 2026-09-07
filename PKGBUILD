@@ -22,6 +22,7 @@ depends=(
 
 makedepends=(
   'cargo'
+  'lld'
   'nodejs'
   'npm'
   'pkg-config'
@@ -43,7 +44,7 @@ build() {
   cd ..
 
   export CFLAGS="${CFLAGS/-flto=auto}"
-  export RUSTFLAGS="${RUSTFLAGS:-} -C linker=cc -C link-arg=-Wl,--no-as-needed"
+  export RUSTFLAGS="${RUSTFLAGS:-} -C linker=cc -C link-arg=-Wl,--no-as-needed -C link-arg=-fuse-ld=lld"
 
   cargo build --release -p typst-ide-app
 }

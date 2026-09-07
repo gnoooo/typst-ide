@@ -125,7 +125,7 @@ Contexte amplificateur confirmé : **pas de CSP** (`tauri.conf.json`), `withGlob
 - `font-kit 0.14` (app) pour `font_exists`/`suggest_font` — lourd pour 2 fonctions ; `misc.rs:11-18` construit un `SystemSource` à chaque appel `font_exists`. `suggest_font` met en cache via `OnceLock`.
 - `tauri-plugin-opener` avec `https://**` : large mais limité au protocole https (cf. TODO).
 - `package.json` frontend : `type: "commonjs"` mais le code est en ES modules Vite — incohérence de déclaration (sans effet pratique car Vite gère).
-- `opt-level = "z"`, `lto = true`, `codegen-units = 1`, `strip = true` pour la release — agressif (compilations longues) mais cohérent avec la cible « binaire léger ».
+- `opt-level = "z"`, `lto = "thin"`, `strip = true`, `panic = "abort"` pour la release — LTO thin + linker `lld` (via `.cargo/config.toml`) pour garder des compilations raisonnables (~3-4 min sur 8 cœurs vs ~10 min en LTO fat mono-threadé) ; le binaire reste léger (~53M strippé, +13% vs LTO fat) et l'optimisation est quasi équivalente.
 
 ---
 
