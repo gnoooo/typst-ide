@@ -9,12 +9,15 @@ pub fn set_webview_zoom(window: tauri::WebviewWindow, factor: f64) -> Result<(),
 /// Checks whether a font family name is available on the system
 #[tauri::command]
 pub fn font_exists(name: String) -> bool {
-    use font_kit::family_name::FamilyName;
-    use font_kit::properties::Properties;
-    use font_kit::source::SystemSource;
-    SystemSource::new()
-        .select_best_match(&[FamilyName::Title(name)], &Properties::new())
-        .is_ok()
+    use fontdb::{Database, Family, Query};
+
+    let mut db = Database::new();
+    db.load_system_fonts();
+    db.query(&Query {
+        families: &[Family::Name(&name)],
+        ..Default::default()
+    })
+    .is_some()
 }
 
 /// Returns the closest matching font family name for a given input,
@@ -22,18 +25,18 @@ pub fn font_exists(name: String) -> bool {
 /// (edit distance > 5 after normalisation).
 #[tauri::command]
 pub fn suggest_font(name: String) -> Option<String> {
-    use font_kit::source::SystemSource;
+    use fontdb::Database;
     use std::collections::BTreeSet;
     use std::sync::OnceLock;
 
     static FAMILIES: OnceLock<Vec<String>> = OnceLock::new();
     let families = FAMILIES.get_or_init(|| {
         let mut set = BTreeSet::new();
-        if let Ok(handles) = SystemSource::new().all_fonts() {
-            for handle in &handles {
-                if let Ok(font) = handle.load() {
-                    set.insert(font.family_name().to_string());
-                }
+        let mut db = Database::new();
+        db.load_system_fonts();
+        for face in db.faces() {
+            for (family, _) in &face.families {
+                set.insert(family.clone());
             }
         }
         set.into_iter().collect()
