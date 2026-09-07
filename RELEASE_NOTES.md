@@ -1,9 +1,27 @@
 # Release Notes
 
+## v1.6.5
+
+### Improvements
+
+- **Much faster release builds** : the release profile used fat LTO (`lto = true`, `codegen-units = 1`), which deferred all cross-crate optimization to a single-threaded link phase. It now uses **thin LTO** (parallel) with the default codegen units, **`panic = "abort"`**, and the **`lld` linker** on Linux (via `.cargo/config.toml` and the `PKGBUILD`, with `lld` as a new makedependency). Measured cold release build: **~10 min → ~3 min 45 s** on a 8-core/16-thread machine with performance power mode (the slowest phase being mono-threaded, the gain is proportionally even larger on low-core machines).
+- **Lighter font stack** : `font-kit` was replaced by `fontdb` (already in the dependency graph via `typst-kit`) for the `font_exists`/`suggest_font` commands, about **12 crates removed** (including two C libraries (`freetype`, `fontconfig`) that had to be compiled). `suggest_font` also no longer loads every font file to read family names, making font suggestions faster.
+
+### For developers
+
+- **Tradeoff to be aware of**: the release binary grew from ~47 MB to ~53 MB (+13%, still stripped) in exchange for the build speed.
+- **Release profile now**: `opt-level = "z"`, `lto = "thin"`, `strip = true`, `panic = "abort"`.
+
+## v1.6.4
+
+### Fixes
+
+- **Jump from the preview works again** : clicking a page in the preview jumps to the corresponding source line, the `allow-scripts` WebView setting was restored after it had silently disabled the click handler.
+
+
 ## v1.6.3
 
 ### New in v1.6.3
-
 - **Renamed to "markers"** : the comment/keytag feature is now called **markers** everywhere (menus, marker book, manager, EN/FR translations).
 - **Keyboard shortcuts** : `Ctrl + Shift + M` inserts a marker at the cursor, `Ctrl + Alt + M` opens the marker book. Both are reliable on French/ISO layouts where WebKitGTK swallows AltGr combinations (global capture with a keypress fallback and a double-fire guard).
 - **Wider dropdown menus** : navbar dropdowns are large enough for label + shortcut key-caps (e.g. `ctrl alt M`) and their rows no longer wrap.
@@ -14,7 +32,7 @@
 
 ### Internals
 
-- **Refactor for testability** : pure modules extracted (`styles`, marker-book row builder, manager validation) and covered by new jsdom DOM tests — 75 tests in total.
+- **Refactor for testability** : pure modules extracted (`styles`, marker-book row builder, manager validation) and covered by new jsdom DOM tests (75 tests in total).
 
 ## v1.6.2
 
@@ -37,7 +55,7 @@
 
 ### Fixes
 
-- **Images and imported files updated outside Typst IDE** : a file (image, module…) rewritten on disk by an external script or editor is detected and re-read — the persistent Typst world no longer serves stale cached bytes (size + modification-time check on every cache access). The preview also refreshes when the window regains focus, without requiring a keystroke.
+- **Images and imported files updated outside Typst IDE** : a file (image, module…) rewritten on disk by an external script or editor is detected and re-read, the persistent Typst world no longer serves stale cached bytes (size + modification-time check on every cache access). The preview also refreshes when the window regains focus, without requiring a keystroke.
 
 ## v1.5.1
 
