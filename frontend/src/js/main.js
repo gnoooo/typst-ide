@@ -30,6 +30,7 @@ import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
 import { initFileSync } from "./file-sync.js";
+import { exportConfig, importConfig } from "./config.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 import { t, initI18n, setLang } from '../i18n/index.js'
 
@@ -252,6 +253,10 @@ async function main() {
 
   // Tutorial window (Aide menu)
   bindMenuAction("open-tutorial", () => openTutorialWindow());
+
+  // Config export/import (Aide menu)
+  bindMenuAction("export-config-btn", () => exportConfig());
+  bindMenuAction("import-config-btn", () => importConfig());
 
   // External links (data-tauri-open-url attribute on the button)
   bindOpenUrl("menu-docs-typst");

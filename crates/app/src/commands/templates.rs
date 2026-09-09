@@ -16,7 +16,7 @@ use tauri::Manager;
 use super::fs::validate_name_segment;
 
 /// Returns the absolute path of the templates root directory, creating it if needed.
-fn templates_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn templates_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_config_dir()
@@ -28,7 +28,7 @@ fn templates_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 /// Validates a template name: must be a single path component, without separators
 /// or traversal sequences, and without characters invalid on common file systems.
-fn validate_template_name(name: &str) -> Result<(), String> {
+pub(crate) fn validate_template_name(name: &str) -> Result<(), String> {
     if name.is_empty() {
         return Err("Le nom du template est vide.".to_string());
     }

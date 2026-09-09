@@ -14,6 +14,7 @@ use tokio::sync::Semaphore;
 use typst_ide_core::database::{history_db, notes_db};
 
 use commands::bibliography;
+use commands::config;
 use commands::db;
 use commands::export;
 use commands::fs;
@@ -150,7 +151,13 @@ fn main() {
             templates::update_template,
             templates::rename_template,
             templates::delete_template,
-            templates::copy_template_to_project
+            templates::copy_template_to_project,
+            config::export_config,
+            config::import_config,
+            config::collect_export_data,
+            config::import_notes_data,
+            config::import_history_data,
+            config::import_templates_data
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
