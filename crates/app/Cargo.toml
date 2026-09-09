@@ -1,6 +1,6 @@
 [package]
 name = "typst-ide-app"
-version = "1.6.5"
+version = "1.6.6"
 edition = "2024"
 
 # Keep the binary named `typst-ide` (desktop entry, PKGBUILD install path…),
