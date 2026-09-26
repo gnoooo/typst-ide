@@ -31,7 +31,7 @@ where
             PREVIEW_WINDOW_LABEL,
             WebviewUrl::App("preview.html".into()),
         )
-        .title("Typst IDE — Preview")
+        .title("Typst IDE : Preview")
         .inner_size(900.0, 800.0)
         .min_inner_size(420.0, 300.0)
     };

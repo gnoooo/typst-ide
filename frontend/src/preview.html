@@ -7,9 +7,6 @@
     </head>
     <body class="preview-window">
         <div class="preview-window-toolbar">
-            <span class="material-symbols-outlined preview-window-title-icon">preview</span>
-            <span class="preview-window-title" data-i18n="preview.title">Aperçu</span>
-
             <!-- Same skin as the main editor toolbar (identical classes/ids).
                  Two webviews = two separate documents, no id collisions. -->
             <div class="btn-group flex" id="preview-zoom-panel">
@@ -46,10 +43,12 @@
         </div>
 
         <div id="preview-window-content" class="preview-window-content">
-            <iframe
-                id="preview-wide-frame"
-                sandbox="allow-same-origin allow-scripts"
-            ></iframe>
+            <div class="preview-content-wrapper">
+                <iframe
+                    id="preview-wide-frame"
+                    sandbox="allow-same-origin allow-scripts"
+                ></iframe>
+            </div>
         </div>
 
         <script type="module" src="./js/preview-window.js"></script>

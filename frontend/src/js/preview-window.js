@@ -41,7 +41,7 @@ async function main() {
     // Zoom is cosmetic; ignore failures.
   }
 
-  const preview = document.getElementById("preview-window-content");
+  const preview = document.querySelector(".preview-content-wrapper");
   const frame = document.getElementById("preview-wide-frame");
   const zoomInput = document.getElementById("zoom-preview-input");
 
