@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Typst IDE — Aperçu</title>
+    </head>
+    <body class="preview-window">
+        <div class="preview-window-toolbar">
+            <span class="material-symbols-outlined preview-window-title-icon">preview</span>
+            <span class="preview-window-title" data-i18n="preview.title">Aperçu</span>
+
+            <!-- Same skin as the main editor toolbar (identical classes/ids).
+                 Two webviews = two separate documents, no id collisions. -->
+            <div class="btn-group flex" id="preview-zoom-panel">
+                <button class="tool-btn" id="zoom-preview-out-btn" data-i18n-title="toolbar.preview_zoom_out">
+                    -
+                </button>
+                <span class="flex items-center text-align-center">
+                    <input
+                        class="w-8"
+                        id="zoom-preview-input"
+                        type="number"
+                        min="20"
+                        max="400"
+                        value="100"
+                        step="10"
+                    />
+                    %
+                </span>
+                <button class="tool-btn" id="zoom-preview-in-btn" data-i18n-title="toolbar.preview_zoom_in">+</button>
+            </div>
+
+            <button class="tool-btn" id="preview-window-compile" data-i18n-title="toolbar.compile">
+                <span class="material-symbols-outlined" style="font-size: 19px">terminal</span>
+            </button>
+            <button class="tool-btn" id="preview-window-save" data-i18n-title="toolbar.save">
+                <span class="material-symbols-outlined" style="font-size: 19px">save</span>
+            </button>
+
+            <div class="preview-window-spacer"></div>
+
+            <button class="tool-btn" id="preview-window-embed" data-i18n-title="preview.embed">
+                <span class="material-symbols-outlined" style="font-size: 19px">splitscreen</span>
+            </button>
+        </div>
+
+        <div id="preview-window-content" class="preview-window-content">
+            <iframe
+                id="preview-wide-frame"
+                sandbox="allow-same-origin allow-scripts"
+            ></iframe>
+        </div>
+
+        <script type="module" src="./js/preview-window.js"></script>
+    </body>
+</html>

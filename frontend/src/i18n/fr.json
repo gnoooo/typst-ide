@@ -29,6 +29,7 @@
   "menu.auto_compile": "Auto-compilation",
   "menu.console_on_error": "Afficher la console en cas d'erreur",
   "menu.console_ignore": "Ignorer des erreurs",
+  "menu.external_preview": "Preview dans un autre onglet",
   "menu.help": "Aide",
   "menu.change_font": "Changer la police de l'éditeur",
   "menu.tutorial": "Ouvrir le tutoriel",
@@ -53,6 +54,13 @@
   "toolbar.structures": "Structures",
   "toolbar.preview_zoom_out": "Réduire l'aperçu",
   "toolbar.preview_zoom_in": "Agrandir l'aperçu",
+  "toolbar.external_preview": "Preview dans un autre onglet",
+
+  "preview.title": "Aperçu",
+  "preview.fit": "Ajuster à la largeur",
+  "preview.zoom_in": "Agrandir l'aperçu",
+  "preview.zoom_out": "Réduire l'aperçu",
+  "preview.embed": "Réintégrer dans la fenêtre principale",
 
   "filesync.save_title": "Sauvegarder ma version (écrase les changements externes)",
   "filesync.reload_title": "Recharger depuis le disque (récupère les changements externes)",

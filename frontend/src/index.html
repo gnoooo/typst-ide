@@ -237,6 +237,19 @@
                             </li>
                             <li class="separator"></li>
                             <li>
+                                <label class="menu-checkbox">
+                                    <span class="checkbox-box">
+                                        <input
+                                            type="checkbox"
+                                            id="external-preview-toggle"
+                                        />
+                                        <span class="material-symbols-outlined checkbox-check">check</span>
+                                    </span>
+                                    <span data-i18n="menu.external_preview">Preview dans un autre onglet</span>
+                                </label>
+                            </li>
+                            <li class="separator"></li>
+                            <li>
                                 <button id="toggle-console">
                                     <span class="console-label-group">
                                         <span data-i18n="menu.console">Console</span>
@@ -404,6 +417,9 @@
 
                 <div id="preview-manage-btn" class="flex gap-2 justify-end">
                     <!--<button class="tool-btn" id="compile-btn" data-i18n="toolbar.compile">Compiler</button>-->
+                    <button class="tool-btn" id="external-preview-btn" data-i18n-title="toolbar.external_preview">
+                        <span class="material-symbols-outlined" style="font-size: 19px">picture_in_picture</span>
+                    </button>
                     <button class="tool-btn" id="compile-btn">
                         <span class="material-symbols-outlined" style="font-size: 19px">terminal</span>
                     </button>

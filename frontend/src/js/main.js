@@ -18,7 +18,9 @@ import {
   showConsole,
   markConsoleErrorUnread,
   clearConsoleErrorUnread,
+  closeDropdowns,
 } from "./toolbar.js";
+import { initExternalPreview as initExternalPreviewMode, setExternalPreview as setExternalPreviewMode, toggleExternalPreview } from "./external-preview.js";
 import { registerShortcuts } from "./shortcuts.js";
 import {
   unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, scheduleAutosave, notifySaveIndicator, getCurrentProject
@@ -172,6 +174,31 @@ async function main() {
       // Defer focus to let the browser finish processing the iframe click
       setTimeout(() => editor.focus(), 0);
     },
+  });
+
+  // ## External preview window toggle ##############################
+  // Main-window side of the "preview in a separate window" mode: menu
+  // checkbox + toolbar button, both mapped onto the same state.
+  initExternalPreviewMode(
+    () => {
+      // Refresh the current render target: on enable the new preview window is
+      // (re)compiled, on disable the embedded panel gets the latest content.
+      forceCompile();
+    },
+    {
+      // Same actions as the main toolbar buttons, triggered from the preview
+      // window's duplicated toolbar.
+      onCompile: () => forceCompile(),
+      onSavePdf: () => savePdf(editor),
+    },
+  );
+  const externalPreviewToggle = document.getElementById("external-preview-toggle");
+  externalPreviewToggle?.addEventListener("change", () => {
+    setExternalPreviewMode(externalPreviewToggle.checked);
+  });
+  bindMenuAction("external-preview-btn", () => {
+    toggleExternalPreview();
+    closeDropdowns();
   });
 
   // ## Autosave ###################################################

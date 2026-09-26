@@ -1,9 +1,15 @@
 /**
- * Preview panel
- *  compiles Typst source and renders it in the iframe
+ * Preview
+ *  Compiles Typst source and renders it into a preview iframe.
  *
- * Exports a single `initPreview()` function that wires up the editor textarea
- * to the preview iframe via the Tauri `render_preview`
+ * The module has two roles:
+ *  - main window: `initPreview(opts)` wires the editor to the compile pipeline
+ *    and renders into the embedded pane — or, when the external preview window
+ *    is active (`isExternalPreviewActive()`), forwards the compiled pages to it
+ *    via the `preview:update` event instead of writing the local DOM;
+ *  - preview window: the exported render primitives (`renderUpdate`,
+ *    `showPreviewError`, `setupPreviewClickHandler`, zoom helpers) are reused
+ *    to draw pages received from the main window (`preview-window.js`).
  *
  * ## API
  * initPreview(opts)
@@ -11,29 +17,32 @@
  *  * opts.onChange(cb) -> void: registers `cb` to be called whenever the source changes
  *  * opts.preview: HTMLElement container for the preview (used to show error messages)
  *  * opts.frame: HTMLIFrameElement where the compiled HTML should be written
- *  * opts.debounceMs: number of milliseconds to wait after a change before recompiling (default: 100)
+ *  * opts.debounceMs: number of milliseconds to wait after a change before recompiling (default: adaptive)
  *
- * showError(preview, frame, message) -> void
+ * renderUpdate(frame, preview, pages, { jumpPos, autoFit, onZoomChange, onClickRegion }) -> Promise<void>
+ *  * Writes `pages` into `frame` (Blob first load, then incremental hash updates)
+ *
+ * showPreviewError(preview, frame, message) -> void
  *  * Displays the given error message in the preview panel, hiding the iframe
  *
- * clearError(preview, frame) -> void
+ * clearPreviewError(preview, frame) -> void
  *  * Clears any visible error and restores the iframe
  *
- * compile(source, preview, frame) -> Promise<void>
- *  * Compiles the given source and writes the result into `frame`
- *  * Shows an error message on failure. Stale results (superseded by a newer call) are silently dropped.
+ * setupPreviewClickHandler(frame, onRegion) -> void
+ *  * Maps preview clicks to `onRegion(page, x, y)`
  *
- * zoomPreviewIn/Out/Reset() -> void:
+ * zoomPreviewIn/Out/Reset(frameEl?, previewEl?) -> void:
  *  * Adjust the zoom level of the preview iframe
  *
  * getPreviewZoom() -> number:
  *  * Returns the current zoom level as a percentage (e.g. 100)
  *
- * setPreviewZoom(value) -> void:
+ * setPreviewZoom(value, frameEl?, previewEl?) -> void:
  *  * Sets the zoom level, clamped between 20 and 400
  */
 
 const { invoke } = window.__TAURI__.core;
+import { isExternalPreviewActive } from './external-preview.js';
 import { getCurrentProject } from './project.js';
 
 // ### Preview CSS (injected into the iframe on first load) #####################
@@ -202,7 +211,6 @@ function adaptiveThrottleGap(charCount) {
  */
 export function initPreview(opts) {
     _opts = opts;
-    _firstRender = true;
     _frameInitialized = false;
     _clickHandlerSetup = false;
     _pageHashes = [];
@@ -288,9 +296,6 @@ let _compileRunning = false;
  */
 let _pendingRun = false;
 
-/** Whether the first render has happened (for autoFit) */
-let _firstRender = true;
-
 /** Cached source length for adaptive debounce (avoids getValue on every keystroke) */
 let _lastSourceLength = 0;
 
@@ -341,7 +346,7 @@ async function _runCompile() {
 
     _compileRunning = true;
     _pendingRun = false;
-    const { getSource, preview, frame, onDiagnostics, getCursor, autoFit = true, onZoomChange, onSuccess, onError } = _opts;
+    const { getSource, preview, frame, onDiagnostics, getCursor, onZoomChange, onSuccess, onError } = _opts;
 
     // No yield needed: the debounce (100-500ms) already ensures Monaco has processed all keystrokes before we reach here.
     // Adding a requestAnimationFrame+setTimeout here was firing between GTK IME key events (e.g. between Shift keydown and a letter keydown),
@@ -349,12 +354,7 @@ async function _runCompile() {
     const source = getSource();
     _lastSourceLength = source.length;
     try {
-        await _doCompile(source, preview, frame, onDiagnostics, getCursor, onSuccess, onError);
-        if (_firstRender && autoFit) {
-            _firstRender = false;
-            fitPreviewToWidth(preview, frame);
-            onZoomChange?.();
-        }
+        await _doCompile(source, preview, frame, onDiagnostics, getCursor, onZoomChange, onSuccess, onError);
     } finally {
         _compileRunning = false;
         _lastCompileEnd = performance.now();
@@ -372,7 +372,7 @@ async function _runCompile() {
  * @param {HTMLIFrameElement} frame
  * @param {string} message
  */
-function showError(preview, frame, message) {
+export function showPreviewError(preview, frame, message) {
     frame.style.display = 'none';
     preview.querySelector('.error')?.remove();
     const div = document.createElement('div');
@@ -386,7 +386,7 @@ function showError(preview, frame, message) {
  * @param {HTMLElement} preview
  * @param {HTMLIFrameElement} frame
  */
-function clearError(preview, frame) {
+export function clearPreviewError(preview, frame) {
     preview.querySelector('.error')?.remove();
     frame.style.display = '';
 }
@@ -542,13 +542,18 @@ export function scrollToJumpPos(frame, previewContainer, jumpPos) {
 }
 
 /**
- * Sets up a click handler on the iframe contentDocument that maps click positions
- * to source cursor positions via the typst-ide `jump_from_click` function.
+ * Sets up a click handler on the iframe contentDocument that maps click
+ * positions to one of:
+ *  - embedded panel: `onRegion(page, x, y)` resolves the click and moves the
+ *    editor cursor (invoke `resolve_preview_click`);
+ *  - external window: `onRegion(page, x, y)` forwards the coordinates to the
+ *    main window, which performs the resolution there.
  * @param {HTMLIFrameElement} frame
+ * @param {(page: number, x: number, y: number) => void} onRegion
  */
-function setupClickHandler(frame) {
+export function setupPreviewClickHandler(frame, onRegion) {
     const doc = frame.contentDocument;
-    if (!doc) return;
+    if (!doc || typeof onRegion !== 'function') return;
     doc.addEventListener('click', (event) => {
         // Prevent the iframe from claiming focus away from the parent editor.
         event.preventDefault();
@@ -572,33 +577,106 @@ function setupClickHandler(frame) {
         const y = ((event.clientY - rect.top) / rect.height) * vbH;
 
         const page = pageIndex + 1;
-        const source = _opts.getSource();
-        const root = getCurrentProject()?.path ?? null;
-
         console.debug(`[click] page=${page} x=${x.toFixed(1)} y=${y.toFixed(1)}`);
-        // Defer so the browser finishes processing the iframe click before we
-        // send the IPC and potentially move focus to the parent editor.
-        setTimeout(async () => {
-            try {
-                const result = await invoke('resolve_preview_click', {
-                    source,
-                    root,
-                    page,
-                    x,
-                    y,
-                });
-                console.debug('[click] result:', result);
-                if (result) {
-                    _opts.onClickRegion?.(result);
-                }
-            } catch (_) {
-                console.warn('[click] resolve_preview_click threw', _);
-            }
-        }, 0);
+        // Defer so the browser finishes processing the iframe click before the
+        // IPC / event dispatch happens (may move focus back to the editor).
+        setTimeout(() => onRegion(page, x, y), 0);
     });
 }
 
-async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSuccess, onError) {
+/**
+ * click-to-source for the embedded panel: resolves the click against the live
+ * editor source and asks the caller to move the cursor to the result.
+ */
+async function handleRegionClick(page, x, y) {
+    const source = _opts.getSource();
+    const root = getCurrentProject()?.path ?? null;
+    try {
+        const result = await invoke('resolve_preview_click', {
+            source,
+            root,
+            page,
+            x,
+            y,
+        });
+        console.debug('[click] result:', result);
+        if (result) {
+            _opts.onClickRegion?.(result);
+        }
+    } catch (_) {
+        console.warn('[click] resolve_preview_click threw', _);
+    }
+}
+
+/**
+ * Renders compiled pages into a preview frame. Shared by the embedded panel
+ * and the external preview window.
+ *
+ * First load builds a full document and loads it via a Blob URL; subsequent
+ * updates are applied incrementally (only pages whose hash changed), preserving
+ * scroll position.
+ *
+ * @param {HTMLIFrameElement} frame
+ * @param {HTMLElement} preview  scrolling container
+ * @param {Array<{svg: string, hash: string}>} pages
+ * @param {object} [opts]
+ * @param {({page:number,x:number,y:number}|null)} [opts.jumpPos]
+ * @param {boolean} [opts.autoFit=true]
+ * @param {function} [opts.onZoomChange]
+ * @param {function} [opts.onClickRegion] (page, x, y) => void
+ */
+export async function renderUpdate(frame, preview, pages, opts = {}) {
+    const { jumpPos = null, autoFit = true, onZoomChange, onClickRegion } = opts;
+    clearPreviewError(preview, frame);
+
+    if (_frameInitialized && frame.contentDocument?.body) {
+        // ## Incremental update ##########################################
+        // Only touch page divs whose hash has changed.
+        // No iframe navigation → no full SVG re-parse → much faster for
+        // large documents where only a few pages actually changed.
+        // Chunked: yields between pages so keystrokes are processed during
+        // the write instead of freezing the UI for the whole update.
+        await _applyIncrementalUpdate(frame, pages);
+        // Resize the iframe shell to fit potentially new content height.
+        // Must happen before scrollToJumpPos so the parent container's
+        // scroll range reflects the new content height; otherwise the
+        // scrollTop is clamped to the stale range and the preview appears
+        // to jump to the end of the document.
+        requestAnimationFrame(() => {
+            const doc = frame.contentDocument;
+            const beforeHeight = frame.style.height;
+            const scrollH = doc.documentElement.scrollHeight;
+            const beforeScroll = preview.scrollTop;
+            const beforeClientH = preview.clientHeight;
+            // Make iframe fit container height so it scrolls internally
+            frame.style.height = beforeClientH + 'px';
+            frame.style.overflow = 'hidden auto';
+            if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+            console.debug(
+                `[rAF] beforeHeight=${beforeHeight} frameH=${frame.clientHeight} ` +
+                `scrollH=${scrollH} docEl.scrollTop=${doc.documentElement.scrollTop}`
+            );
+        });
+    } else {
+        // ## First load ##################################################
+        // Assemble full HTML from page array and load via Blob URL.
+        const html = _buildPreviewHtml(pages);
+        _lastHtml = html;
+        _pageHashes = pages.map(p => p.hash);
+        await loadHtml(frame, html);
+        if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+        if (autoFit) {
+            fitPreviewToWidth(preview, frame);
+            onZoomChange?.();
+        }
+    }
+    if (!_clickHandlerSetup && onClickRegion && frame.contentDocument) {
+        setupPreviewClickHandler(frame, onClickRegion);
+        _clickHandlerSetup = true;
+    }
+}
+
+async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onZoomChange, onSuccess, onError) {
     const cursor = getCursor?.() ?? null;
     const t0 = performance.now();
     try {
@@ -611,51 +689,25 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
         const { pages, jump_pos: jumpPos, timings } = result;
         _lastJumpPos = jumpPos ?? null;
         console.debug('[compile] jumpPos:', jumpPos);
-        clearError(preview, frame);
 
-        const tWrite = performance.now();
-        if (_frameInitialized && frame.contentDocument?.body) {
-            // ## Incremental update ##########################################
-            // Only touch page divs whose hash has changed.
-            // No iframe navigation → no full SVG re-parse → much faster for
-            // large documents where only a few pages actually changed.
-            // Chunked: yields between pages so keystrokes are processed during
-            // the write instead of freezing the UI for the whole update.
-            await _applyIncrementalUpdate(frame, pages);
-            // Resize the iframe shell to fit potentially new content height.
-            // Must happen before scrollToJumpPos so the parent container's
-            // scroll range reflects the new content height; otherwise the
-            // scrollTop is clamped to the stale range and the preview appears
-            // to jump to the end of the document.
-            requestAnimationFrame(() => {
-                const doc = frame.contentDocument;
-                const beforeHeight = frame.style.height;
-                const scrollH = doc.documentElement.scrollHeight;
-                const beforeScroll = preview.scrollTop;
-                const beforeClientH = preview.clientHeight;
-                // Make iframe fit container height so it scrolls internally
-                frame.style.height = beforeClientH + 'px';
-                frame.style.overflow = 'hidden auto';
-                if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
-                console.debug(
-                    `[rAF] beforeHeight=${beforeHeight} frameH=${frame.clientHeight} ` +
-                    `scrollH=${scrollH} docEl.scrollTop=${doc.documentElement.scrollTop}`
-                );
+        let writeMs = 0;
+        if (isExternalPreviewActive()) {
+            // Preview window is open: forward the compiled pages there, it owns
+            // the DOM writing, the auto-fit and the error overlay.
+            window.__TAURI__.event.emit('preview:update', {
+                pages,
+                jumpPos: _lastJumpPos,
             });
         } else {
-            // ## First load ##################################################
-            // Assemble full HTML from page array and load via Blob URL.
-            const html = _buildPreviewHtml(pages);
-            _lastHtml = html;
-            _pageHashes = pages.map(p => p.hash);
-            await loadHtml(frame, html);
-            if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
+            const tWrite = performance.now();
+            await renderUpdate(frame, preview, pages, {
+                jumpPos: _lastJumpPos,
+                autoFit: true,
+                onZoomChange,
+                onClickRegion: handleRegionClick,
+            });
+            writeMs = Math.round(performance.now() - tWrite);
         }
-        if (!_clickHandlerSetup && frame.contentDocument) {
-            setupClickHandler(frame);
-            _clickHandlerSetup = true;
-        }
-        const writeMs = Math.round(performance.now() - tWrite);
         onDiagnostics?.([]);
         onSuccess?.();
         // Profiling is gated behind a localStorage flag (default off) so
@@ -677,14 +729,18 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onSu
                 return `${d.message}${loc}`;
               }).join('\n')
             : String(error);
-        showError(preview, frame, msg);
+        if (isExternalPreviewActive()) {
+            window.__TAURI__.event.emit('preview:update', { hasError: true, message: msg });
+        } else {
+            showPreviewError(preview, frame, msg);
+        }
         onError?.(diagnostics, msg);
     }
 }
 
-export function zoomPreviewIn()    { setPreviewZoom(previewZoom + 10); }
-export function zoomPreviewOut()   { setPreviewZoom(previewZoom - 10); }
-export function zoomPreviewReset() { setPreviewZoom(100); }
+export function zoomPreviewIn(frameEl, previewEl)    { setPreviewZoom(previewZoom + 10, frameEl, previewEl); }
+export function zoomPreviewOut(frameEl, previewEl)   { setPreviewZoom(previewZoom - 10, frameEl, previewEl); }
+export function zoomPreviewReset(frameEl, previewEl) { setPreviewZoom(100, frameEl, previewEl); }
 export function getPreviewZoom() { return previewZoom; }
 
 /**
@@ -709,13 +765,13 @@ export function fitPreviewToWidth(previewEl, frameEl) {
     const available = preview.clientWidth - 16;
     if (available <= 0) return;
 
-    setPreviewZoom(Math.floor((available / naturalWidth) * 100));
+    setPreviewZoom(Math.floor((available / naturalWidth) * 100), frame, preview);
 }
 
-export function setPreviewZoom(value) {
+export function setPreviewZoom(value, frameEl, previewEl) {
     previewZoom = Math.min(400, Math.max(20, value));
-    const frame   = document.getElementById('preview-frame');
-    const preview = document.getElementById('preview');
+    const frame   = frameEl   ?? document.getElementById('preview-frame');
+    const preview = previewEl ?? document.getElementById('preview');
     if (!frame || !preview || !frame.contentDocument?.body) return;
     frame.contentDocument.body.style.zoom = previewZoom / 100;
     frame.style.height = preview.clientHeight + 'px';

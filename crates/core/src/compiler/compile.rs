@@ -552,7 +552,12 @@ mod tests {
         let content = "Hello world";
 
         let res = compile_to_preview_html(root.as_deref(), content, None)
-            .map_err(|d| d.iter().map(|x| x.message.clone()).collect::<Vec<_>>().join("; "))
+            .map_err(|d| {
+                d.iter()
+                    .map(|x| x.message.clone())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            })
             .expect("compile_to_preview_html should succeed for plain text");
         assert!(!res.pages.is_empty());
 

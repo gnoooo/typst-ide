@@ -9,13 +9,15 @@
   ],
   "windows": [
     "main",
-    "tutorial"
+    "tutorial",
+    "preview"
   ],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
     "core:window:allow-show",
     "core:window:allow-set-focus",
+    "core:window:allow-close",
     "clipboard-manager:allow-read-text",
     "clipboard-manager:allow-read-image",
     "clipboard-manager:allow-write-text",

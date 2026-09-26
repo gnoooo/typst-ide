@@ -26,7 +26,8 @@ export default defineConfig({
       // inputs are the pages inside the `root` (src)
       input: {
         index: path.resolve(__dirname, 'src/index.html'),
-        tutorial: path.resolve(__dirname, 'src/tutorial.html')
+        tutorial: path.resolve(__dirname, 'src/tutorial.html'),
+        preview_window: path.resolve(__dirname, 'src/preview.html')
       },
       output: {
         entryFileNames: '[name].js',

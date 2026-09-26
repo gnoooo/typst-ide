@@ -5,4 +5,5 @@ pub mod export;
 pub mod fs;
 pub mod misc;
 pub mod preview;
+pub mod preview_window;
 pub mod templates;

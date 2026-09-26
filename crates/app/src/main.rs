@@ -9,6 +9,7 @@ mod tests;
 
 use std::sync::Arc;
 use std::sync::Mutex;
+use tauri::Emitter;
 use tauri::Manager;
 use tokio::sync::Semaphore;
 use typst_ide_core::database::{history_db, notes_db};
@@ -20,6 +21,7 @@ use commands::export;
 use commands::fs;
 use commands::misc;
 use commands::preview;
+use commands::preview_window;
 use commands::templates;
 use state::{CompileState, HistoryDbState, NotesDbState};
 
@@ -99,6 +101,19 @@ fn main() {
 
             Ok(())
         })
+        // When the preview window is destroyed (close button or "re-embed"),
+        // tell the main window to restore the classic split layout. The Rust
+        // event is more reliable than a JS farewell message: it also fires
+        // on abrupt destruction.
+        .on_window_event(|window, event| {
+            if window.label() == preview_window::PREVIEW_WINDOW_LABEL
+                && matches!(event, tauri::WindowEvent::Destroyed)
+            {
+                let _ = window
+                    .app_handle()
+                    .emit(preview_window::PREVIEW_WINDOW_CLOSED_EVENT, ());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             preview::render_preview,
             preview::invalidate_file_cache,
@@ -157,7 +172,10 @@ fn main() {
             config::collect_export_data,
             config::import_notes_data,
             config::import_history_data,
-            config::import_templates_data
+            config::import_templates_data,
+            preview_window::ensure_preview_window,
+            preview_window::close_preview_window,
+            preview_window::preview_window_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

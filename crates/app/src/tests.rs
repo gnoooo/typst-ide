@@ -125,6 +125,20 @@ fn project_id_is_deterministic() {
 }
 
 #[test]
+fn preview_window_absent_on_fresh_app() {
+    // No window is created for a mock app: both status commands must report
+    // that the preview window does not exist.
+    let app = mock_app();
+    let handle = app.handle().clone();
+    assert!(!crate::commands::preview_window::preview_window_status(
+        handle.clone()
+    ));
+    assert!(!crate::commands::preview_window::close_preview_window(
+        handle
+    ));
+}
+
+#[test]
 fn suggest_font_returns_none_for_unknown_names() {
     // Iterating the font families must not panic, and a garbage name is far
     // from any real family (edit distance > 5).
