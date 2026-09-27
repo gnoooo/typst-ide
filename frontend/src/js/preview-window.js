@@ -27,10 +27,18 @@ import {
 
 async function main() {
   // Follow the editor theme for the window chrome.
-  document.documentElement.setAttribute(
-    "data-theme",
-    localStorage.getItem("theme") || "light",
-  );
+  const initialTheme = localStorage.getItem("theme") || "light";
+  document.documentElement.setAttribute("data-theme", initialTheme);
+
+  // Listen for theme changes from the main window.
+  window.__TAURI__.event.listen("theme:changed", (event) => {
+    const { theme } = event.payload ?? {};
+    if (theme) {
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
+    }
+  });
+
   initI18n();
 
   // Apply the same persisted webview zoom as the main window so the toolbar

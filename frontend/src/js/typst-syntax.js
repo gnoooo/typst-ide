@@ -211,7 +211,7 @@ const tokenizer = {
 // ## Colors: token -> { light, dark } #####################################
 
 const COLORS = {
-    heading:      { light: '#0f6ab4', dark: '#56a8f5' },
+    heading:      { light: '#0f6ab4', dark: '#9DB2BF' },
     strong:       { light: '#a626a4', dark: '#d67cd6' },
     emphasis:     { light: '#a626a4', dark: '#d67cd6' },
     math:         { light: '#986801', dark: '#d19a66' },
@@ -219,14 +219,14 @@ const COLORS = {
     string:       { light: '#a31515', dark: '#ce9178' },
     escape:       { light: '#c2185b', dark: '#d16969' },
     punctuation:  { light: '#8a8a8a', dark: '#808080' },
-    symbol:       { light: '#0184bc', dark: '#61afef' },
-    link:         { light: '#0f6ab4', dark: '#4fc1ff' },
+    symbol:       { light: '#0184bc', dark: '#AFC3CF' },
+    link:         { light: '#0f6ab4', dark: '#8EB0C6' },
     comment:      { light: '#2e7d32', dark: '#6a9955' },
-    label:        { light: '#0f6ab4', dark: '#4fc1ff' },
-    reference:    { light: '#0f6ab4', dark: '#4fc1ff' },
+    label:        { light: '#0f6ab4', dark: '#8EB0C6' },
+    reference:    { light: '#0f6ab4', dark: '#8EB0C6' },
     keyword:      { light: '#a626a4', dark: '#c586c0' },
-    function:     { light: '#0f6ab4', dark: '#56b6c2' },
-    variable:     { light: '#0184bc', dark: '#61afef' },
+    function:     { light: '#0f6ab4', dark: '#7FB0BD' },
+    variable:     { light: '#0184bc', dark: '#AFC3CF' },
     operator:     { light: '#7a3e9d', dark: '#d4d4d4' },
     constant:     { light: '#986801', dark: '#d19a66' },
     number:       { light: '#986801', dark: '#d19a66' },
@@ -270,10 +270,14 @@ function defineTheme(themeName, base) {
         .filter(([, c]) => c && c[baseDarkName(base)] !== undefined)
         .map(([token, c]) => ({ token, foreground: c[baseDarkName(base)] }));
 
+    const colors = base === 'vs-dark'
+        ? { 'editor.background': '#27374D' }
+        : {};
+
     monaco.editor.defineTheme(themeName, {
         base,
         inherit: true,
-        colors: {},
+        colors,
         rules,
     });
 }

@@ -38,6 +38,7 @@
   "menu.docs_typst": "Documentation Typst",
   "menu.official_repo": "Repo officiel de Typst IDE",
   "menu.language": "Langue",
+  "menu.theme": "Thème sombre",
 
   "toolbar.compile": "Compiler",
   "toolbar.save": "Save",

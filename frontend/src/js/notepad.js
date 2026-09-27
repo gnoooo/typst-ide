@@ -289,7 +289,7 @@ async function editNote(note) {
     titleInput.type = 'text';
     titleInput.placeholder = t('notepad.note_title');
     titleInput.value = String(note.title ?? '');
-    titleInput.style.cssText = 'width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;';
+    titleInput.style.cssText = 'width:100%;margin-bottom:0.5rem;padding:0.5rem;font-size:1rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);';
     body.appendChild(titleInput);
 
     const scopeLabel = document.createElement('label');
@@ -315,7 +315,7 @@ async function editNote(note) {
 
     const textarea = document.createElement('textarea');
     textarea.placeholder = t('notepad.note_content');
-    textarea.style.cssText = 'flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid #cecece;border-radius:6px;';
+    textarea.style.cssText = 'flex:1;width:100%;padding:0.5rem;font-size:1rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-input);color:var(--text);';
     textarea.style.fontFamily = getCurrentFontFamily();
     textarea.value = String(note.content ?? '');
     body.appendChild(textarea);

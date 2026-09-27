@@ -75,7 +75,7 @@ export function initTheme(onThemeChange) {
     applyTheme(saved, toggle, onThemeChange);
 
     toggle.addEventListener('change', () => {
-        const theme = toggle.checked ? 'light' : 'dark';
+        const theme = toggle.checked ? 'dark' : 'light';
         localStorage.setItem('theme', theme);
         applyTheme(theme, toggle, onThemeChange);
     });
@@ -83,7 +83,10 @@ export function initTheme(onThemeChange) {
 
 function applyTheme(theme, toggle, cb) {
     document.documentElement.setAttribute('data-theme', theme);
-    toggle.checked = theme === 'light';
+    toggle.checked = theme === 'dark';
+    if (window.__TAURI__?.event) {
+        window.__TAURI__.event.emit('theme:changed', { theme });
+    }
     cb?.(theme);
 }
 
