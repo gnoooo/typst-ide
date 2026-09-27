@@ -24,7 +24,7 @@ Les items sont groupés par priorité.
 - [x] Créer un workflow CI pour les PR (build + tests) en plus du workflow de release
 - [ ] Ajouter un job macOS au build de release
 - [ ] Réparer bundle AppImage
-- [ ] Bundle Windows exécutable (et non setup NSIS)
+- [x] Bundle Windows exécutable (et non setup NSIS)
 
 ## Fonctionnalités
 
@@ -35,7 +35,7 @@ Les items sont groupés par priorité.
 - [ ] Export des pages du preview en PNG/SVG (le PDF est seul export actuel)
 - [x] Fonctionnalité de commentaire (ajout d'une typo "// COMMENT:" qui sera surligné + trouvable dans un "carnet de commentaire" (fenêtre popup) + ajout d'un bouton pour ajouter un commentaire)
   - Implémentée en septembre 2026 : système modulaire de keytags (`frontend/src/js/comments/`) — registre configurable (mot-clé, label, couleur, activé) persisté en localStorage, détection dans les commentaires `//` et `/* */`, surlignage Monaco ligne entière, carnet de commentaires (recherche, filtres, clic → curseur), bouton d'ajout et fenêtre de gestion des keytags.
-- [ ] Preview dans un autre onglet (Si activé : éditeur qui prend toute la place sur la fenêtre principale. Si fenêtre tuée (croix), l'affichage de Typst-IDE redevient normal)
+- [x] Preview dans un autre onglet (Si activé : éditeur qui prend toute la place sur la fenêtre principale. Si fenêtre tuée (croix), l'affichage de Typst-IDE redevient normal)
 - [x] Exportation de configuration
 - [x] Importation de configuration
 - [ ] Mode sombre

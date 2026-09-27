@@ -76,6 +76,12 @@ jobs:
 
       - name: Build app
         working-directory: crates/app
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        run: NO_STRIP=1 tauri build --target ${{ matrix.target }} --bundles nsis,windows
+
+      - name: Build app
+        working-directory: crates/app
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
         run: NO_STRIP=1 tauri build --target ${{ matrix.target }}
 
       - name: Upload AppImage (Linux)
@@ -106,8 +112,16 @@ jobs:
         if: matrix.target == 'x86_64-pc-windows-gnu'
         uses: actions/upload-artifact@v4
         with:
-          name: typst-ide-windows
+          name: typst-ide-windows-installer
           path: target/${{ matrix.target }}/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Upload Windows portable executable
+        if: matrix.target == 'x86_64-pc-windows-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name: typst-ide-windows-portable
+          path: target/${{ matrix.target }}/release/bundle/windows/*.exe
           if-no-files-found: error
 
   release:
