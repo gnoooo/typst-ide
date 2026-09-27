@@ -1241,6 +1241,17 @@ div.flex.items-center.gap-1>button.action-btn:first-child {
     background: var(--resize-hover);
 }
 
+/* While dragging the split handle: the preview iframe would otherwise
+   swallow mousemove/mouseup (events never reach the parent document),
+   leaving the drag stuck. Disable its hit-testing for the duration. */
+body.resizing {
+    cursor: col-resize;
+    user-select: none;
+}
+body.resizing iframe {
+    pointer-events: none;
+}
+
 /*  Editor  */
 .editor-container {
     flex: 1;

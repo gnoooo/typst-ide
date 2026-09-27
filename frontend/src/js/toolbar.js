@@ -180,13 +180,19 @@ function initResizeHandle() {
     let startX   = 0;
     let startEditorWidth = 0;
 
+    function stopDrag() {
+        if (!dragging) return;
+        dragging = false;
+        handle.classList.remove('dragging');
+        document.body.classList.remove('resizing');
+    }
+
     handle.addEventListener('mousedown', (e) => {
         dragging = true;
         startX = e.clientX;
         startEditorWidth = editorPane.getBoundingClientRect().width;
         handle.classList.add('dragging');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
+        document.body.classList.add('resizing');
         e.preventDefault();
     });
 
@@ -200,11 +206,6 @@ function initResizeHandle() {
         previewPane.style.flex = `0 0 ${100 - pct}%`;
     });
 
-    document.addEventListener('mouseup', () => {
-        if (!dragging) return;
-        dragging = false;
-        handle.classList.remove('dragging');
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    });
+    document.addEventListener('mouseup', stopDrag);
+    window.addEventListener('blur', stopDrag);
 }
