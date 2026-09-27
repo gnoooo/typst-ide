@@ -17,7 +17,7 @@
 ### New in v1.6.7
 
 - **Preview in a separate window** : the compiled preview can be detached into its own window (checkbox in the **View** menu or toolbar button). The main window then gives all its space to the editor; closing the preview window (X or the "re-embed" button) restores the split layout, detected Rust-side so an abrupt close still restores it. The dedicated window has its own toolbar (zoom, compile, save PDF, re-embed), keeps click-to-source working, and reuses the saved webview zoom.
-- **Windows portable executable** : the release CI now publishes, alongside the NSIS installer, a standalone `.exe` that runs without installation.
+- **Windows portable executable** : the release CI now publishes, alongside the NSIS installer, the raw standalone `.exe` produced by the same build (no installation required).
 
 ### Improvements
 
