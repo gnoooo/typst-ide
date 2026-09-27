@@ -371,13 +371,15 @@ mod tests {
     fn file_entries_are_re_read_when_disk_content_changes() {
         let dir = tempdir().unwrap();
         let (world, img_path) = test_world(dir.path());
-        std::fs::write(&img_path, b"version-1").unwrap();
+        std::fs::write(&img_path, b"v1").unwrap();
         let id = project_file_id("img.png");
 
         let first = world.file(id).unwrap();
-        assert_eq!(&first.bytes[..], b"version-1");
+        assert_eq!(&first.bytes[..], b"v1");
 
         // External rewrite, e.g. a script regenerating the image in place.
+        // Use a different length so the (len, mtime) fingerprint always changes
+        // even on filesystems with coarse mtime resolution (CI, tmpfs, NFS).
         std::fs::write(&img_path, b"version-2").unwrap();
 
         // Same world, cache NOT reset: the staleness check must re-read it.
