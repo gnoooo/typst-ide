@@ -696,13 +696,6 @@ pub async fn replace_file(
 #[tauri::command]
 pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let p = std::path::PathBuf::from(&path);
-        let target = if p.is_file() {
-            p.parent().unwrap_or(&p).to_path_buf()
-        } else {
-            p.clone()
-        };
-
         #[cfg(target_os = "windows")]
         {
             let dir_arg = format!("/select,{}", path);
@@ -713,6 +706,7 @@ pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
         }
         #[cfg(target_os = "macos")]
         {
+            let p = std::path::PathBuf::from(&path);
             let res = if p.is_file() {
                 std::process::Command::new("open")
                     .arg("-R")
@@ -725,6 +719,12 @@ pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
         }
         #[cfg(target_os = "linux")]
         {
+            let p = std::path::PathBuf::from(&path);
+            let target = if p.is_file() {
+                p.parent().unwrap_or(&p).to_path_buf()
+            } else {
+                p
+            };
             std::process::Command::new("xdg-open")
                 .arg(&target)
                 .spawn()
@@ -732,7 +732,7 @@ pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
         }
         #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
         {
-            let _ = target;
+            let _ = path;
             return Err("Système d'exploitation non supporté.".to_string());
         }
         Ok(())

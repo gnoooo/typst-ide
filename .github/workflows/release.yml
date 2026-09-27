@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,8 +15,11 @@ jobs:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-22.04
 
+          # ubuntu-24.04 ships NSIS 3.09 (Win/RestartManager.nsh, required by
+          # tauri-cli >= 2.12); jammy's NSIS 3.08 lacks it. The Windows binary
+          # is host-glibc independent, so a newer runner is fine here.
           - target: x86_64-pc-windows-gnu
-            os: ubuntu-22.04
+            os: ubuntu-24.04
 
     runs-on: ${{ matrix.os }}
 
@@ -72,7 +76,9 @@ jobs:
         run: npm run build
 
       - name: Install Tauri CLI
-        run: npm install -g @tauri-apps/cli
+        # Pinned: newer CLI releases can require newer NSIS tooling on the
+        # runner (this is what broke the 2.12 template on ubuntu-22.04).
+        run: npm install -g @tauri-apps/cli@2.12.0
 
       - name: Build app
         working-directory: crates/app
@@ -120,6 +126,9 @@ jobs:
 
   release:
     needs: build
+    # Manual runs (workflow_dispatch) only build and upload artifacts; the
+    # GitHub release itself is created for tag pushes only.
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-22.04
     permissions:
       contents: write
