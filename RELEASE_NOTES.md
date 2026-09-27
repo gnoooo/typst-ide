@@ -1,5 +1,39 @@
 # Release Notes
 
+## v1.6.9
+
+### Fixes
+
+- **Split resize no longer gets stuck** : dragging the editor/preview handle stopped working as soon as the cursor crossed the preview iframe, which swallowed `mousemove`/`mouseup` (the drag stayed "pressed" until the pointer reached the toolbar). Iframe hit-testing is now disabled for the duration of the drag and the drag is cancelled when the window loses focus, so the handle follows the cursor everywhere and the preview can be shrunk freely.
+
+## v1.6.8
+
+### New in v1.6.8
+
+- **Dark theme** : a "Dark theme" checkbox in the **Help** menu switches the whole interface (light remains the default). The palette is a soft slate blue rather than pure black; the Monaco editor background and syntax colors are aligned with it, and the preview window follows theme changes live. All UI colors were tokenized (no more hardcoded colors in CSS/JS), notepad included.
+
+## v1.6.7
+
+### New in v1.6.7
+
+- **Preview in a separate window** : the compiled preview can be detached into its own window (checkbox in the **View** menu or toolbar button). The main window then gives all its space to the editor; closing the preview window (X or the "re-embed" button) restores the split layout, detected Rust-side so an abrupt close still restores it. The dedicated window has its own toolbar (zoom, compile, save PDF, re-embed), keeps click-to-source working, and reuses the saved webview zoom.
+- **Windows portable executable** : the release CI now publishes, alongside the NSIS installer, a standalone `.exe` that runs without installation.
+
+### Improvements
+
+- **Preview window chrome unified with the main window** : flat toolbar (no more card-like border/radius), rounded content panel, title `Typst IDE : Preview`.
+
+### For developers
+
+- `Cargo.lock` is now committed for reproducible builds.
+- The disk-cache staleness test now uses contents of different lengths, so the (size, mtime) fingerprint always changes on filesystems with coarse mtime resolution (CI, tmpfs, NFS).
+
+## v1.6.6
+
+### New in v1.6.6
+
+- **Configuration export / import** : the whole user configuration can be exported to a single JSON file and re-imported elsewhere (Help menu). The picker modal lets you include or exclude each section such as: Settings (theme, language, auto-compile, console options, editor font, webview zoom), Markers, Notes, History and local Templates ; and greys out the ones with nothing to share. Import is incremental and never destructive: notes and history merge without duplicates, existing template files are skipped, and unknown settings are ignored (forward-compatible format).
+
 ## v1.6.5
 
 ### Improvements
