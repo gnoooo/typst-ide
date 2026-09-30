@@ -9,9 +9,12 @@
 #   ./manage.sh check                     Cohérence des versions + cargo fmt/check
 #   ./manage.sh test                      Tests du workspace
 #   ./manage.sh build [cibles] [opts]     Build frontend + bundles Tauri
-#                                           cibles   : frontend | rust | appimage | deb | rpm | nsis | all (défaut)
-#                                           options  : --target <triple>           cross-compilation (ex. x86_64-unknown-linux-gnu)
+#                                           cibles   : frontend | rust | appimage | deb | rpm | nsis | windows | all (défaut)
+#                                                      windows = installateur NSIS + exe portable
+#                                                      all     = bundles natifs + Windows (toolchain host, ou conteneur)
+#                                           options  : --target <triple>           cross-compilation (ex. x86_64-pc-windows-msvc)
 #                                                      --container                 build release dans un conteneur ubuntu:22.04
+#                                                                                  (Windows y est cross-compilé en MSVC via cargo-xwin, comme la CI)
 #                                                      --container-image <image>   image de base (défaut : ubuntu:22.04)
 #                                                      --container-rebuild         reconstruit l'image de build sans cache
 #   ./manage.sh fix-appimage [chemin]     Rejoue le post-traitement AppImage (docs/appimage.md)
@@ -19,11 +22,13 @@
 #   ./manage.sh help                      Cette aide
 
 # Exemples:
-#   ./manage.sh build                            # frontend + appimage + deb + rpm
-#   ./manage.sh build appimage                   # seulement l'AppImage (post-traitée)
-#   ./manage.sh build appimage,deb,rpm           # plusieurs cibles
-#   ./manage.sh build appimage --container       # équivalent de la CI (ubuntu:22.04)
-#   ./manage.sh build rust                       # ancien comportement (frontend + cargo release)
+#   ./manage.sh build                                     # natif + Windows (host, ou MSVC en conteneur)
+#   ./manage.sh build appimage                            # seulement l'AppImage (post-traitée)
+#   ./manage.sh build appimage,deb,rpm                    # plusieurs cibles
+#   ./manage.sh build windows                             # installateur NSIS + exe portable (cross Linux)
+#   ./manage.sh build windows --container                 # idem mais MSVC via cargo-xwin (parité CI)
+#   ./manage.sh build appimage,deb,rpm,windows --container  # tout, comme la CI
+#   ./manage.sh build rust                                # ancien comportement (frontend + cargo release)
 # ===================================================================================================
 
 set -euo pipefail
@@ -43,7 +48,7 @@ SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Helpers
 # ---------------------
 usage() {
-    sed -n '4,26p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '4,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 die() { echo "manage: $*" >&2; exit 1; }
@@ -412,6 +417,87 @@ tauri_cmd() {
   return 1
 }
 
+# ---------------------
+# Windows (cross-compilation depuis Linux)
+# ---------------------
+
+# Seul triple Windows utilisé par le projet (voir .cargo/config.toml).
+WINDOWS_TARGET="x86_64-pc-windows-gnu"
+
+is_windows_shell() {
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+target_is_windows() {
+  case "$1" in
+    *windows*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Vérifie que le makensis système sait produire un installeur (stubs inclus).
+# Test fonctionnel : accepte aussi un makensis custom/wrapper dans le PATH.
+nsis_usable() {
+  command -v makensis >/dev/null 2>&1 || return 1
+  local tmp
+  tmp="$(mktemp -d)"
+  printf 'Name "probe"\nOutFile "%s/probe.exe"\nSection\nSectionEnd\n' "$tmp" > "$tmp/probe.nsi"
+  if makensis -V1 "$tmp/probe.nsi" >/dev/null 2>&1; then
+    rm -rf "$tmp"
+    return 0
+  fi
+  rm -rf "$tmp"
+  return 1
+}
+
+# Liste (vide si tout est là) des prérequis manquants pour le cross Windows.
+windows_prereqs_missing() {
+  local missing="" libdir
+  if ! command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+    missing="mingw64-gcc"
+  fi
+  libdir="$(rustc --print target-libdir --target "$WINDOWS_TARGET" 2>/dev/null || true)"
+  if [ -z "$libdir" ] || [ ! -d "$libdir" ]; then
+    missing="${missing:+$missing }rust-std-static-x86_64-pc-windows-gnu"
+  fi
+  # Sur Linux, Tauri appelle le `makensis` système : il doit fournir les stubs
+  # (paquet séparé sur Fedora, ex. `mingw32-nsis`).
+  if ! nsis_usable; then
+    missing="${missing:+$missing }nsis"
+  fi
+  printf '%s\n' "$missing"
+}
+
+windows_prereqs_ok() { [ -z "$(windows_prereqs_missing)" ]; }
+
+windows_prereqs_hint() {
+  echo "    prérequis Windows manquants : $(windows_prereqs_missing)" >&2
+  echo "    Fedora : sudo dnf install mingw64-gcc mingw64-gcc-c++ rust-std-static-x86_64-pc-windows-gnu mingw32-nsis" >&2
+  echo "    Arch   : sudo pacman -S mingw-w64-gcc nsis  puis  rustup target add x86_64-pc-windows-gnu" >&2
+  echo "    Debian : sudo apt install gcc-mingw-w64-x86-64 nsis  puis  rustup target add x86_64-pc-windows-gnu" >&2
+}
+
+# Copie l'exe portable avec le même nom que la CI (le WebView2Loader.dll requis
+# par MinGW reste à côté, dans le même dossier release/).
+package_windows_portable() {
+  local wt="${1:-}" version base exe out dll
+  version="$(tauri_version)"
+  base="$REPO_ROOT/target"
+  [ -n "$wt" ] && base="$base/$wt"
+  exe="$base/release/typst-ide.exe"
+  out="$base/release/Typst IDE_${version}_x64-portable.exe"
+  [ -f "$exe" ] || die "    exe Windows introuvable: $exe"
+  cp -f "$exe" "$out"
+  echo "    portable : $out"
+  dll="$base/release/WebView2Loader.dll"
+  if [ -f "$dll" ]; then
+    echo "    note     : MinGW requiert WebView2Loader.dll à côté du portable (déjà présente)"
+  fi
+}
+
 # Build dans le conteneur de release (voir scripts/build/Containerfile.ubuntu2204
 # et docs/appimage.md). Liste et target sont passés par variables d'environnement.
 build_in_container() {
@@ -483,31 +569,75 @@ cmd_build() {
     done
   fi
 
+  # Validation du triple éventuel.
+  if [ -n "$target" ] && ! rustc --print target-list 2>/dev/null | grep -qx "$target"; then
+    die "triple cible inconnu: $target"
+  fi
+
   # Résolution de `all` selon l'OS + déduplication.
-  local list=""
+  # `all` sur Linux inclut Windows (cross) quand la toolchain est présente ;
+  # en conteneur, Windows n'est jamais ajouté (toolchain Linux uniquement).
+  local list="" windows_skipped=0
   add_target() { case " $list " in *" $1 "*) ;; *) list="${list:+$list }$1" ;; esac; }
   local t
   for t in "${targets[@]}"; do
     case "$t" in
       all)
-        case "$(uname -s)" in
-          Linux)                add_target appimage; add_target deb; add_target rpm ;;
-          MINGW*|MSYS*|CYGWIN*) add_target nsis ;;
-          *)                    die "OS non supporté pour la cible 'all': $(uname -s)" ;;
-        esac
+        if [ -n "$target" ]; then
+          if target_is_windows "$target"; then
+            add_target windows
+          else
+            add_target appimage; add_target deb; add_target rpm
+          fi
+        elif is_windows_shell; then
+          add_target nsis
+          add_target windows
+        else
+          add_target appimage; add_target deb; add_target rpm
+          if [ "$use_container" = "1" ]; then
+            # In the release container, Windows is cross-compiled to MSVC with
+            # cargo-xwin (CI parity), no host toolchain needed.
+            add_target windows
+          elif windows_prereqs_ok; then
+            add_target windows
+          else
+            windows_skipped=1
+          fi
+        fi
         ;;
-      frontend|rust|appimage|deb|rpm|nsis) add_target "$t" ;;
-      *) die "cible inconnue: $t (attendu: frontend|rust|appimage|deb|rpm|nsis|all)" ;;
+      frontend|rust|appimage|deb|rpm|nsis|windows) add_target "$t" ;;
+      *) die "cible inconnue: $t (attendu: frontend|rust|appimage|deb|rpm|nsis|windows|all)" ;;
     esac
   done
+
+  # Groupes demandés.
+  local native_bundles="" want_nsis=0 want_windows=0
+  for t in appimage deb rpm; do
+    echo " $list " | grep -qw "$t" && native_bundles="${native_bundles:+$native_bundles,}$t"
+  done
+  echo " $list " | grep -qw nsis && want_nsis=1
+  echo " $list " | grep -qw windows && want_windows=1
+  local has_windows=$(( (want_nsis || want_windows) ? 1 : 0 ))
+
+  # Garde-fous --target.
+  if [ -n "$target" ]; then
+    if target_is_windows "$target"; then
+      [ -n "$native_bundles" ] && die "--target $target ne peut pas produire appimage/deb/rpm (cibles Linux)"
+    else
+      [ "$has_windows" = "1" ] && die "--target $target ne peut pas produire l'installateur Windows (utilise un triple *windows*)"
+    fi
+  fi
 
   echo "Cibles : ${BOLD}$list${NC}"
   echo
 
+  if [ "$windows_skipped" = "1" ] && [ "$use_container" = "0" ]; then
+    echo "${YELLOW}Windows ignoré pour 'all'${NC} (prérequis absents) :"
+    windows_prereqs_hint
+    echo
+  fi
+
   if [ "$use_container" = "1" ]; then
-    case " $list " in
-      *" nsis "*) die "--container ne supporte pas la cible nsis (le bundle Windows est construit par la CI)" ;;
-    esac
     build_in_container "$list" "$target" "$image" "$rebuild"
     echo
     local out_base="target/container"
@@ -516,7 +646,20 @@ cmd_build() {
     if echo " $list " | grep -qw appimage; then
       echo "            ${BOLD}${out_base}/release/bundle/appimage/typst-ide-$(tauri_version)-x86_64.AppImage${NC}"
     fi
+    if [ "$has_windows" = "1" ]; then
+      local win_target="${target:-x86_64-pc-windows-msvc}"
+      echo "            ${BOLD}target/container/${win_target}/release/bundle/nsis/*.exe${NC}"
+      if [ "$want_windows" = "1" ]; then
+        echo "            ${BOLD}target/container/${win_target}/release/Typst IDE_$(tauri_version)_x64-portable.exe${NC}"
+      fi
+    fi
     return 0
+  fi
+
+  # Prérequis Windows : obligatoires si la cible est explicite (hors `all` filtré).
+  if [ "$has_windows" = "1" ] && ! is_windows_shell && ! windows_prereqs_ok; then
+    windows_prereqs_hint >&2
+    die "prérequis manquants pour la cible Windows"
   fi
 
   echo "== Frontend =="
@@ -528,30 +671,51 @@ cmd_build() {
     ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
   fi
 
-  # Bundles Tauri demandés (un seul appel tauri build).
-  local bundles=""
-  for t in appimage deb rpm nsis; do
-    echo " $list " | grep -qw "$t" && bundles="${bundles:+$bundles,}$t"
-  done
-
-  if [ -n "$bundles" ]; then
+  local -a tauri=()
+  if [ -n "$native_bundles" ] || [ "$has_windows" = "1" ]; then
     local tauri_str
     tauri_str="$(tauri_cmd)" || die "tauri-cli introuvable. Installation : npm install -g @tauri-apps/cli@2.12.0"
-    local -a tauri
     read -ra tauri <<< "$tauri_str"
-    local -a args=(build --bundles "$bundles")
-    [ -n "$target" ] && args+=(--target "$target")
-    echo
-    echo "== Tauri ($bundles) =="
-    ( cd "$REPO_ROOT/crates/app" && NO_STRIP=1 "${tauri[@]}" "${args[@]}" ) || die "    tauri build a échoué"
+  fi
 
-    if echo " $list " | grep -qw appimage; then
+  # --- Groupe natif (host) : appimage/deb/rpm + nsis sur Windows ------------
+  if is_windows_shell && [ "$has_windows" = "1" ]; then
+    native_bundles="${native_bundles:+$native_bundles,}nsis"
+  fi
+  if [ -n "$native_bundles" ]; then
+    local -a native_target_arg=()
+    [ -n "$target" ] && native_target_arg=(--target "$target")
+    echo
+    echo "== Tauri (${native_bundles}) =="
+    ( cd "$REPO_ROOT/crates/app" && NO_STRIP=1 "${tauri[@]}" build --bundles "$native_bundles" "${native_target_arg[@]}" ) \
+      || die "    tauri build a échoué"
+
+    if echo ",$native_bundles," | grep -q ',appimage,'; then
       local dir
       dir="$(bundle_dir_for appimage "$target")"
       [ -d "$dir" ] || die "    bundle appimage introuvable: $dir"
       echo
       echo "== AppImage : post-traitement =="
       "$REPO_ROOT/scripts/fix-appimage.sh" --out-dir "$dir" "$dir" || die "    le post-traitement AppImage a échoué"
+    fi
+  fi
+
+  # --- Groupe Windows (cross depuis Linux) ---------------------------------
+  if ! is_windows_shell && [ "$has_windows" = "1" ]; then
+    local wt="${target:-$WINDOWS_TARGET}"
+    echo
+    echo "== Tauri (nsis, $wt) =="
+    ( cd "$REPO_ROOT/crates/app" && NO_STRIP=1 "${tauri[@]}" build --bundles nsis --target "$wt" ) \
+      || die "    tauri build (Windows) a échoué"
+  fi
+
+  if [ "$want_windows" = "1" ]; then
+    echo
+    echo "== Exe portable Windows =="
+    if is_windows_shell; then
+      package_windows_portable ""
+    else
+      package_windows_portable "${target:-$WINDOWS_TARGET}"
     fi
   fi
 }

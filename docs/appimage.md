@@ -90,7 +90,8 @@ Elle n'est pas directement conforme (et casse sur les systèmes récents), donc 
    Sous Docker rootful, le conteneur tourne avec ton UID/GID pour que les fichiers sortent à votre nom. 
    Sous Podman rootless, le root du conteneur est déjà mappé sur votre utilisateur.
 
-3. **Exécution de `scripts/build/in-container.sh`** : `npm ci` + build frontend, `tauri build --bundles <cibles>`, puis `fix-appimage.sh`.
+3. **Exécution de `scripts/build/in-container.sh`** : `npm ci` + build frontend, `tauri build --bundles <cibles>` 
+   (les cibles Windows `nsis`/`windows` y sont cross-compilées en MSVC via `cargo-xwin`, voir [docs/windows-build.md](./windows-build.md)), puis `fix-appimage.sh`.
 
 4. **Caches persistants** (sous `target/container/`, ignoré par git) :
    `cargo-home/` (registre Cargo), `npm-cache/`, `cache/` (outils Tauri/linuxdeploy), `release/` (artefacts de compilation). 

@@ -1,11 +1,15 @@
 # =============================================================================
-# Build environment for the release artifacts (AppImage/.deb/.rpm).
+# Build environment for the release artifacts (AppImage/.deb/.rpm + Windows
+# NSIS installer/portable).
 #
 # The base image is the same as the GitHub Actions release workflow
 # (ubuntu-22.04): building on the oldest supported base keeps the glibc
 # requirement low, so a locally produced AppImage behaves like the CI one.
+# Windows binaries are cross-compiled for the MSVC target with cargo-xwin
+# (the method documented by Tauri), so no Windows machine is required.
 #
-# Used by `./manage.sh build <targets> --container` — see docs/appimage.md.
+# Used by `./manage.sh build <targets> --container` — see docs/appimage.md
+# and docs/windows-build.md.
 # =============================================================================
 ARG BASE_IMAGE=ubuntu:22.04
 FROM ${BASE_IMAGE}
@@ -29,6 +33,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zsync \
         desktop-file-utils \
         appstream \
+        nsis \
+        clang \
+        lld \
+        llvm \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js 20 (same major as the CI)
@@ -39,17 +47,37 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 # Tauri CLI, pinned like .github/workflows/release.yml
 RUN npm install -g @tauri-apps/cli@2.12.0
 
-# Rust toolchain
+# Rust toolchain + the Windows targets (msvc = CI parity via cargo-xwin,
+# gnu = fallback/Mingw)
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-    | sh -s -- -y --profile minimal --default-toolchain stable
+    | sh -s -- -y --profile minimal --default-toolchain stable \
+    && rustup target add x86_64-pc-windows-msvc x86_64-pc-windows-gnu
+
+# cargo-xwin: Tauri's runner for cross-compiling to the MSVC target
+# (downloads the Windows SDK at build time, cached under XWIN_CACHE_DIR).
+RUN cargo install --locked cargo-xwin
 
 # appimagetool used by scripts/fix-appimage.sh (repack + update information)
 RUN curl -fsSL -o /opt/appimagetool-x86_64.AppImage \
         https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
     && chmod +x /opt/appimagetool-x86_64.AppImage
 ENV APPIMAGETOOL=/opt/appimagetool-x86_64.AppImage
+
+# NSIS: Ubuntu 22.04 ships NSIS 3.08, too old for Tauri's installer template
+# (it needs Include/Win/RestartManager.nsh, added in 3.09). Install the same
+# 3.11 share directory the Tauri Windows toolset uses, and wrap the distro's
+# makensis so it uses it (Tauri strips NSISDIR from the environment, the
+# wrapper re-adds it).
+RUN apt-get update && apt-get install -y --no-install-recommends unzip \
+    && curl -fsSL -o /tmp/nsis.zip \
+        https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip \
+    && unzip -q /tmp/nsis.zip -d /opt \
+    && rm -f /tmp/nsis.zip \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf '#!/bin/sh\nexport NSISDIR=/opt/nsis-3.11\nexec /usr/bin/makensis "$@"\n' > /usr/local/bin/makensis \
+    && chmod +x /usr/local/bin/makensis
 
 WORKDIR /work

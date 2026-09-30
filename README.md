@@ -42,25 +42,33 @@ cd frontend && npm install
 The `manage.sh` wrapper drives every build:
 
 ```bash
-./manage.sh build              # frontend + all bundles for your OS (appimage,deb,rpm on Linux)
-./manage.sh build appimage     # a single bundle (AppImage is post-processed, see docs/appimage.md)
-./manage.sh build rust         # frontend + cargo release only
-./manage.sh build --container  # reproduce the CI release environment (Ubuntu 22.04, podman/docker)
+./manage.sh build                          # native bundles, plus Windows if the cross toolchain is present
+./manage.sh build appimage                 # a single bundle (AppImage is post-processed, see docs/appimage.md)
+./manage.sh build windows                  # NSIS installer + portable .exe (MinGW, cross-compiled from Linux)
+./manage.sh build windows --container      # same but MSVC via cargo-xwin, CI-like and self-contained
+./manage.sh build all --container          # everything (Linux + Windows) in the release container
+./manage.sh build rust                     # frontend + cargo release only
 ```
 
-Artifacts land in `target/release/bundle/` (native) or `target/container/release/bundle/`
-(`--container`, the distributable build). The AppImage is named
-`typst-ide-<version>-x86_64.AppImage`.
+Artifacts land in `target/release/bundle/` (native), `target/x86_64-pc-windows-gnu/release/` (MinGW cross-build), `target/container/release/bundle/` and `target/container/x86_64-pc-windows-msvc/release/` (`--container`, the distributable build). The AppImage is named `typst-ide-<version>-x86_64.AppImage`.
+
+There is no Windows container on Linux (containers share the host kernel), but the release container cross-compiles Windows with `cargo-xwin` (no Windows machine and no host toolchain required). 
+Without `--container`, `build all` uses MinGW and includes Windows only when `mingw64-gcc`, the Rust `x86_64-pc-windows-gnu` standard library and the NSIS stubs are available.
+Otherwise it skips Windows with a hint:
+```bash
+# Fedora
+sudo dnf install mingw64-gcc mingw64-gcc-c++ rust-std-static-x86_64-pc-windows-gnu mingw32-nsis
+```
+
+MinGW produces a portable `Typst IDE_<version>_x64-portable.exe` that needs `WebView2Loader.dll` next to it (already produced in the same `release/` directory). The container (MSVC) and the CI build a self-contained portable instead.
 
 For reference, the underlying Tauri commands are:
-
-- Windows: `cd crates/app && cargo tauri build --target x86_64-pc-windows-gnu`
+- Windows (MinGW): `cd crates/app && cargo tauri build --bundles nsis --target x86_64-pc-windows-gnu`
+- Windows (MSVC, container): `tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc`
 - Linux: `cd crates/app && NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu`
   (`NO_STRIP=1` avoids the `failed to bundle project \`failed to run linuxdeploy\`` error)
 
-See [docs/appimage.md](./docs/appimage.md) for the AppImage pipeline (library
-exclusions, runtime AppRun, AppStream metadata, update information) and the
-container build details.
+See [docs/appimage.md](./docs/appimage.md) for the AppImage pipeline and [docs/windows-build.md](./docs/windows-build.md) for the Windows builds (MinGW vs container MSVC vs VM, troubleshooting).
 
 # Usage
 ## Typical workflow

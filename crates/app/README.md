@@ -78,13 +78,15 @@ crates/app/
 
 ## Build Commands
 
-Prefer the project wrapper, which handles the frontend build, the AppImage post-processing (`scripts/fix-appimage.sh`) and the containerized release environment:
+Prefer the project wrapper, which handles the frontend build, the AppImage post-processing (`scripts/fix-appimage.sh`), the Windows cross-build and the containerized release environment:
 ```bash
 # From the repository root
-./manage.sh build                        # frontend + appimage + deb + rpm (Linux)
-./manage.sh build appimage               # single bundle (AppImage post-processed)
-./manage.sh build appimage --container   # CI-equivalent build (ubuntu:22.04)
-./manage.sh build rust                   # frontend + cargo release only
+./manage.sh build                                  # native bundles; + Windows if the cross toolchain is present
+./manage.sh build appimage                         # single bundle (AppImage post-processed)
+./manage.sh build windows                          # NSIS installer + portable .exe (MinGW, cross-compiled from Linux)
+./manage.sh build windows --container              # same but MSVC via cargo-xwin (CI-like, self-contained)
+./manage.sh build appimage,deb,rpm,windows --container   # everything in the release container
+./manage.sh build rust                             # frontend + cargo release only
 ```
 
 Under the hood (from `crates/app/`):
@@ -100,24 +102,28 @@ cargo tauri build --bundles appimage
 cargo tauri build --bundles deb,rpm
 
 # Windows .exe (NSIS installer, cross-compiled from Linux)
-cargo tauri build --target x86_64-pc-windows-gnu
+cargo tauri build --bundles nsis --target x86_64-pc-windows-gnu
 ```
 
-> The Windows cross-build needs the cross toolchain and the NSIS tools to be installed:
+> The Windows cross-build needs the cross toolchain and the Rust standard
+> library for the target:
 >
 > ```bash
-> # Fedora: 
-> sudo dnf install mingw64-gcc nsis mingw64-gcc-c++ mingw64-binutils mingw64-winpthreads
-> # Arch:   
-> sudo pacman -S mingw-w64-gcc nsis
+> # Fedora
+> sudo dnf install mingw64-gcc mingw64-gcc-c++ mingw64-binutils mingw64-winpthreads rust-std-static-x86_64-pc-windows-gnu mingw32-nsis
+> # Arch
+> sudo pacman -S mingw-w64-gcc nsis  &&  rustup target add x86_64-pc-windows-gnu
 > ```
+>
+> On Linux Tauri calls the system `makensis`, which must ship the NSIS stubs
+> (on Fedora `makensis` comes from `mingw-nsis-base`, the stubs from `mingw32-nsis`). No host dependency at all with `./manage.sh build windows --container`: the release container cross-compiles to the MSVC target with `cargo-xwin` (Tauri's documented method) and produces the same kind of self-contained portable as the CI. 
+> With the MinGW host build, the portable `Typst IDE_<version>_x64-portable.exe` needs the `WebView2Loader.dll` sitting next to it in `release/`.
+> See `docs/windows-build.md`.
 >
 > `frontend/dist` must be built beforehand (`npm run build` in `frontend/`), otherwise the bundle step fails. Like CI, use `NO_STRIP=1 cargo tauri build` when the release profile sets `strip = true`.
 >
-> A bare `cargo tauri build` leaves the AppImage in its stock form (WebKitGTK
-> bundled, Wayland libraries included). Run `./manage.sh fix-appimage` (or the
-> `./manage.sh build appimage` command above) to apply the AppImage conventions
-> before distributing it — see `docs/appimage.md`.
+> A bare `cargo tauri build` leaves the AppImage in its stock form (WebKitGTK bundled, Wayland libraries included). 
+> Run `./manage.sh fix-appimage` (or the `./manage.sh build appimage` command above) to apply the AppImage conventions before distributing it, see `docs/appimage.md`.
 
 ## Notable Dependencies
 
