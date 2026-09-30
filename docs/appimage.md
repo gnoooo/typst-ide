@@ -39,16 +39,20 @@ Utiliser `--container` permet de tester ce que la CI va publier.
 ./manage.sh build deb --target x86_64-unknown-linux-gnu
 ```
 
-Les artefacts atterrissent dans :
-
+Les artefacts finaux atterrissent dans un dossier unique :
 ```
-target/container/release/bundle/appimage/typst-ide-<version>-x86_64.AppImage
-target/container/release/bundle/appimage/typst-ide-<version>-x86_64.AppImage.zsync
-target/container/release/bundle/deb/...
-target/container/release/bundle/rpm/...
+target/container/dist/
+├── linux/
+│   ├── typst-ide-<version>-x86_64.AppImage
+│   ├── typst-ide-<version>-x86_64.AppImage.zsync
+│   ├── Typst.IDE_<version>_amd64.deb
+│   └── Typst.IDE-<version>-1.x86_64.rpm
+└── windows/          
 ```
+[Voir docs/windows-build.md](./windows-build.md)
 
-(avec `--target <triple>`, insérer le triple : `target/container/<triple>/release/bundle/…`).
+Le build hôte publie la même structure dans `target/dist/` (`linux/`).
+La collecte est faite par `scripts/publish-artifacts.sh` (appelé par `in-container.sh` et `manage.sh`), qui rafraîchit uniquement les types demandés et purge les anciennes versions de ces types.
 
 Pour rejouer uniquement le post-traitement sur un bundle existant :
 ```bash
@@ -93,8 +97,11 @@ Elle n'est pas directement conforme (et casse sur les systèmes récents), donc 
 3. **Exécution de `scripts/build/in-container.sh`** : `npm ci` + build frontend, `tauri build --bundles <cibles>` 
    (les cibles Windows `nsis`/`windows` y sont cross-compilées en MSVC via `cargo-xwin`, voir [docs/windows-build.md](./windows-build.md)), puis `fix-appimage.sh`.
 
-4. **Caches persistants** (sous `target/container/`, ignoré par git) :
-   `cargo-home/` (registre Cargo), `npm-cache/`, `cache/` (outils Tauri/linuxdeploy), `release/` (artefacts de compilation). 
+4. **Publication** dans `target/container/dist/linux/` (AppImage + `.zsync`, deb, rpm) et `target/container/dist/windows/` le cas échéant, via `scripts/publish-artifacts.sh`.
+
+5. **Caches persistants** (regroupés sous `target/container/cache/`, ignoré par git) :
+   `cargo-home/` (registre Cargo), `npm-cache/`, `xwin/` (SDK MSVC de cargo-xwin), `tmp/` (TMPDIR) et `tauri/` (outils linuxdeploy/NSIS). 
+   Les sorties de compilation restent dans `target/container/release/` et `target/container/<triple>/`.
    Pour repartir de zéro : `rm -rf target/container` et, pour l'image, `podman rmi typst-ide-build:ubuntu22.04` (ou `--container-rebuild`).
 
 Rien n'est installé sur votre système hôte : seul le stockage des images conteneur (géré par podman/docker) grossit.
@@ -109,6 +116,26 @@ Rien n'est installé sur votre système hôte : seul le stockage des images cont
 | AppImage ne se lance pas (`FUSE`) | pas de libfuse2 sur l'hôte | pas nécessaire pour builder ; pour tester : `APPIMAGE_EXTRACT_AND_RUN=1 ./typst-ide-*.AppImage` |
 | "jump from cursor" mort dans l'AppImage | WebKit embarqué + `GDK_BACKEND=x11` | vérifie que l'hôte a `webkit2gtk-4.1` (mode système) ; sinon `TYPST_IDE_PREFER_SYSTEM_WEBKIT=0` permet de comparer |
 | `.zsync` absent | `zsync` non installé sur la machine de build | installe `zsync` (présent dans le conteneur et la CI) |
+
+## Nettoyage
+
+`target/` peut vite peser plusieurs dizaines de Go (builds debug, intermédiaires
+cargo hôte et conteneur, caches). La commande dédiée ne touche jamais
+`target/dist/` (les artefacts) sauf demande explicite, et n'utilise **pas**
+`cargo clean` (qui effacerait tout `target/`) :
+
+```bash
+./manage.sh clean --dry-run              # inventaire + tailles, ne supprime rien
+./manage.sh clean                        # intermédiaires cargo (défaut, ~31 G chez gno)
+./manage.sh clean cache                  # caches conteneur (cargo/xwin/npm/tmp)
+./manage.sh clean image                  # image podman/docker de build + orphelines
+./manage.sh clean all --yes              # build + cache + image (dist conservé)
+./manage.sh clean all --with-dist        # en plus : target/dist et target/container/dist
+./manage.sh clean cache --host-caches    # + ~/.cache/tauri (outils linuxdeploy/NSIS hôte)
+```
+
+Ce qui est supprimé sera recompilé (et éventuellement retéléchargé : registre
+cargo, SDK MSVC de cargo-xwin, outils Tauri) au prochain build.
 
 ## Lien avec la CI
 

@@ -117,7 +117,7 @@ cargo tauri build --bundles nsis --target x86_64-pc-windows-gnu
 >
 > On Linux Tauri calls the system `makensis`, which must ship the NSIS stubs
 > (on Fedora `makensis` comes from `mingw-nsis-base`, the stubs from `mingw32-nsis`). No host dependency at all with `./manage.sh build windows --container`: the release container cross-compiles to the MSVC target with `cargo-xwin` (Tauri's documented method) and produces the same kind of self-contained portable as the CI. 
-> With the MinGW host build, the portable `Typst IDE_<version>_x64-portable.exe` needs the `WebView2Loader.dll` sitting next to it in `release/`.
+> With the MinGW host build, the portable `Typst IDE_<version>_x64-portable.exe` needs the `WebView2Loader.dll` next to it (both are published in `target/dist/windows/`).
 > See `docs/windows-build.md`.
 >
 > `frontend/dist` must be built beforehand (`npm run build` in `frontend/`), otherwise the bundle step fails. Like CI, use `NO_STRIP=1 cargo tauri build` when the release profile sets `strip = true`.

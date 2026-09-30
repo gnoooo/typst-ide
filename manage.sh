@@ -14,10 +14,13 @@
 #                                                      all     = bundles natifs + Windows (toolchain host, ou conteneur)
 #                                           options  : --target <triple>           cross-compilation (ex. x86_64-pc-windows-msvc)
 #                                                      --container                 build release dans un conteneur ubuntu:22.04
-#                                                                                  (Windows y est cross-compilé en MSVC via cargo-xwin, comme la CI)
+#                                                                                  (Windows y est cross-compilé en MSVC via cargo-xwin)
 #                                                      --container-image <image>   image de base (défaut : ubuntu:22.04)
 #                                                      --container-rebuild         reconstruit l'image de build sans cache
 #   ./manage.sh fix-appimage [chemin]     Rejoue le post-traitement AppImage (docs/appimage.md)
+#   ./manage.sh clean [cibles] [opts]     Nettoie les builds et caches
+#                                           cibles   : build (défaut) | cache | dist | image | all
+#                                           options  : --dry-run, --yes, --with-dist, --host-caches
 #   ./manage.sh dev                       Lance tauri dev
 #   ./manage.sh help                      Cette aide
 
@@ -29,6 +32,10 @@
 #   ./manage.sh build windows --container                 # idem mais MSVC via cargo-xwin (parité CI)
 #   ./manage.sh build appimage,deb,rpm,windows --container  # tout, comme la CI
 #   ./manage.sh build rust                                # ancien comportement (frontend + cargo release)
+#   ./manage.sh clean --dry-run                           # montrer ce qui serait supprimé
+#   ./manage.sh clean build --yes                         # libérer les intermédiaires cargo
+#
+# Artefacts finaux : target/dist/ (build hôte) ou target/container/dist/ (conteneur), organisés en linux/ et windows/.
 # ===================================================================================================
 
 set -euo pipefail
@@ -48,7 +55,7 @@ SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Helpers
 # ---------------------
 usage() {
-  sed -n '4,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '4,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 die() { echo "manage: $*" >&2; exit 1; }
@@ -480,24 +487,6 @@ windows_prereqs_hint() {
   echo "    Debian : sudo apt install gcc-mingw-w64-x86-64 nsis  puis  rustup target add x86_64-pc-windows-gnu" >&2
 }
 
-# Copie l'exe portable avec le même nom que la CI (le WebView2Loader.dll requis
-# par MinGW reste à côté, dans le même dossier release/).
-package_windows_portable() {
-  local wt="${1:-}" version base exe out dll
-  version="$(tauri_version)"
-  base="$REPO_ROOT/target"
-  [ -n "$wt" ] && base="$base/$wt"
-  exe="$base/release/typst-ide.exe"
-  out="$base/release/Typst IDE_${version}_x64-portable.exe"
-  [ -f "$exe" ] || die "    exe Windows introuvable: $exe"
-  cp -f "$exe" "$out"
-  echo "    portable : $out"
-  dll="$base/release/WebView2Loader.dll"
-  if [ -f "$dll" ]; then
-    echo "    note     : MinGW requiert WebView2Loader.dll à côté du portable (déjà présente)"
-  fi
-}
-
 # Build dans le conteneur de release (voir scripts/build/Containerfile.ubuntu2204
 # et docs/appimage.md). Liste et target sont passés par variables d'environnement.
 build_in_container() {
@@ -508,6 +497,18 @@ build_in_container() {
 
   local containerfile="$REPO_ROOT/scripts/build/Containerfile.ubuntu2204"
   require_file "$containerfile"
+
+  # Regroupe les anciens caches à la racine de target/container/ sous cache/
+  # (idempotent, aucun retéléchargement ni recompilation).
+  local croot="$REPO_ROOT/target/container"
+  local caches="$croot/cache"
+  mkdir -p "$caches"
+  local d
+  for d in cargo-home npm-cache xwin tmp; do
+    if [ -e "$croot/$d" ] && [ ! -e "$caches/$d" ]; then
+      mv "$croot/$d" "$caches/$d"
+    fi
+  done
 
   local tag="typst-ide-build:ubuntu22.04"
   local -a build_args=(build --build-arg "BASE_IMAGE=$image" -t "$tag" -f "$containerfile")
@@ -529,10 +530,8 @@ build_in_container() {
   run_args+=(
     -e "BUNDLES=$list"
     -e "TARGET=$target"
-    -e "CARGO_HOME=/work/target/container/cargo-home"
     -e "CARGO_TARGET_DIR=/work/target/container"
-    -e "npm_config_cache=/work/target/container/npm-cache"
-    -e "XDG_CACHE_HOME=/work/target/container/cache"
+    -e "DIST_DIR=/work/target/container/dist"
     "$tag"
     bash scripts/build/in-container.sh
   )
@@ -640,18 +639,10 @@ cmd_build() {
   if [ "$use_container" = "1" ]; then
     build_in_container "$list" "$target" "$image" "$rebuild"
     echo
-    local out_base="target/container"
-    [ -n "$target" ] && out_base="$out_base/$target"
-    echo "Artefacts : ${BOLD}${out_base}/release/bundle/${NC}"
-    if echo " $list " | grep -qw appimage; then
-      echo "            ${BOLD}${out_base}/release/bundle/appimage/typst-ide-$(tauri_version)-x86_64.AppImage${NC}"
-    fi
-    if [ "$has_windows" = "1" ]; then
-      local win_target="${target:-x86_64-pc-windows-msvc}"
-      echo "            ${BOLD}target/container/${win_target}/release/bundle/nsis/*.exe${NC}"
-      if [ "$want_windows" = "1" ]; then
-        echo "            ${BOLD}target/container/${win_target}/release/Typst IDE_$(tauri_version)_x64-portable.exe${NC}"
-      fi
+    echo
+    echo "Artefacts : ${BOLD}target/container/dist/${NC}"
+    if [ -d "$REPO_ROOT/target/container/dist" ]; then
+      ( cd "$REPO_ROOT/target/container/dist" && find . -type f | sort | sed 's|^\./|            |' )
     fi
     return 0
   fi
@@ -709,13 +700,42 @@ cmd_build() {
       || die "    tauri build (Windows) a échoué"
   fi
 
-  if [ "$want_windows" = "1" ]; then
+  # --- Publication dans target/dist/ (linux/ + windows/) --------------------
+  local publish_kinds=""
+  for b in appimage deb rpm; do
+    echo " $list " | grep -qw "$b" && publish_kinds="${publish_kinds:+$publish_kinds,}$b"
+  done
+  if [ "$has_windows" = "1" ]; then
+    publish_kinds="${publish_kinds:+$publish_kinds,}nsis"
+    [ "$want_windows" = "1" ] && publish_kinds="${publish_kinds:+$publish_kinds,}portable"
+  fi
+  if [ -n "$publish_kinds" ]; then
     echo
-    echo "== Exe portable Windows =="
-    if is_windows_shell; then
-      package_windows_portable ""
-    else
-      package_windows_portable "${target:-$WINDOWS_TARGET}"
+    echo "== Publication dans target/dist/ =="
+    local -a publish_args=(
+      --build-root "$REPO_ROOT/target"
+      --dist "$REPO_ROOT/target/dist"
+      --version "$(tauri_version)"
+      --kinds "$publish_kinds"
+    )
+    if [ -n "$target" ] && ! target_is_windows "$target"; then
+      publish_args+=(--native-target "$target")
+    fi
+    if [ "$has_windows" = "1" ]; then
+      local win_pub_target=""
+      if is_windows_shell; then
+        win_pub_target="$target"                     # vide = target/release natif
+      else
+        win_pub_target="${target:-$WINDOWS_TARGET}"  # cross (MinGW)
+      fi
+      [ -n "$win_pub_target" ] && publish_args+=(--windows-target "$win_pub_target")
+    fi
+    "$REPO_ROOT/scripts/publish-artifacts.sh" "${publish_args[@]}" \
+      || die "    la publication des artefacts a échoué"
+    echo
+    echo "Artefacts : ${BOLD}target/dist/${NC}"
+    if [ -d "$REPO_ROOT/target/dist" ]; then
+      ( cd "$REPO_ROOT/target/dist" && find . -type f | sort | sed 's|^\./|            |' )
     fi
   fi
 }
@@ -723,6 +743,152 @@ cmd_build() {
 # Rejoue scripts/fix-appimage.sh sur le dernier bundle (ou sur un chemin donné).
 cmd_fix_appimage() {
   "$REPO_ROOT/scripts/fix-appimage.sh" "$@"
+}
+
+# ---------------------
+# Clean
+# ---------------------
+
+# Taille lisible depuis des Ko.
+human_size() {
+  if command -v numfmt >/dev/null 2>&1; then
+    numfmt --from-unit=1024 --to=iec "$1"
+  else
+    printf '%s K\n' "$1"
+  fi
+}
+
+cmd_clean() {
+  local dry_run=0 assume_yes=0 with_dist=0 host_caches=0
+  local -a requested=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dry-run)     dry_run=1; shift ;;
+      --yes|-y)      assume_yes=1; shift ;;
+      --with-dist)   with_dist=1; shift ;;
+      --host-caches) host_caches=1; shift ;;
+      -h|--help)     usage; return 0 ;;
+      -*)            die "option inconnue: $1 (voir manage.sh help)" ;;
+      *)             requested+=("$1"); shift ;;
+    esac
+  done
+
+  local list=""
+  add_clean() { case " $list " in *" $1 "*) ;; *) list="${list:+$list }$1" ;; esac; }
+  local t
+  if [ "${#requested[@]}" -eq 0 ]; then
+    add_clean build
+  else
+    for t in "${requested[@]}"; do
+      case "$t" in
+        build|cache|dist|image) add_clean "$t" ;;
+        all) add_clean build; add_clean cache; add_clean image ;;
+        *) die "cible clean inconnue: $t (attendu: build|cache|dist|image|all)" ;;
+      esac
+    done
+  fi
+  [ "$with_dist" = 1 ] && add_clean dist
+
+  # Chemins à supprimer (dist est protégé sauf demande explicite).
+  local -a paths=()
+  if echo " $list " | grep -qw build; then
+    paths+=(
+      "$REPO_ROOT/target/debug"
+      "$REPO_ROOT/target/release"
+      "$REPO_ROOT/target/container/release"
+      "$REPO_ROOT/target/container/x86_64-pc-windows-msvc"
+    )
+    # Autres triples (x86_64-pc-windows-gnu, x86_64-unknown-linux-gnu…).
+    while IFS= read -r d; do
+      paths+=("$d")
+    done < <(find "$REPO_ROOT/target" -maxdepth 1 -mindepth 1 -type d -name '*-*' 2>/dev/null || true)
+  fi
+  if echo " $list " | grep -qw cache; then
+    paths+=("$REPO_ROOT/target/container/cache")
+    [ "$host_caches" = "1" ] && paths+=("${HOME:-/tmp}/.cache/tauri")
+  fi
+  if echo " $list " | grep -qw dist; then
+    paths+=("$REPO_ROOT/target/dist" "$REPO_ROOT/target/container/dist")
+  fi
+
+  local clean_image=0
+  echo " $list " | grep -qw image && clean_image=1
+
+  echo "Nettoyage : ${BOLD}$list${NC}"
+  echo
+
+  # Inventaire (une seule passe du/ taille par chemin).
+  local -a existing=()
+  local total_kb=0
+  local p size_kb
+  for p in "${paths[@]}"; do
+    [ -e "$p" ] || continue
+    case "$p" in
+      "$REPO_ROOT"/target/*) ;;
+      "${HOME:-/tmp}/.cache/tauri") ;;
+      *) die "refus de supprimer hors de target/ : $p" ;;
+    esac
+    size_kb="$(du -sk "$p" 2>/dev/null | cut -f1)"
+    [ -n "$size_kb" ] || size_kb=0
+    existing+=("$p")
+    total_kb=$((total_kb + size_kb))
+    printf "    %8s  %s\n" "$(human_size "$size_kb")" "${p#"$REPO_ROOT"/}"
+  done
+
+  if [ "$clean_image" = "1" ]; then
+    local runtime
+    runtime="$(container_runtime)" || runtime=""
+    if [ -z "$runtime" ]; then
+      echo "    ${YELLOW}podman/docker absent : image ignorée${NC}"
+    else
+      printf "    %8s  %s\n" "?" "$runtime : typst-ide-build + images orphelines + cache de build"
+    fi
+  fi
+
+  if [ "${#existing[@]}" -eq 0 ] && [ "$clean_image" = "0" ]; then
+    echo "    (rien à nettoyer)"
+    return 0
+  fi
+
+  echo
+  local image_suffix=""
+  [ "$clean_image" = "1" ] && image_suffix=" + image conteneur"
+  echo "    ${BOLD}Total : $(human_size "$total_kb")${image_suffix}${NC}"
+  if [ "$dry_run" = "1" ]; then
+    echo "    (dry-run : rien n'a été supprimé)"
+    return 0
+  fi
+
+  if [ "$assume_yes" != "1" ]; then
+    printf "    Supprimer ? [y/N] "
+    local answer=""
+    read -r answer || true
+    case "$answer" in
+      y|Y|yes|YES) ;;
+      *) echo "    annulé"; return 0 ;;
+    esac
+  fi
+
+  for p in "${existing[@]}"; do
+    rm -rf "$p"
+    echo "    ${GREEN}OK${NC} ${p#"$REPO_ROOT"/}"
+  done
+
+  if [ "$clean_image" = "1" ]; then
+    local runtime
+    runtime="$(container_runtime)" || runtime=""
+    if [ -n "$runtime" ]; then
+      "$runtime" rmi -f typst-ide-build:ubuntu22.04 >/dev/null 2>&1 || true
+      "$runtime" image prune -f >/dev/null 2>&1 || true
+      "$runtime" builder prune -f >/dev/null 2>&1 || true
+      echo "    ${GREEN}OK${NC} $runtime : image typst-ide-build + orphelines + cache de build"
+    fi
+  fi
+
+  echo
+  echo "Terminé. Les artefacts de ${BOLD}target/dist/${NC} et ${BOLD}target/container/dist/${NC} sont conservés."
+  echo "Les prochains builds recompileront (et retéléchargeront ce qui a été supprimé)."
 }
 
 cmd_dev() {
@@ -747,6 +913,7 @@ case "$cmd" in
   test)    cmd_test ;;
   build)   cmd_build "$@" ;;
   fix-appimage) cmd_fix_appimage "$@" ;;
+  clean)   cmd_clean "$@" ;;
   dev)     cmd_dev ;;
   help|-h|--help) usage ;;
   *) die "commande inconnue: $cmd"; usage ;;

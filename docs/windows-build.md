@@ -8,14 +8,15 @@ Ce document explique comment produire les artefacts Windows de Typst IDE, pourqu
 # La "CI locale Windows" recommandée : MSVC via cargo-xwin, dans le conteneur
 # de release (mêmes dépendances que la CI, aucune dépendance sur l'hôte).
 ./manage.sh build windows --container
-# -> target/container/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
-# -> target/container/x86_64-pc-windows-msvc/release/Typst IDE_<version>_x64-portable.exe
+# -> target/container/dist/windows/Typst IDE_<version>_x64-setup.exe
+# -> target/container/dist/windows/Typst IDE_<version>_x64-portable.exe
 
 # Tout (Linux + Windows) en un run, comme la CI :
 ./manage.sh build all --container
 
 # Cross MinGW directement sur l'hôte (plus rapide, mais dépendances hôte) :
 ./manage.sh build windows
+# -> target/dist/windows/ (portable + WebView2Loader.dll + installeur)
 ```
 
 ## Pourquoi pas un conteneur Windows ?
@@ -42,16 +43,20 @@ Rien n'est installé sur la machine.
 Déroulement :
 1. `npm ci` + build frontend dans le volume monté.
 2. `tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc`.
-3. copie du portable `Typst IDE_<version>_x64-portable.exe` (même nom que la CI).
+3. publication dans `dist/windows/` : installeur + portable `Typst IDE_<version>_x64-portable.exe` (même nom que la CI).
 
 Détails utiles :
-- **SDK Windows** : `cargo-xwin` télécharge le CRT/SDK Microsoft au premier build dans `target/container/xwin` (persistant, ~1 Go). Les builds suivants sont hors-ligne.
+- **SDK Windows** : `cargo-xwin` télécharge le CRT/SDK Microsoft au premier build dans `target/container/cache/xwin` (persistant, ~1 Go). Les builds suivants sont hors-ligne.
 
-- **`TMPDIR`** : forcé sous `target/container/tmp`, sinon le bundler NSIS peut échouer avec `Invalid cross-device link` en conteneur (tauri-apps/tauri#10647).
+- **`TMPDIR`** : forcé sous `target/container/cache/tmp`, sinon le bundler NSIS peut échouer avec `Invalid cross-device link` en conteneur (tauri-apps/tauri#10647).
 
 - **Avertissement** `Cross-platform compilation is experimental...` : normal, il vient de Tauri. L'exécutable produit est un vrai binaire MSVC, auto-contenu (pas de `WebView2Loader.dll` à côté, contrairement au mode MinGW).
 
 - **MSI impossible** : WiX ne tourne que sous Windows. On produit donc l'installeur NSIS (`-setup.exe`) et l'exe portable, comme la CI actuelle.
+
+- **Publication** : tous les artefacts finaux sont rangés par OS dans `target/container/dist/{linux,windows}/` (ou `target/dist/` pour un build hôte), quelle que soit la cible de compilation.
+
+- **WebView2 Runtime** : l'exe portable (comme celui de la CI) exige le runtime WebView2 installé sur la machine Windows ; l'installeur NSIS l'installe automatiquement s'il manque (`downloadBootstrapper`).   Sous Linux, un double-clic sur le `.exe` passe par **Wine**, qui ne fournit pas WebView2 : teste dans la VM Windows (WinBoat) ou installe le runtime ; ne conclus pas à un bug du build.
 
 Pour reconstruire l'image après une modification du Containerfile :
 ```bash
@@ -69,7 +74,7 @@ sudo pacman -S mingw-w64-gcc nsis   # rustup target add x86_64-pc-windows-gnu
 ```
 
 `manage.sh build all` (sans `--container`) inclut Windows **si** ces prérequis sont présents, sinon il les détecte et affiche la commande d'installation.
-Avec MinGW, le portable dépend de `WebView2Loader.dll` (présent dans le même dossier `release/`) : c'est une différence avec la CI MSVC, qui est auto-contenue.
+Avec MinGW, le portable dépend de `WebView2Loader.dll` (copié dans `target/dist/windows/` à côté du portable) : c'est une différence avec la CI MSVC, qui est auto-contenue.
 
 ## Dépannage
 
@@ -77,7 +82,7 @@ Avec MinGW, le portable dépend de `WebView2Loader.dll` (présent dans le même 
 |---|---|---|
 | `la cible Windows` puis liste `nsis` | stubs NSIS absents (Fedora fournit `makensis` dans `mingw-nsis-base`, mais pas les stubs) | `sudo dnf install mingw32-nsis` (ou mode `--container`) |
 | `Invalid cross-device link` (NSIS) | `TMPDIR` sur un autre système de fichiers que le target | déjà corrigé dans le conteneur ; sur l'hôte, `export TMPDIR=<dossier du target>` |
-| Téléchargement SDK très long (1er run) | `cargo-xwin` télécharge le SDK MSVC | attendre (le cache `target/container/xwin` est réutilisé) |
+| Téléchargement SDK très long (1er run) | `cargo-xwin` télécharge le SDK MSVC | attendre (le cache `target/container/cache/xwin` est réutilisé) |
 | `llvm-rc not found` | pas de `llvm` installé | mode conteneur (fourni), ou `sudo dnf install llvm` |
 | Signature | seule la CI/GitHub peut signer (pas activé) | hors périmètre |
 | Échec `cargo xwin` inattendu | cross expérimental | repli : `./manage.sh build windows` (MinGW) |

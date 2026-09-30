@@ -68,7 +68,7 @@ jobs:
       # (EGL/WebKit/AppRun regressions) before publishing.
       - name: Smoke-test the AppImage
         run: |
-          APPIMAGE=$(ls target/x86_64-unknown-linux-gnu/release/bundle/appimage/typst-ide-*.AppImage)
+          APPIMAGE=$(ls target/dist/linux/typst-ide-*.AppImage)
           chmod +x "$APPIMAGE"
           APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a bash -c '
             "$1" &
@@ -93,22 +93,22 @@ jobs:
         with:
           name: typst-ide-linux-appimage
           path: |
-            target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-            target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.zsync
+            target/dist/linux/*.AppImage
+            target/dist/linux/*.zsync
           if-no-files-found: error
 
       - name: Upload .deb (Linux)
         uses: actions/upload-artifact@v4
         with:
           name: typst-ide-linux-deb
-          path: target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb
+          path: target/dist/linux/*.deb
           if-no-files-found: warn
 
       - name: Upload .rpm (Linux)
         uses: actions/upload-artifact@v4
         with:
           name: typst-ide-linux-rpm
-          path: target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm
+          path: target/dist/linux/*.rpm
           if-no-files-found: warn
 
   build-windows:
@@ -152,24 +152,28 @@ jobs:
         working-directory: crates/app
         run: tauri build
 
-      - name: Package portable executable
+      # Same dist/ layout as the local and Linux builds (see
+      # scripts/publish-artifacts.sh).
+      - name: Package artifacts into target/dist/windows
         shell: pwsh
         run: |
           $version = (Get-Content crates/app/tauri.conf.json -Raw | ConvertFrom-Json).version
-          Copy-Item "target/release/typst-ide.exe" "target/release/Typst IDE_${version}_x64-portable.exe"
+          New-Item -ItemType Directory -Force target/dist/windows | Out-Null
+          Copy-Item target/release/bundle/nsis/*.exe target/dist/windows/
+          Copy-Item target/release/typst-ide.exe "target/dist/windows/Typst IDE_${version}_x64-portable.exe"
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: typst-ide-windows-installer
-          path: target/release/bundle/nsis/*.exe
+          path: target/dist/windows/*setup.exe
           if-no-files-found: error
 
       - name: Upload Windows portable executable
         uses: actions/upload-artifact@v4
         with:
           name: typst-ide-windows-portable
-          path: "target/release/Typst IDE_*_x64-portable.exe"
+          path: "target/dist/windows/Typst IDE_*_x64-portable.exe"
           if-no-files-found: error
 
   release:
