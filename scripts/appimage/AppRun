@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# =============================================================================
+# AppRun — Typst IDE (AppImage)
+#
+# Replaces the stock linuxdeploy AppRun. Two modes:
+#
+#   * Host WebKitGTK (preferred): when the machine provides
+#     libwebkit2gtk-4.1 (the library the .deb/.rpm/PKGBUILD use), it is used
+#     instead of the copy bundled inside the AppImage. The bundled WebKitGTK
+#     is built on the release base (Ubuntu 22.04) against that base's
+#     Mesa/GTK; mixing it with a newer host graphics stack breaks EGL/Wayland
+#     (blank preview, broken scrolling — tauri-apps/tauri#15665, #11988) and
+#     forces GDK_BACKEND=x11, which breaks the preview following the cursor
+#     (tauri-apps/tauri#14427). Host WebKitGTK behaves exactly like the .deb.
+#
+#   * Bundled fallback: hosts without WebKitGTK (e.g. a bare Ubuntu in CI)
+#     still run the app, using the libraries shipped in the AppImage.
+#
+# Overrides:
+#   TYPST_IDE_PREFER_SYSTEM_WEBKIT=0   force the bundled WebKitGTK
+#   APPIMAGE_GTK_THEME=Theme:variant   theme used by the bundled fallback
+# =============================================================================
+
+set -u
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+export APPDIR="${APPDIR:-$HERE}"
+
+BIN="$HERE/usr/bin/typst-ide"
+if [ ! -x "$BIN" ]; then
+  echo "AppRun: application binary not found: $BIN" >&2
+  exit 1
+fi
+
+# Returns the first argument that exists on disk.
+first_existing() {
+  for path in "$@"; do
+    if [ -e "$path" ]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Prints the libdir of the host's libwebkit2gtk-4.1, if any.
+find_host_webkit_libdir() {
+  for dir in \
+    /usr/lib64 \
+    /usr/lib/x86_64-linux-gnu \
+    /usr/lib/aarch64-linux-gnu \
+    /usr/lib
+  do
+    if [ -e "$dir/libwebkit2gtk-4.1.so.0" ]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+  done
+  # Unusual layouts: ask the dynamic linker cache.
+  if command -v ldconfig >/dev/null 2>&1; then
+    local path
+    path="$(ldconfig -p 2>/dev/null | awk '/libwebkit2gtk-4\.1\.so\.0/ { print $NF; exit }')"
+    if [ -n "$path" ] && [ -e "$path" ]; then
+      dirname "$path"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+HOST_WEBKIT_LIBDIR=""
+if [ "${TYPST_IDE_PREFER_SYSTEM_WEBKIT:-auto}" != "0" ]; then
+  HOST_WEBKIT_LIBDIR="$(find_host_webkit_libdir || true)"
+fi
+
+# When both versions are known, only prefer the host when it is at least as new
+# as the bundled copy (never downgrade WebKit). Version metadata is often
+# missing without the webkit dev package, in which case the host wins.
+if [ -n "$HOST_WEBKIT_LIBDIR" ]; then
+  BUNDLED_WEBKIT="$(cat "$HERE/.bundled-webkitgtk-version" 2>/dev/null || true)"
+  HOST_WEBKIT="$(pkg-config --modversion webkit2gtk-4.1 2>/dev/null || true)"
+  if [ -n "$BUNDLED_WEBKIT" ] && [ "$BUNDLED_WEBKIT" != "0.0" ] && [ -n "$HOST_WEBKIT" ]; then
+    if [ "$(printf '%s\n%s\n' "$BUNDLED_WEBKIT" "$HOST_WEBKIT" | sort -V | tail -n 1)" != "$HOST_WEBKIT" ]; then
+      HOST_WEBKIT_LIBDIR=""
+    fi
+  fi
+fi
+
+# Schemas and data shipped in the AppImage are safe in both modes (data only).
+SCHEMAS_DIR="$HERE/usr/share/glib-2.0/schemas"
+if [ -d "$SCHEMAS_DIR" ]; then
+  export GSETTINGS_SCHEMA_DIR="$SCHEMAS_DIR"
+fi
+export XDG_DATA_DIRS="$HERE/usr/share:/usr/share:${XDG_DATA_DIRS:-}"
+
+if [ -n "$HOST_WEBKIT_LIBDIR" ]; then
+  # ---- Host WebKitGTK/GTK (same stack as the .deb/.rpm) ---------------------
+  # The host libdir comes first: host libwebkit2gtk, and the GTK/GLib/soup
+  # libraries it needs are all in that directory on multiarch and Fedora.
+  export LD_LIBRARY_PATH="$HOST_WEBKIT_LIBDIR:$HERE/usr/lib:${LD_LIBRARY_PATH:-}"
+  exec "$BIN" "$@"
+fi
+
+# ---- Bundled fallback -------------------------------------------------------
+export LD_LIBRARY_PATH="$HERE/usr/lib:$HERE/usr/lib64:$HERE/usr/lib/x86_64-linux-gnu:$HERE/usr/lib/aarch64-linux-gnu:${LD_LIBRARY_PATH:-}"
+export GTK_DATA_PREFIX="$HERE"
+export GTK_EXE_PREFIX="$HERE/usr"
+
+GTK3_DIR="$(first_existing \
+  "$HERE/usr/lib64/gtk-3.0" \
+  "$HERE/usr/lib/x86_64-linux-gnu/gtk-3.0" \
+  "$HERE/usr/lib/aarch64-linux-gnu/gtk-3.0" \
+  "$HERE/usr/lib/gtk-3.0" || true)"
+[ -n "$GTK3_DIR" ] && export GTK_PATH="$GTK3_DIR"
+
+IM_CACHE="$(first_existing \
+  "$HERE"/usr/lib64/gtk-3.0/*/immodules.cache \
+  "$HERE"/usr/lib/x86_64-linux-gnu/gtk-3.0/*/immodules.cache \
+  "$HERE"/usr/lib/aarch64-linux-gnu/gtk-3.0/*/immodules.cache \
+  "$HERE"/usr/lib/gtk-3.0/*/immodules.cache || true)"
+[ -n "$IM_CACHE" ] && export GTK_IM_MODULE_FILE="$IM_CACHE"
+
+PIXBUF_CACHE="$(first_existing \
+  "$HERE"/usr/lib64/gdk-pixbuf-2.0/*/loaders.cache \
+  "$HERE"/usr/lib/x86_64-linux-gnu/gdk-pixbuf-2.0/*/loaders.cache \
+  "$HERE"/usr/lib/aarch64-linux-gnu/gdk-pixbuf-2.0/*/loaders.cache \
+  "$HERE"/usr/lib/gdk-pixbuf-2.0/*/loaders.cache || true)"
+[ -n "$PIXBUF_CACHE" ] && export GDK_PIXBUF_MODULE_FILE="$PIXBUF_CACHE"
+
+GIO_MODULES="$(first_existing \
+  "$HERE/usr/lib64/gio/modules" \
+  "$HERE/usr/lib/x86_64-linux-gnu/gio/modules" \
+  "$HERE/usr/lib/aarch64-linux-gnu/gio/modules" \
+  "$HERE/usr/lib/gio/modules" || true)"
+[ -n "$GIO_MODULES" ] && export GIO_EXTRA_MODULES="$GIO_MODULES"
+
+# Bundled themes can't be customized; mirror linuxdeploy-plugin-gtk.
+GTK_THEME_VARIANT="light"
+if command -v gsettings >/dev/null 2>&1 && \
+   gsettings get org.gnome.desktop.interface gtk-theme 2>/dev/null | grep -qi dark; then
+  GTK_THEME_VARIANT="dark"
+fi
+export GTK_THEME="${APPIMAGE_GTK_THEME:-Adwaita:$GTK_THEME_VARIANT}"
+
+# The bundled WebKitGTK crashes with the Wayland backend; force X11 like the
+# stock linuxdeploy-plugin-gtk hook (tauri-apps/tauri#8541).
+export GDK_BACKEND="${GDK_BACKEND:-x11}"
+
+# The bundled libwebkit2gtk is binary-patched (/usr -> ././) and locates its
+# helper processes relative to the current directory; the stock AppRun chdir'd
+# to $APPDIR/usr, keep doing it.
+cd "$HERE/usr" || exit 1
+
+exec "$BIN" "$@"

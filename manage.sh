@@ -2,19 +2,28 @@
 
 # ===================================================================================================
 # manage.sh : manager de projet pour Typst IDE (Rust + Tauri + frontend)
-#
+
 # Usage:
-#     ./manage.sh info             Affiche les infos du projet (nom, version, cohérence, git...)
-#     ./manage.sh bump <version>   Met à jour la version dans tous les fichiers
-#                                     (Cargo.toml, tauri.conf.json, PKGBUILD, Cargo.lock, frontend)
-#                                     Ou bump automatique : major|minor|patch|premajor|preminor|prepatch|prerelease
-#                                        (incrémente la version actuelle)
-#                                     Options : --dry-run (affiche sans écrire)
-#     ./manage.sh check            Vérifie la cohérence des versions + cargo fmt/check
-#     ./manage.sh test             Lance les tests du workspace
-#     ./manage.sh build            Build frontend + release Rust
-#     ./manage.sh dev              Lance tauri dev
-#     ./manage.sh help             Cette d'aide
+#   ./manage.sh info                      Infos du projet (nom, version, cohérence, git…)
+#   ./manage.sh bump <version|type>       Met à jour la version partout (--dry-run dispo)
+#   ./manage.sh check                     Cohérence des versions + cargo fmt/check
+#   ./manage.sh test                      Tests du workspace
+#   ./manage.sh build [cibles] [opts]     Build frontend + bundles Tauri
+#                                           cibles   : frontend | rust | appimage | deb | rpm | nsis | all (défaut)
+#                                           options  : --target <triple>           cross-compilation (ex. x86_64-unknown-linux-gnu)
+#                                                      --container                 build release dans un conteneur ubuntu:22.04
+#                                                      --container-image <image>   image de base (défaut : ubuntu:22.04)
+#                                                      --container-rebuild         reconstruit l'image de build sans cache
+#   ./manage.sh fix-appimage [chemin]     Rejoue le post-traitement AppImage (docs/appimage.md)
+#   ./manage.sh dev                       Lance tauri dev
+#   ./manage.sh help                      Cette aide
+
+# Exemples:
+#   ./manage.sh build                            # frontend + appimage + deb + rpm
+#   ./manage.sh build appimage                   # seulement l'AppImage (post-traitée)
+#   ./manage.sh build appimage,deb,rpm           # plusieurs cibles
+#   ./manage.sh build appimage --container       # équivalent de la CI (ubuntu:22.04)
+#   ./manage.sh build rust                       # ancien comportement (frontend + cargo release)
 # ===================================================================================================
 
 set -euo pipefail
@@ -33,6 +42,9 @@ SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # ---------------------
 # Helpers
 # ---------------------
+usage() {
+    sed -n '4,26p' "$0" | sed 's/^# \{0,1\}//'
+}
 
 die() { echo "manage: $*" >&2; exit 1; }
 
@@ -368,13 +380,185 @@ cmd_test() {
   ( cd "$REPO_ROOT" && cargo test --workspace ) && echo "    tests: ${GREEN}OK (tout passe)${NC}" || die "    les tests ont échoué"
 }
 
+# ---------------------
+# Build
+# ---------------------
+
+# Renvoie le runtime de conteneur disponible (podman prioritaire).
+container_runtime() {
+  if command -v podman >/dev/null 2>&1; then echo podman; return 0; fi
+  if command -v docker >/dev/null 2>&1; then echo docker; return 0; fi
+  return 1
+}
+
+# Chemin du dossier de bundle pour un target donné (vide = hôte).
+bundle_dir_for() {
+  local kind="$1" target="${2:-}"
+  local base="$REPO_ROOT/target"
+  [ -n "$target" ] && base="$base/$target"
+  echo "$base/release/bundle/$kind"
+}
+
+# Commande Tauri disponible : binaire `tauri` (npm) ou sous-commande cargo.
+tauri_cmd() {
+  if command -v tauri >/dev/null 2>&1; then
+    echo "tauri"
+    return 0
+  fi
+  if cargo tauri --version >/dev/null 2>&1; then
+    echo "cargo tauri"
+    return 0
+  fi
+  return 1
+}
+
+# Build dans le conteneur de release (voir scripts/build/Containerfile.ubuntu2204
+# et docs/appimage.md). Liste et target sont passés par variables d'environnement.
+build_in_container() {
+  local list="$1" target="$2" image="$3" rebuild="$4"
+
+  local runtime
+  runtime="$(container_runtime)" || die "ni podman ni docker n'est installé (requis pour --container)"
+
+  local containerfile="$REPO_ROOT/scripts/build/Containerfile.ubuntu2204"
+  require_file "$containerfile"
+
+  local tag="typst-ide-build:ubuntu22.04"
+  local -a build_args=(build --build-arg "BASE_IMAGE=$image" -t "$tag" -f "$containerfile")
+  [ "$rebuild" = "1" ] && build_args+=(--no-cache)
+  echo "== Image de build ($runtime, $image) =="
+  "$runtime" "${build_args[@]}" "$REPO_ROOT/scripts/build" \
+    || die "la construction de l'image de build a échoué"
+
+  local -a run_args=(run --rm -w /work)
+  if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled 2>/dev/null; then
+    run_args+=(-v "$REPO_ROOT:/work:Z")   # SELinux (Fedora) : relabellisation du montage
+  else
+    run_args+=(-v "$REPO_ROOT:/work")
+  fi
+  if [ "$runtime" = "docker" ]; then
+    # docker rootful : se ramener à l'UID hôte pour que les artefacts sortent à ton nom
+    run_args+=(--user "$(id -u):$(id -g)" -e HOME=/tmp)
+  fi
+  run_args+=(
+    -e "BUNDLES=$list"
+    -e "TARGET=$target"
+    -e "CARGO_HOME=/work/target/container/cargo-home"
+    -e "CARGO_TARGET_DIR=/work/target/container"
+    -e "npm_config_cache=/work/target/container/npm-cache"
+    -e "XDG_CACHE_HOME=/work/target/container/cache"
+    "$tag"
+    bash scripts/build/in-container.sh
+  )
+  echo "== Build dans le conteneur ($list${target:+ --target $target}) =="
+  "$runtime" "${run_args[@]}" || die "le build conteneurisé a échoué"
+}
+
 cmd_build() {
+  local use_container=0 rebuild=0 image="ubuntu:22.04" target=""
+  local -a requested=()
+
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --container)         use_container=1; shift ;;
+      --container-rebuild) rebuild=1; shift ;;
+      --container-image)   image="${2:-}"; [ -n "$image" ] || die "--container-image attend une valeur"; shift 2 ;;
+      --target)            target="${2:-}"; [ -n "$target" ] || die "--target attend une valeur"; shift 2 ;;
+      -*)                  die "option inconnue: $1 (voir manage.sh help)" ;;
+      *)                   requested+=("$1"); shift ;;
+    esac
+  done
+
+  # Cibles : arguments positionnels (séparés par des espaces ou des virgules).
+  local -a targets=()
+  if [ "${#requested[@]}" -eq 0 ]; then
+    targets=(all)
+  else
+    local arg part
+    for arg in "${requested[@]}"; do
+      IFS=',' read -ra parts <<< "$arg"
+      for part in "${parts[@]}"; do
+        [ -n "$part" ] && targets+=("$part")
+      done
+    done
+  fi
+
+  # Résolution de `all` selon l'OS + déduplication.
+  local list=""
+  add_target() { case " $list " in *" $1 "*) ;; *) list="${list:+$list }$1" ;; esac; }
+  local t
+  for t in "${targets[@]}"; do
+    case "$t" in
+      all)
+        case "$(uname -s)" in
+          Linux)                add_target appimage; add_target deb; add_target rpm ;;
+          MINGW*|MSYS*|CYGWIN*) add_target nsis ;;
+          *)                    die "OS non supporté pour la cible 'all': $(uname -s)" ;;
+        esac
+        ;;
+      frontend|rust|appimage|deb|rpm|nsis) add_target "$t" ;;
+      *) die "cible inconnue: $t (attendu: frontend|rust|appimage|deb|rpm|nsis|all)" ;;
+    esac
+  done
+
+  echo "Cibles : ${BOLD}$list${NC}"
+  echo
+
+  if [ "$use_container" = "1" ]; then
+    case " $list " in
+      *" nsis "*) die "--container ne supporte pas la cible nsis (le bundle Windows est construit par la CI)" ;;
+    esac
+    build_in_container "$list" "$target" "$image" "$rebuild"
+    echo
+    local out_base="target/container"
+    [ -n "$target" ] && out_base="$out_base/$target"
+    echo "Artefacts : ${BOLD}${out_base}/release/bundle/${NC}"
+    if echo " $list " | grep -qw appimage; then
+      echo "            ${BOLD}${out_base}/release/bundle/appimage/typst-ide-$(tauri_version)-x86_64.AppImage${NC}"
+    fi
+    return 0
+  fi
+
   echo "== Frontend =="
   ( cd "$REPO_ROOT/frontend" && npm run build ) && echo "    build frontend: ${GREEN}OK${NC}" || die "    le build frontend a échoué"
 
-  echo
-  echo "== Rust (release) =="
-  ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
+  if echo " $list " | grep -qw rust; then
+    echo
+    echo "== Rust (release) =="
+    ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
+  fi
+
+  # Bundles Tauri demandés (un seul appel tauri build).
+  local bundles=""
+  for t in appimage deb rpm nsis; do
+    echo " $list " | grep -qw "$t" && bundles="${bundles:+$bundles,}$t"
+  done
+
+  if [ -n "$bundles" ]; then
+    local tauri_str
+    tauri_str="$(tauri_cmd)" || die "tauri-cli introuvable. Installation : npm install -g @tauri-apps/cli@2.12.0"
+    local -a tauri
+    read -ra tauri <<< "$tauri_str"
+    local -a args=(build --bundles "$bundles")
+    [ -n "$target" ] && args+=(--target "$target")
+    echo
+    echo "== Tauri ($bundles) =="
+    ( cd "$REPO_ROOT/crates/app" && NO_STRIP=1 "${tauri[@]}" "${args[@]}" ) || die "    tauri build a échoué"
+
+    if echo " $list " | grep -qw appimage; then
+      local dir
+      dir="$(bundle_dir_for appimage "$target")"
+      [ -d "$dir" ] || die "    bundle appimage introuvable: $dir"
+      echo
+      echo "== AppImage : post-traitement =="
+      "$REPO_ROOT/scripts/fix-appimage.sh" --out-dir "$dir" "$dir" || die "    le post-traitement AppImage a échoué"
+    fi
+  fi
+}
+
+# Rejoue scripts/fix-appimage.sh sur le dernier bundle (ou sur un chemin donné).
+cmd_fix_appimage() {
+  "$REPO_ROOT/scripts/fix-appimage.sh" "$@"
 }
 
 cmd_dev() {
@@ -383,10 +567,6 @@ cmd_dev() {
     die "tauri-cli introuvable. Installation : cargo install tauri-cli --locked"
   fi
   ( cd "$REPO_ROOT/crates/app" && cargo tauri dev ) || die "tauri dev a échoué"
-}
-
-usage() {
-  sed -n '4,17p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # ---------------------
@@ -401,7 +581,8 @@ case "$cmd" in
   bump)    cmd_bump "$@" ;;
   check)   cmd_check ;;
   test)    cmd_test ;;
-  build)   cmd_build ;;
+  build)   cmd_build "$@" ;;
+  fix-appimage) cmd_fix_appimage "$@" ;;
   dev)     cmd_dev ;;
   help|-h|--help) usage ;;
   *) die "commande inconnue: $cmd"; usage ;;

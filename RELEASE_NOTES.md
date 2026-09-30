@@ -1,5 +1,12 @@
 # Release Notes
 
+## Unreleased
+
+### New / Fixes
+
+- **Linux AppImage is back** : the AppImage is built and published again (`typst-ide-<version>-x86_64.AppImage`), fixed for modern distributions. The runtime now prefers the system `webkit2gtk-4.1` (like the `.deb`/`.rpm`), so the preview follows the editor cursor again on Wayland/Mesa systems, while falling back to the bundled WebKitGTK on hosts without it. It follows the AppImage conventions: host-owned libraries (Wayland, GL, ...) are not bundled, AppStream metadata and a proper `.desktop` are embedded, and update information (`gh-releases-zsync`) plus a `.zsync` are published for AppImageUpdate.
+- **`manage.sh build`** now builds bundles: `./manage.sh build [appimage|deb|rpm|nsis|all]`, with `--target` and a reproducible `--container` mode (Ubuntu 22.04 via podman/docker, the same base as the CI). See `docs/appimage.md`.
+
 ## v1.6.9
 
 ### Fixes

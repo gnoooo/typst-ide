@@ -72,23 +72,31 @@ crates/app/
 
 - **Frontend dist** : `../../frontend/dist`
 - **Dev URL** : `http://localhost:1420`
-- **Bundle targets** : `deb` (Linux), `rpm` (Linux), `nsis` (Windows, via cross-build `--target x86_64-pc-windows-gnu`)
+- **Bundle targets** : `appimage` (Linux), `deb` (Linux), `rpm` (Linux), `nsis` (Windows, via cross-build `--target x86_64-pc-windows-gnu`)
+- **Desktop file** : `deb` and `rpm` (and therefore the AppImage) use the repository's `typst-ide.desktop` as a Handlebars template
 - **Identifier** : `com.typst.ide`
 
 ## Build Commands
 
+Prefer the project wrapper, which handles the frontend build, the AppImage post-processing (`scripts/fix-appimage.sh`) and the containerized release environment:
 ```bash
-# From crates/app/
+# From the repository root
+./manage.sh build                        # frontend + appimage + deb + rpm (Linux)
+./manage.sh build appimage               # single bundle (AppImage post-processed)
+./manage.sh build appimage --container   # CI-equivalent build (ubuntu:22.04)
+./manage.sh build rust                   # frontend + cargo release only
+```
 
+Under the hood (from `crates/app/`):
+```bash
 # Development (with frontend hot-reload)
 cargo tauri dev
 
-# Release packages (default: all targets from bundle.targets)
-cargo tauri build       # Linux -> .deb + .rpm (nsis skipped: it needs the Windows target)
+# Release bundles (default: all targets from bundle.targets)
+cargo tauri build       # Linux -> .AppImage + .deb + .rpm (nsis skipped: it needs the Windows target)
 
 # Select a specific bundle (or several, comma-separated)
-cargo tauri build --bundles deb
-cargo tauri build --bundles rpm
+cargo tauri build --bundles appimage
 cargo tauri build --bundles deb,rpm
 
 # Windows .exe (NSIS installer, cross-compiled from Linux)
@@ -98,11 +106,18 @@ cargo tauri build --target x86_64-pc-windows-gnu
 > The Windows cross-build needs the cross toolchain and the NSIS tools to be installed:
 >
 > ```bash
-> # Fedora: sudo dnf install mingw64-gcc nsis mingw64-gcc-c++ mingw64-binutils mingw64-winpthreads
-> # Arch:   sudo pacman -S mingw-w64-gcc nsis
+> # Fedora: 
+> sudo dnf install mingw64-gcc nsis mingw64-gcc-c++ mingw64-binutils mingw64-winpthreads
+> # Arch:   
+> sudo pacman -S mingw-w64-gcc nsis
 > ```
 >
 > `frontend/dist` must be built beforehand (`npm run build` in `frontend/`), otherwise the bundle step fails. Like CI, use `NO_STRIP=1 cargo tauri build` when the release profile sets `strip = true`.
+>
+> A bare `cargo tauri build` leaves the AppImage in its stock form (WebKitGTK
+> bundled, Wayland libraries included). Run `./manage.sh fix-appimage` (or the
+> `./manage.sh build appimage` command above) to apply the AppImage conventions
+> before distributing it — see `docs/appimage.md`.
 
 ## Notable Dependencies
 

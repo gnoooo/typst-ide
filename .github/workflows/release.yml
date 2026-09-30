@@ -25,7 +25,13 @@ jobs:
             patchelf \
             file \
             xdg-utils \
-            rpm
+            rpm \
+            zsync \
+            desktop-file-utils \
+            appstream \
+            xvfb \
+            xauth \
+            xdotool
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -46,27 +52,50 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
-
-      - name: Build frontend
-        working-directory: frontend
-        run: npm run build
+        run: npm ci
 
       - name: Install Tauri CLI
         # Pinned so releases stay reproducible (a CLI update silently changed
         # the NSIS template and broke the build once already).
         run: npm install -g @tauri-apps/cli@2.12.0
 
-      - name: Build app
-        working-directory: crates/app
-        run: NO_STRIP=1 tauri build --target x86_64-unknown-linux-gnu
+      # One command, same as local dev: builds the frontend, the bundles, and
+      # post-processes the AppImage (scripts/fix-appimage.sh).
+      - name: Build bundles (AppImage, deb, rpm)
+        run: ./manage.sh build appimage,deb,rpm --target x86_64-unknown-linux-gnu
 
-      - name: Upload AppImage (Linux)
+      # Opens a window under Xvfb: catches AppImage startup crashes
+      # (EGL/WebKit/AppRun regressions) before publishing.
+      - name: Smoke-test the AppImage
+        run: |
+          APPIMAGE=$(ls target/x86_64-unknown-linux-gnu/release/bundle/appimage/typst-ide-*.AppImage)
+          chmod +x "$APPIMAGE"
+          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a bash -c '
+            "$1" &
+            pid=$!
+            for _ in $(seq 1 25); do
+              if xdotool search --name "Typst IDE" >/dev/null 2>&1; then
+                echo "AppImage window appeared"
+                kill "$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+                exit 0
+              fi
+              kill -0 "$pid" 2>/dev/null || { echo "AppImage exited before opening a window" >&2; exit 1; }
+              sleep 1
+            done
+            echo "No AppImage window after 25s" >&2
+            kill "$pid" 2>/dev/null || true
+            exit 1
+          ' _ "$APPIMAGE"
+
+      - name: Upload AppImage + zsync (Linux)
         uses: actions/upload-artifact@v4
         with:
           name: typst-ide-linux-appimage
-          path: target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
-          if-no-files-found: warn
+          path: |
+            target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage
+            target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.zsync
+          if-no-files-found: error
 
       - name: Upload .deb (Linux)
         uses: actions/upload-artifact@v4

@@ -25,7 +25,8 @@ Les items sont groupés par priorité.
 - [x] Lancer `./manage.sh check` et `./manage.sh test` dans la CI (actuellement : build sur tag uniquement, sans test ni lint) — couvert par le workflow CI des PR
 - [x] Créer un workflow CI pour les PR (build + tests) en plus du workflow de release
 - [ ] Ajouter un job macOS au build de release
-- [ ] Réparer bundle AppImage
+- [x] Réparer bundle AppImage
+  - Corrigé en septembre 2026 : `scripts/fix-appimage.sh` retire les libs qui doivent venir de l'hôte (`libwayland-*`), l'AppRun personnalisé utilise le WebKitGTK de l'hôte quand il existe (comme le .deb/.rpm) et retombe sur le WebKit embarqué sinon, AppStream + desktop `com.typst.ide.desktop` embarqués, repack `appimagetool` avec update info + `.zsync`, asset nommé `typst-ide-<version>-x86_64.AppImage`. `manage.sh build appimage [--container]`, doc dans `docs/appimage.md`.
 - [x] Bundle Windows exécutable (et non setup NSIS)
 
 ## Fonctionnalités
@@ -45,6 +46,7 @@ Les items sont groupés par priorité.
 ## Divers
 
 - [ ] Build macOS
-- [ ] Assistant / solution pour l'AppImage (webkit bundlé cassé, documenté mais pas corrigé)
+- [x] Assistant / solution pour l'AppImage (webkit bundlé cassé, documenté mais pas corrigé)
+  - Résolu : voir `docs/appimage.md` (mode hybride WebKit hôte/embarqué, exclusions, conteneur de release).
 - [ ] Définir une procédure de suivi des versions de Typst (dépendance épinglée en 0.15, fork `typst-as-library` embarqué à maintenir)
 - [ ] Vérifier la surface de permissions Tauri (opener `https://**` très large)

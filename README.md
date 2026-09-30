@@ -14,59 +14,53 @@ A modern local Typst editor (not a lie anymore, since Electron has been replaced
 ## Users
 Check out the [releases](https://github.com/gnoooo/typst-ide/releases) page for the latest version.
 
-Currently, there is two versions available: 
-- Linux with AppImage (may not work well, there can be compatibility issues due to graphical backends)
-- Windows with setup executable
-- Maybe MacOS in the future? 
+Available versions:
+- **Linux** : AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./PKGBUILD) for Arch.
+  The AppImage is portable (no installation): it uses the system `webkit2gtk-4.1` when available (like the `.deb`/`.rpm`) and falls back to the bundled copy otherwise. It supports AppImageUpdate through the published `.zsync` : see [docs/appimage.md](./docs/appimage.md).
+- **Windows** : setup executable, plus a portable executable.
+- Maybe MacOS in the future?
 
 ## Developers
 ### Prerequisites
 - Rust + Cargo
 - Node.js + npm
-- Tauri CLI : ```bash cargo install tauri-cli```
+- Tauri CLI: `npm install -g @tauri-apps/cli@2.12.0` (or `cargo install tauri-cli`)
 
 ### Setup
 Clone this repository:
 ```sh
-git clone https://gitlab.com/gnoooo/typst-ide
+git clone https://github.com/gnoooo/typst-ide
 cd typst-ide
 ```
 
-Since I didn't pushed the whole repository, we neet to initialize some things:
-1. NPM
-    ```bash
-    cd frontend && npm install
-    npm run build:css # not necessary: everytime the app build, it generate the CSS
-    npm run postinstall # to convert Monaco Editor (which use web workers) to an ESM module
-    ```
-2. Cargo
-    ```bash
-    # if you are in frontend/
-    cd ../crates/app
-    cargo tauri build # then pray
-    ```
+Install the frontend dependencies (only needed once):
+```bash
+cd frontend && npm install
+```
+
 ### Build the app
-To build the app (into an AppImage for Linux and a setup executable for Windows), we have to:
-1. Compile CSS and build the frontend:
-    ```bash
-    cd frontend/
-    npm run build   # => npm run build:css && vite build dist
-    ```
-2. Build the app (it's long...):
-    - Windows
-        ```bash
-        cd crates/app/
-        cargo tauri build --target x86_64-pc-windows-gnu
-        ```
-    - Linux
-        ```bash
-        cd crates/app/
-        NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu
-        ```
-        - `NO_STRIP=1` helps avoid the `failed to bundle project \`failed to run linuxdeploy\`` error
-3. The executables files will be in:
-    - Linux : `$HOME/path/to/typst-ide/target/x86_64_unknown-linux-gnu/release/bundle/appimage/Typst IDE_x.y.z_amd64.AppImage`
-    - Windows : `$HOME/path/to/typst-ide/target/x86_64-pc-windows-gnu/bundle/nsis/Typst IDE_x.y.z_x64-setup.exe`
+The `manage.sh` wrapper drives every build:
+
+```bash
+./manage.sh build              # frontend + all bundles for your OS (appimage,deb,rpm on Linux)
+./manage.sh build appimage     # a single bundle (AppImage is post-processed, see docs/appimage.md)
+./manage.sh build rust         # frontend + cargo release only
+./manage.sh build --container  # reproduce the CI release environment (Ubuntu 22.04, podman/docker)
+```
+
+Artifacts land in `target/release/bundle/` (native) or `target/container/release/bundle/`
+(`--container`, the distributable build). The AppImage is named
+`typst-ide-<version>-x86_64.AppImage`.
+
+For reference, the underlying Tauri commands are:
+
+- Windows: `cd crates/app && cargo tauri build --target x86_64-pc-windows-gnu`
+- Linux: `cd crates/app && NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu`
+  (`NO_STRIP=1` avoids the `failed to bundle project \`failed to run linuxdeploy\`` error)
+
+See [docs/appimage.md](./docs/appimage.md) for the AppImage pipeline (library
+exclusions, runtime AppRun, AppStream metadata, update information) and the
+container build details.
 
 # Usage
 ## Typical workflow

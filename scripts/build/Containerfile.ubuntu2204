@@ -1,0 +1,55 @@
+# =============================================================================
+# Build environment for the release artifacts (AppImage/.deb/.rpm).
+#
+# The base image is the same as the GitHub Actions release workflow
+# (ubuntu-22.04): building on the oldest supported base keeps the glibc
+# requirement low, so a locally produced AppImage behaves like the CI one.
+#
+# Used by `./manage.sh build <targets> --container` — see docs/appimage.md.
+# =============================================================================
+ARG BASE_IMAGE=ubuntu:22.04
+FROM ${BASE_IMAGE}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        wget \
+        file \
+        patchelf \
+        xdg-utils \
+        build-essential \
+        libwebkit2gtk-4.1-dev \
+        libsoup-3.0-dev \
+        libgtk-3-dev \
+        libayatana-appindicator3-dev \
+        librsvg2-dev \
+        rpm \
+        zsync \
+        desktop-file-utils \
+        appstream \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 20 (same major as the CI)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tauri CLI, pinned like .github/workflows/release.yml
+RUN npm install -g @tauri-apps/cli@2.12.0
+
+# Rust toolchain
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --profile minimal --default-toolchain stable
+
+# appimagetool used by scripts/fix-appimage.sh (repack + update information)
+RUN curl -fsSL -o /opt/appimagetool-x86_64.AppImage \
+        https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+    && chmod +x /opt/appimagetool-x86_64.AppImage
+ENV APPIMAGETOOL=/opt/appimagetool-x86_64.AppImage
+
+WORKDIR /work
