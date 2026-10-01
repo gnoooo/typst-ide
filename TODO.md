@@ -16,6 +16,7 @@ Les items sont groupés par priorité.
   - Corrigé en septembre 2026 : le monde Typst persistant servait les fichiers importés depuis son cache sans vérifier le disque. Ajout d'une détection de fichier périmé (empreinte taille + mtime, `stat` ~gratuit à chaque accès cache dans `TypstWrapperWorld::file`) : un fichier réécrit en place est relu automatiquement à la compilation suivante. Le preview recompile aussi au focus de la fenêtre pour couvrir le cas où rien n'est tapé dans l'éditeur.
 - [x] Bug: resize du split dans la main window : clic bloqué/bugué (obligé de slide le curseur vers la toolbar pour pouvoir resize comme on veut)
   - Corrigé en septembre 2026 : l'iframe du preview capturait les événements souris pendant le drag (`mousemove`/`mouseup` jamais reçus par le document parent, drag bloqué). Une classe `resizing` sur `<body>` désactive le hit-testing de l'iframe (`pointer-events: none`) et applique le curseur col-resize le temps du drag ; le drag est aussi annulé sur `window.blur` (focus perdu).
+- [] Empaqueter les fonts dans le binaire : sur windows, les fonts sont un peu bancales...
 
 ## Tests et CI
 
