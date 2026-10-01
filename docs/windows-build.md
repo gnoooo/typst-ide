@@ -29,11 +29,16 @@ Elle donne une parité totale avec `windows-latest`, mais demande un provisionne
 
 | Mode | Commande | Artefact | Dépendances hôte | Parité CI |
 |---|---|---|---|---|
+| **MSVC natif (CI)** | job `build-windows` (windows-latest) | portable auto-contenu + installeur NSIS | aucune (runner Windows) | ★★★★ |
 | **MSVC (conteneur)** | `build windows --container` | portable auto-contenu + installeur NSIS | podman/docker uniquement | ★★★ (cargo-xwin, Tauri officiel) |
 | **MinGW (hôte)** | `build windows` | portable + `WebView2Loader.dll` + installeur NSIS | mingw-w64, std Rust `windows-gnu`, stubs NSIS | ★★ |
 | **VM Windows** | (manuel / à venir) | identique `windows-latest` | VM QEMU/KVM | ★★★★ |
 
-> La release GitHub reste construite par la CI sur `windows-latest` (MSVC natif). Les modes ci-dessus servent au développement local et aux tests.
+> La CI GitHub exécute les mêmes commandes que le local (`manage.sh`, publication
+> `dist/`, versions épinglées — Rust/Node/Tauri CLI identiques au Containerfile).
+> Côté Windows, la CI compile en **MSVC natif** et le conteneur local en
+> **cargo-xwin** : les deux produisent un binaire MSVC auto-contenu, pas
+> bit-à-bit identique.
 
 ## Mode conteneur (MSVC via cargo-xwin)
 

@@ -1,0 +1,20 @@
+# Keep shell scripts and text files LF even on Windows checkouts: manage.sh and
+# scripts/*.sh run under Git Bash in the CI, a CRLF shebang/script would break.
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.AppImage binary
+*.deb binary
+*.rpm binary
+*.exe binary

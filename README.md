@@ -78,6 +78,8 @@ For reference, the underlying Tauri commands are:
 
 See [docs/appimage.md](./docs/appimage.md) for the AppImage pipeline and [docs/windows-build.md](./docs/windows-build.md) for the Windows builds (MinGW vs container MSVC vs VM, troubleshooting).
 
+The CI runs the same commands with the same pinned tools (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0) and publishes the same `dist/` layout; the only difference is that Windows is compiled natively (MSVC, windows-latest) in CI while the local container uses `cargo-xwin`.
+
 # Usage
 ## Typical workflow
 When you first open the app, you'll see two windows:

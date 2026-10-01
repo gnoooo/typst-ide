@@ -39,26 +39,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         llvm \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 20 (same major as the CI)
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+# Node.js pinned to the exact version the CI uses (see .github/workflows)
+ARG NODE_VERSION=20.20.2
+RUN curl -fsSL -o /tmp/node.tar.gz \
+        "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
+    && tar -xzf /tmp/node.tar.gz -C /usr/local --strip-components=1 \
+    && rm -f /tmp/node.tar.gz \
+    && node --version && npm --version
 
 # Tauri CLI, pinned like .github/workflows/release.yml
 RUN npm install -g @tauri-apps/cli@2.12.0
 
 # Rust toolchain + the Windows targets (msvc = CI parity via cargo-xwin,
-# gnu = fallback/Mingw)
+# gnu = fallback/Mingw). Pinned to the exact version the CI uses.
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH
+ARG RUST_VERSION=1.98.1
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
-    | sh -s -- -y --profile minimal --default-toolchain stable \
+    | sh -s -- -y --profile minimal --default-toolchain "${RUST_VERSION}" \
     && rustup target add x86_64-pc-windows-msvc x86_64-pc-windows-gnu
 
 # cargo-xwin: Tauri's runner for cross-compiling to the MSVC target
 # (downloads the Windows SDK at build time, cached under XWIN_CACHE_DIR).
-RUN cargo install --locked cargo-xwin
+ARG CARGO_XWIN_VERSION=0.23.1
+RUN cargo install --locked "cargo-xwin@${CARGO_XWIN_VERSION}"
 
 # appimagetool used by scripts/fix-appimage.sh (repack + update information)
 RUN curl -fsSL -o /opt/appimagetool-x86_64.AppImage \
