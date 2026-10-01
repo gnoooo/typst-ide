@@ -52,33 +52,39 @@ The `manage.sh` wrapper drives every build:
 ./manage.sh clean build --yes              # reclaim cargo intermediates (keeps target/dist)
 ```
 
-`target/` grows fast (debug builds, cargo intermediates, container caches).
-`./manage.sh clean [build|cache|dist|image|all]` removes them safely, keeps the
-published `dist/` artifacts by default and never runs `cargo clean`; see
-[docs/appimage.md](./docs/appimage.md#nettoyage) for details.
+`target/` grows fast (debug builds, cargo intermediates, container caches). `./manage.sh clean [build|cache|dist|image|all]` removes them safely, keeps the published `dist/` artifacts by default and never runs `cargo clean`. See [docs/appimage.md](./docs/appimage.md#nettoyage) for details.
 
 Artifacts are collected by `scripts/publish-artifacts.sh` into a single tree per build workspace, organized by OS: `target/dist/{linux,windows}/` for host builds and `target/container/dist/{linux,windows}/` for `--container` builds.
 The AppImage is named `typst-ide-<version>-x86_64.AppImage`, the Windows installer and portable executable are named like the CI ones.
 
-There is no Windows container on Linux (containers share the host kernel), but the release container cross-compiles Windows with `cargo-xwin` (no Windows machine and no host toolchain required). 
-Without `--container`, `build all` uses MinGW and includes Windows only when `mingw64-gcc`, the Rust `x86_64-pc-windows-gnu` standard library and the NSIS stubs are available.
+There is no Windows container on Linux (containers share the host kernel), but the release container cross-compiles Windows with `cargo-xwin` (no Windows machine and no host toolchain required). Without `--container`, `build all` uses MinGW and includes Windows only when `mingw64-gcc`, the Rust `x86_64-pc-windows-gnu` standard library and the NSIS stubs are available.
+
 Otherwise it skips Windows with a hint:
 ```bash
 # Fedora
 sudo dnf install mingw64-gcc mingw64-gcc-c++ rust-std-static-x86_64-pc-windows-gnu mingw32-nsis
 ```
 
-MinGW produces a portable `Typst IDE_<version>_x64-portable.exe` that needs `WebView2Loader.dll` next to it (both are published in `target/dist/windows/`). The container (MSVC) and the CI build a self-contained portable instead. Any portable executable requires the WebView2 Runtime on the target Windows machine; the NSIS installer installs it automatically if missing.
+MinGW produces a portable `Typst IDE_<version>_x64-portable.exe` that needs `WebView2Loader.dll` next to it (both are published in `target/dist/windows/`). The container (MSVC) and the CI build a self-contained portable instead. Any portable executable requires the WebView2 Runtime on the target Windows machine, the NSIS installer installs it automatically if missing.
 
 For reference, the underlying Tauri commands are:
-- Windows (MinGW): `cd crates/app && cargo tauri build --bundles nsis --target x86_64-pc-windows-gnu`
-- Windows (MSVC, container): `tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc`
-- Linux: `cd crates/app && NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu`
-  (`NO_STRIP=1` avoids the `failed to bundle project \`failed to run linuxdeploy\`` error)
+- Windows (MinGW): 
+  ```bash 
+  cd crates/app && cargo tauri build --bundles nsis --target x86_64-pc-windows-gnu
+  ```
+- Windows (MSVC, container): 
+  ```bash 
+  tauri build --bundles nsis --runner cargo-xwin --target x86_64-pc-windows-msvc
+  ```
+- Linux: 
+  ```bash 
+  cd crates/app && NO_STRIP=1 cargo tauri build --target x86_64-unknown-linux-gnu
+  ```
+  (`NO_STRIP=1` avoids the `failed to bundle project 'failed to run linuxdeploy'` error)
 
 See [docs/appimage.md](./docs/appimage.md) for the AppImage pipeline and [docs/windows-build.md](./docs/windows-build.md) for the Windows builds (MinGW vs container MSVC vs VM, troubleshooting).
 
-The CI runs the same commands with the same pinned tools (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0) and publishes the same `dist/` layout; the only difference is that Windows is compiled natively (MSVC, windows-latest) in CI while the local container uses `cargo-xwin`.
+The CI runs the same commands with the same pinned tools (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0) and publishes the same `dist/` layout. The only difference is that Windows is compiled natively (MSVC, windows-latest) in CI while the local container uses `cargo-xwin`.
 
 # Usage
 ## Typical workflow
