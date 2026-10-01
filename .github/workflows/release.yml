@@ -31,7 +31,10 @@ jobs:
             appstream \
             xvfb \
             xauth \
-            xdotool
+            xdotool \
+            x11-utils \
+            icewm \
+            dbus
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@1.98.1
@@ -64,29 +67,50 @@ jobs:
       - name: Build bundles (AppImage, deb, rpm)
         run: ./manage.sh build appimage,deb,rpm --target x86_64-unknown-linux-gnu
 
-      # Opens a window under Xvfb: catches AppImage startup crashes
-      # (EGL/WebKit/AppRun regressions) before publishing.
+      # Opens a window under Xvfb (+ icewm, like AppImageHub) and a session
+      # bus: catches AppImage startup crashes (EGL/WebKit/AppRun regressions)
+      # before publishing.
       - name: Smoke-test the AppImage
         run: |
           APPIMAGE=$(ls target/dist/linux/typst-ide-*.AppImage)
           chmod +x "$APPIMAGE"
-          APPIMAGE_EXTRACT_AND_RUN=1 xvfb-run -a bash -c '
-            "$1" &
-            pid=$!
-            for _ in $(seq 1 25); do
-              if xdotool search --name "Typst IDE" >/dev/null 2>&1; then
-                echo "AppImage window appeared"
-                kill "$pid" 2>/dev/null || true
-                wait "$pid" 2>/dev/null || true
-                exit 0
-              fi
-              kill -0 "$pid" 2>/dev/null || { echo "AppImage exited before opening a window" >&2; exit 1; }
+          APPIMAGE_EXTRACT_AND_RUN=1 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
+            dbus-run-session -- xvfb-run -a bash -c '
+              icewm >/dev/null 2>&1 &
+              wm=$!
+              "$1" >/tmp/appimage-smoke.log 2>&1 &
+              pid=$!
+              found=0
+              for i in $(seq 1 60); do
+                if xdotool search --name "Typst IDE" >/dev/null 2>&1 \
+                   || xdotool search --classname typst-ide >/dev/null 2>&1 \
+                   || xdotool search --class Typst-ide >/dev/null 2>&1; then
+                  echo "AppImage window appeared after ${i}s"
+                  found=1
+                  break
+                fi
+                if ! kill -0 "$pid" 2>/dev/null; then
+                  echo "AppImage exited before opening a window" >&2
+                  cat /tmp/appimage-smoke.log >&2 || true
+                  kill "$wm" 2>/dev/null || true
+                  exit 1
+                fi
+                sleep 1
+              done
+              kill "$pid" "$wm" 2>/dev/null || true
               sleep 1
-            done
-            echo "No AppImage window after 25s" >&2
-            kill "$pid" 2>/dev/null || true
-            exit 1
-          ' _ "$APPIMAGE"
+              kill -9 "$pid" "$wm" 2>/dev/null || true
+              if [ "$found" -ne 1 ]; then
+                echo "No AppImage window after 60s" >&2
+                echo "--- windows ---" >&2
+                xdotool search --name "" getwindowname %@ 2>&1 | head -20 >&2 || true
+                echo "--- tree ---" >&2
+                xwininfo -root -tree 2>&1 | head -50 >&2 || true
+                echo "--- app log ---" >&2
+                cat /tmp/appimage-smoke.log >&2 || true
+                exit 1
+              fi
+            ' _ "$APPIMAGE"
 
       - name: Upload AppImage + zsync (Linux)
         uses: actions/upload-artifact@v4
