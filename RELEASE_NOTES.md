@@ -1,11 +1,34 @@
 # Release Notes
 
-## Unreleased
+## v1.6.13
 
-### New / Fixes
+### For developers
+
+- **GitHub CI aligned with the local build** : the release workflow now runs the same commands (`manage.sh`, `dist/` publication) with the same pinned tools as the container (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0, cargo-xwin 0.23.1). The Windows job goes through `manage.sh build windows` (Git Bash) instead of an ad-hoc PowerShell packaging, and a `.gitattributes` forces LF line endings so the shell scripts run on Windows runners. Only remaining difference: Windows is compiled natively (MSVC) in CI, with `cargo-xwin` locally.
+
+## v1.6.12
+
+### For developers
+
+- **Simplified artifact tree** : final artifacts are collected per OS by `scripts/publish-artifacts.sh` into `target/dist/{linux,windows}/` (host build) and `target/container/dist/{linux,windows}/` (`--container`), instead of being scattered next to the cargo intermediates. Container caches are grouped under `target/container/cache/`.
+- **`manage.sh clean [build|cache|dist|image|all]`** : reclaims the cargo intermediates, container caches and build images (`--dry-run`/`--yes` available); the published `dist/` artifacts are kept by default.
+
+## v1.6.11
+
+### New in v1.6.11
+
+- **Windows builds from Linux** : `./manage.sh build windows` cross-compiles the NSIS installer and the portable executable with MinGW (`WebView2Loader.dll` alongside), detects the missing prerequisites and includes Windows in `build all` automatically when the toolchain is available. In the release container, Windows is cross-compiled to MSVC with `cargo-xwin` (self-contained portable, no host dependency at all). New guide: `docs/windows-build.md`.
+
+## v1.6.10
+
+### New in v1.6.10
 
 - **Linux AppImage is back** : the AppImage is built and published again (`typst-ide-<version>-x86_64.AppImage`), fixed for modern distributions. The runtime now prefers the system `webkit2gtk-4.1` (like the `.deb`/`.rpm`), so the preview follows the editor cursor again on Wayland/Mesa systems, while falling back to the bundled WebKitGTK on hosts without it. It follows the AppImage conventions: host-owned libraries (Wayland, GL, ...) are not bundled, AppStream metadata and a proper `.desktop` are embedded, and update information (`gh-releases-zsync`) plus a `.zsync` are published for AppImageUpdate.
-- **`manage.sh build`** now builds bundles: `./manage.sh build [appimage|deb|rpm|nsis|windows|all]`, with `--target` and a reproducible `--container` mode (Ubuntu 22.04 via podman/docker, the same base as the CI). On the host, `all` cross-compiles the Windows NSIS installer and portable executable with MinGW when the toolchain is installed; in the container, Windows is cross-compiled to MSVC with `cargo-xwin` (self-contained portable, CI parity) with no host dependency at all. Final artifacts are collected per OS (`target/dist/{linux,windows}/` for host builds, `target/container/dist/{linux,windows}/` for `--container`). **`manage.sh clean [build|cache|dist|image|all]`** reclaims the cargo intermediates, container caches and build images (keeps `dist/` by default). The GitHub release workflow now runs the same commands and the same pinned tool versions (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0), with Windows built natively (MSVC) versus `cargo-xwin` locally. See `docs/appimage.md` and `docs/windows-build.md`.
+
+### For developers
+
+- **`manage.sh build`** now builds bundles: `./manage.sh build [appimage|deb|rpm|nsis|all]`, with `--target` and a reproducible `--container` mode (Ubuntu 22.04 via podman/docker, the same base as the CI). The AppImage is post-processed by `scripts/fix-appimage.sh` (see `docs/appimage.md`).
+- The release CI builds these bundles with a smoke test before publishing, and the desktop entry uses the correct `StartupWMClass=typst-ide` (also used as the bundle template).
 
 ## v1.6.9
 
