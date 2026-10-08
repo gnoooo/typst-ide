@@ -1,5 +1,11 @@
 # Release Notes
 
+## v1.7.2
+
+### For developers
+
+- **Flathub packaging fixed** : metainfo release entry bumped to 1.7.2, screenshot URL pinned to a reachable commit (the previous pin pointed at a tag object), and the manifest pinned to the v1.7.2 tag/commit pair. `flatpak-builder-lint` (manifest and repo) passes cleanly.
+
 ## v1.7.0
 
 ### New in v1.7.0
