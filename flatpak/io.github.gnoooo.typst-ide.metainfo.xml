@@ -43,13 +43,13 @@
   <screenshots>
     <screenshot type="default">
       <caption>Editing a Typst document with the live preview</caption>
-      <image type="source">https://raw.githubusercontent.com/gnoooo/typst-ide/3d5a80bb42024d97ab85dba980a6218476091d48/images/preview.png</image>
+      <image type="source">https://raw.githubusercontent.com/gnoooo/typst-ide/2d0ffd469b7a5cc85f0e5afbbe6e1bedc04821f4/images/preview.png</image>
     </screenshot>
   </screenshots>
 
   <content_rating type="oars-1.1"/>
 
   <releases>
-    <release version="1.6.13" date="2026-10-01"/>
+    <release version="1.7.1" date="2026-10-08"/>
   </releases>
 </component>
