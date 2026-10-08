@@ -167,7 +167,7 @@ Les dialogues natifs de l'application utilisent `rfd`, dont le backend Linux est
 
 1. **Choisir un dossier/fichier** (`open_folder_dialog`, `pick_files`, dialogues d'import/export) appelle `org.freedesktop.portal.FileChooser`. Le portail renvoie des montages « document portal » (`/run/user/<uid>/doc/...`) : l'utilisateur accorde précisément ces chemins au moment du choix, et uniquement eux.
 2. **Créer/ouvrir un projet** : `create_project` et `open_project` reçoivent ces chemins accordés. Le backend ne les accepte que s'ils ont été choisis via un dialogue (registre `GRANTED_PATHS` dans `commands/fs.rs`) ou, hors sandbox, s'ils sont dans `$HOME` (pour l'historique après redémarrage).
-3. **Réouverture depuis l'historique** : l'historique stocke le chemin retourné par le portail. Si l'autorisation a été révoquée ou le dossier déplacé, l'ouverture échoue et l'interface propose de re-sélectionner le dossier (et met l'entrée à jour).
+3. **Réouverture depuis l'historique** : l'historique (SQLite) vit dans le dossier de données de l'app (`~/.var/app/io.github.gnoooo.typst-ide/data/history.db` sous sandbox, via `app_data_dir`) et stocke le chemin retourné par le portail. Si l'autorisation a été révoquée ou le dossier déplacé, l'ouverture échoue et l'interface propose de re-sélectionner le dossier (et met l'entrée à jour).
 4. **Révéler dans le gestionnaire de fichiers** : passe par `org.freedesktop.portal.OpenURI` (`crates/app/src/portal.rs`) ; le montage document-portal est visible de l'hôte, donc le gestionnaire de fichiers ouvre le vrai emplacement.
 5. **Fonts** : les fonts de l'hôte sont chargées depuis `/run/host/fonts` (montage standard en lecture seule, aucune permission requise).
 
@@ -195,8 +195,8 @@ Permission justifications:
 
 - --share=network
   Typst IDE embeds the Typst compiler, but documents that import packages
-  (e.g. #import "@preview/...") are resolved by downloading them from
-  https://packages.typst.org. The download is implemented in the vendored
+  from the Typst Universe (e.g. #import "@preview/...") are resolved by
+  downloading them. The download is implemented in the vendored
   typst-as-library fork (crates/typst-as-library/src/lib.rs, download_package)
   with ureq. Without network access, any document using a Typst package fails
   to compile. This is the only network usage: no telemetry, no updater, no
@@ -204,16 +204,15 @@ Permission justifications:
 
 - No static filesystem permissions: file access goes through the XDG portals.
   Native open/save dialogs (rfd, xdg-desktop-portal backend) return
-  document-portal mounts granted by the user at pick time; the application
-  only accepts project folders the user actually picked (granted-paths
-  registry in crates/app/src/commands/fs.rs, plus $HOME outside the sandbox
-  so the "recent projects" history survives restarts) and "reveal in file
-  manager" goes through the OpenURI portal. File operations are additionally
-  confined to the current project root + sandboxed app data/config dirs via
-  allowed_roots()/assert_within(). Application data (SQLite notes/history,
-  templates, caches) stays inside the sandboxed app directory
-  (~/.var/app/io.github.gnoooo.typst-ide/). No host/system access is
-  requested.
+  document-portal mounts granted by the user at pick time; inside the sandbox
+  the application only accepts those portal mounts (plus the user-picked
+  paths registered in crates/app/src/commands/fs.rs). The "recent projects"
+  history is stored in the application's own data directory
+  (~/.var/app/io.github.gnoooo.typst-ide/). The $HOME fallback in the backend
+  applies only to native (non-Flatpak) builds. "Reveal in file manager" goes
+  through the OpenURI portal. File operations are additionally confined to
+  the current project root + sandboxed app data/config dirs via
+  allowed_roots()/assert_within(). No host/system access is requested.
 ```
 
 ## 7. Adaptations côté code (sandbox)
