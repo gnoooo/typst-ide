@@ -74,10 +74,47 @@ async function waitForEditor() {
 }
 
 /**
+ * Performs a raw pointer click at the center of the element matched by
+ * `selector`. Element-level clicks are rejected by WebKitWebDriver when a
+ * child element covers the click point (e.g. Monaco's `.view-lines` over
+ * `#typst-editor`), while raw pointer actions are not checked.
+ */
+async function rawClickCenter(selector) {
+  const el = await $(selector);
+  await el.waitForExist({ timeout: 15_000 });
+  const loc = await el.getLocation();
+  const size = await el.getSize();
+  const x = Math.round(loc.x + size.width / 2);
+  const y = Math.round(loc.y + size.height / 2);
+  await browser.performActions([
+    {
+      type: "pointer",
+      id: "demo-mouse",
+      parameters: { pointerType: "mouse" },
+      actions: [
+        { type: "pointerMove", duration: 0, origin: "viewport", x, y },
+        { type: "pointerDown", button: 0 },
+        { type: "pointerUp", button: 0 },
+      ],
+    },
+  ]);
+}
+
+/**
  * Clicks the Monaco editor area to give it focus
  */
 async function focusEditor() {
-  await $('[id="typst-editor"]').click();
+  await rawClickCenter('[id="typst-editor"]');
+  await browser.pause(200);
+}
+
+/**
+ * Clears the Monaco editor content (select-all + delete)
+ */
+async function clearEditor() {
+  await rawClickCenter('[id="typst-editor"] .monaco-editor .inputarea');
+  await browser.keys(["Control", "a"]);
+  await browser.keys("Delete");
   await browser.pause(200);
 }
 
@@ -87,4 +124,6 @@ module.exports = {
   typeInField,
   waitForEditor,
   focusEditor,
+  clearEditor,
+  rawClickCenter,
 };

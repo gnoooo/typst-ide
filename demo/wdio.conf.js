@@ -3,7 +3,7 @@ const os = require('node:os');
 const { spawn } = require('node:child_process');
 
 const TAURI_DRIVER = path.join(os.homedir(), '.cargo', 'bin', 'tauri-driver');
-const BINARY = path.join(__dirname, '..', 'target', 'release', 'app');
+const BINARY = path.join(__dirname, '..', 'target', 'release', 'typst-ide');
 
 let tauriDriver;
 
@@ -14,7 +14,8 @@ exports.config = {
     specs: [
         './tests/walkthrough1.test.js',
         './tests/walkthrough2.test.js',
-        './tests/walkthrough3.test.js',
+        './tests/preview.test.js',
+        './tests/preview-popup.test.js',
     ],
 
     capabilities: [{

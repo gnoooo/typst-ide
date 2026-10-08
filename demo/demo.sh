@@ -44,6 +44,8 @@ echo "==> Converting to GIFs..."
 for dir in "$OUTPUT_DIR"/*/; do
     [ -d "$dir" ] || continue
     name="$(basename "$dir")"
+    # Static screenshots (preview*.png) are exported as-is, not as GIFs
+    [[ "$name" == preview* ]] && continue
     pngs=("$dir"*.png)
     [[ -f "${pngs[0]}" ]] || { echo "  skip $name (no PNGs)"; continue; }
 
@@ -64,5 +66,21 @@ for dir in "$OUTPUT_DIR"/*/; do
     echo "    -> images/${name}.gif"
 done
 
+# ## Export static screenshots ###############################################
+
+echo "==> Exporting static screenshots..."
+
+for dir in "$OUTPUT_DIR"/*/; do
+    [ -d "$dir" ] || continue
+    name="$(basename "$dir")"
+    [[ "$name" == preview* ]] || continue
+    pngs=("$dir"*.png)
+    [[ -f "${pngs[0]}" ]] || { echo "  skip $name (no PNGs)"; continue; }
+
+    # Last frame = the settled final state of the scenario
+    cp "${pngs[-1]}" "$IMAGES_DIR/${name}.png"
+    echo "    -> images/${name}.png"
+done
+
 echo ""
-echo "Done. GIFs written to images/"
+echo "Done. GIFs and screenshots written to images/"
