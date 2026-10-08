@@ -1,5 +1,16 @@
 # Release Notes
 
+## v1.7.0
+
+### New in v1.7.0
+
+- **Flatpak-ready sandbox support** : file access now goes through the XDG desktop portals when the app runs sandboxed. Native dialogs (rfd) return document-portal mounts, only user-picked folders are accepted for project creation/opening and template copies (`GRANTED_PATHS`), "reveal in file manager" uses the OpenURI portal (new `portal.rs`, `ashpd` on Linux), and host fonts are loaded from `/run/host/fonts`. Recent-projects entries that lost their portal grant now propose to re-select the folder instead of failing silently.
+- **Flatpak packaging** : manifest, AppStream metainfo and desktop file for `io.github.gnoooo.typst-ide` (GNOME 51 runtime, vendored cargo and npm sources), groundwork for the Flathub submission. See `docs/flatpak.md`.
+
+### For developers
+
+- New `portal::is_sandboxed` command, tests for the granted-paths logic, updated UI strings (i18n).
+
 ## v1.6.13
 
 ### For developers
