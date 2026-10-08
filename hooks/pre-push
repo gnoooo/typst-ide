@@ -8,6 +8,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 CARGOTOML="$REPO_ROOT/crates/app/Cargo.toml"
 TAURICONF="$REPO_ROOT/crates/app/tauri.conf.json"
 PKGBUILD="$REPO_ROOT/PKGBUILD"
+METAINFO="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.metainfo.xml"
 
 fail() {
   echo "pre-push: $1" >&2
@@ -21,6 +22,7 @@ done
 cargo_ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$CARGOTOML" | head -n 1)"
 tauri_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURICONF" | head -n 1)"
 pkgbuild_ver="$(sed -n 's/^pkgver=\(.*\)/\1/p' "$PKGBUILD" | head -n 1)"
+metainfo_ver="$(sed -n 's/.*<release version="\([^"]*\)".*/\1/p' "$METAINFO" 2>/dev/null | head -n 1)"
 
 # Check A: the three version files must agree with each other
 if [ -z "$cargo_ver" ] || [ -z "$tauri_ver" ] || [ -z "$pkgbuild_ver" ]; then
@@ -34,6 +36,15 @@ if [ "$cargo_ver" != "$tauri_ver" ] || [ "$tauri_ver" != "$pkgbuild_ver" ]; then
     echo "  crates/app/tauri.conf.json -> $tauri_ver"
     echo "  PKGBUILD                   -> $pkgbuild_ver"
     echo "  Align them before pushing."
+  } >&2
+  exit 1
+fi
+
+# Check C: the Flatpak metainfo <release> must follow the version files
+if [ -n "$metainfo_ver" ] && [ "$metainfo_ver" != "$cargo_ver" ]; then
+  {
+    echo "pre-push: Flatpak metainfo release ($metainfo_ver) does not match version files ($cargo_ver)."
+    echo "  Run './manage.sh bump <version>' or align flatpak/io.github.gnoooo.typst-ide.metainfo.xml."
   } >&2
   exit 1
 fi

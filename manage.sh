@@ -18,6 +18,10 @@
 #                                                      --container-image <image>   image de base (défaut : ubuntu:22.04)
 #                                                      --container-rebuild         reconstruit l'image de build sans cache
 #   ./manage.sh fix-appimage [chemin]     Rejoue le post-traitement AppImage (docs/appimage.md)
+#   ./manage.sh flatpak-sources           Régénère les sources cargo/npm du manifeste Flatpak
+#   ./manage.sh flatpak-build             Build + installe le Flatpak + lints (cache .flatpak-builder)
+#   ./manage.sh flatpak-run               Lance l'app sandboxée (flatpak run)
+#   ./manage.sh flatpak-bump <tag>        Épingle tag/commit dans le manifeste Flatpak (après la sortie d'un tag)
 #   ./manage.sh clean [cibles] [opts]     Nettoie les builds et caches
 #                                           cibles   : build (défaut) | cache | dist | image | all
 #                                           options  : --dry-run, --yes, --with-dist, --host-caches
@@ -48,6 +52,18 @@ PKGBUILD="$REPO_ROOT/PKGBUILD"
 LOCKFILE="$REPO_ROOT/Cargo.lock"
 FRONTEND_PKG="$REPO_ROOT/frontend/package.json"
 FRONTEND_LOCK="$REPO_ROOT/frontend/package-lock.json"
+FLATPAK_MANIFEST="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.yml"
+FLATPAK_METAINFO="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.metainfo.xml"
+FLATPAK_APP_ID="io.github.gnoooo.typst-ide"
+
+# Runtime et extensions Flatpak (branches alignées sur le runtime du manifeste :
+# GNOME 51 -> extensions 26.08). À ajuster en même temps que runtime-version
+# dans le manifeste. Voir docs/flatpak.md.
+FLATPAK_RUNTIME="org.gnome.Platform//51"
+FLATPAK_SDK="org.gnome.Sdk//51"
+FLATPAK_RUST_EXT="org.freedesktop.Sdk.Extension.rust-stable//26.08"
+FLATPAK_NODE_EXT="org.freedesktop.Sdk.Extension.node24//26.08"
+FLATPAK_BUILDER_APP="org.flatpak.Builder"
 
 SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 
@@ -79,6 +95,11 @@ product_name()     { sed -n 's/.*"productName"[[:space:]]*:[[:space:]]*"\([^"]*\
 tauri_version()    { sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURI_CONF" | head -n 1; }
 pkgbuild_version() { sed -n 's/^pkgver=\(.*\)/\1/p' "$PKGBUILD" | head -n 1; }
 frontend_version() { sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$FRONTEND_PKG" | head -n 1; }
+
+# version de l'entrée <release> du metainfo Flatpak (première entrée, la plus récente)
+metainfo_version() {
+  sed -n 's/.*<release version="\([^"]*\)".*/\1/p' "$FLATPAK_METAINFO" | head -n 1
+}
 
 # version de l'entrée workspace `typst-ide-app` dans Cargo.lock
 # (l'entrée registry "typst-ide 0.15.x" possède un `source = ...`, ignorée)
@@ -132,6 +153,11 @@ set_frontend_version() {
   ( cd "$REPO_ROOT/frontend" && npm version --no-git-tag-version "$1" >/dev/null )
 }
 
+# remplace la première entrée <release> du metainfo Flatpak (version + date)
+set_metainfo_version() {
+  sed -i "0,/<release version=/s|<release version=\"[^\"]*\" date=\"[^\"]*\"|<release version=\"$1\" date=\"$2\"|" "$FLATPAK_METAINFO"
+}
+
 # --- Cohérence ---
 
 # vérifie la cohérence des fichiers de version (Cargo.toml, tauri.conf.json, PKGBUILD, Cargo.lock : les 3 premiers comme le hook pre-push).
@@ -141,18 +167,21 @@ check_consistency() {
   local pretty=0
   [ "${1:-}" = "--pretty" ] && pretty=1
 
-  local app tauri pkgbuild lock front
+  local app tauri pkgbuild lock front meta
   app="$(app_version)"
   tauri="$(tauri_version)"
   pkgbuild="$(pkgbuild_version)"
   lock="$(lock_version)"
   front="$(frontend_version)"
+  meta="$(metainfo_version 2>/dev/null || true)"
 
   local ok=1
   [ -n "$app" ]      || ok=0
   [ "$app" = "$tauri" ]    || ok=0
   [ "$app" = "$pkgbuild" ] || ok=0
   [ "$app" = "$lock" ]     || ok=0
+  # le metainfo Flatpak suit `bump` ; il bloque comme les fichiers de version
+  [ "$app" = "$meta" ]     || ok=0
 
   if [ "$pretty" = "1" ]; then
     row() {
@@ -160,13 +189,14 @@ check_consistency() {
       if [ "$good" = "1" ]; then
         printf "    %-28s %s %s\n" "$name" "${GREEN}OK${NC}" "$val"
       else
-        printf "    %-28s %s %s\n" "$name" "${RED}KO${NC}" "${val:-—}"
+        printf "    %-28s %s %s\n" "$name" "${RED}KO${NC}" "${val:--}"
       fi
     }
     row "crates/app/Cargo.toml"      "$app"      "$([ -n "$app" ] && echo 1 || echo 0)"
     row "crates/app/tauri.conf.json" "$tauri"    "$([ "$app" = "$tauri" ] && echo 1 || echo 0)"
     row "PKGBUILD (pkgver)"          "$pkgbuild" "$([ "$app" = "$pkgbuild" ] && echo 1 || echo 0)"
     row "Cargo.lock (workspace)"     "$lock"     "$([ "$app" = "$lock" ] && echo 1 || echo 0)"
+    row "flatpak metainfo (release)" "$meta"     "$([ "$app" = "$meta" ] && echo 1 || echo 0)"
     if [ "$app" = "$front" ]; then
       row "frontend/package.json" "$front" "1"
     else
@@ -271,7 +301,7 @@ cmd_info() {
   printf "    %-28s %s\n" "état" "$(git -C "$REPO_ROOT" status --porcelain | grep -q . && echo " modifié" || echo " propre")"
 
   local head_sha
-  head_sha="$(git -C "$REPO_ROOT" log -1 --format='%h %s' 2>/dev/null || echo "—")"
+  head_sha="$(git -C "$REPO_ROOT" log -1 --format='%h %s' 2>/dev/null || echo "-")"
   printf "    %-28s %s\n" "dernier commit" "$head_sha"
 }
 
@@ -292,10 +322,12 @@ cmd_bump() {
   done
   [ -n "$new_version" ] || [ -n "$bump_kind" ] || die "usage: manage.sh bump <version|major|minor|patch|...> [--dry-run]"
 
-  require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$LOCKFILE" "$FRONTEND_PKG"
+  require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$LOCKFILE" "$FRONTEND_PKG" "$FLATPAK_METAINFO"
 
-  local old
+  local old meta_old today
   old="$(app_version)"
+  meta_old="$(metainfo_version)"
+  today="$(date +%F)"
 
   # --- Bump automatique ---
   if [ -n "$bump_kind" ]; then
@@ -312,7 +344,7 @@ cmd_bump() {
     && die "la version est déjà $new_version"
 
   if ! echo "$new_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-    echo "manage: ${YELLOW}attention${NC} : version non purement numérique ('$new_version') — "
+    echo "manage: ${YELLOW}attention${NC} : version non purement numérique ('$new_version') ; "
     echo "        PKGBUILD (pacman) pourrait la rejeter selon le format."
   fi
 
@@ -331,6 +363,7 @@ cmd_bump() {
     dry_row "PKGBUILD"                   "pkgver=$old"              "pkgver=$new_version"
     dry_row "Cargo.lock"                 "typst-ide-app $old"       "typst-ide-app $new_version"
     dry_row "frontend/*"                 "$old"                     "$new_version"
+    dry_row "flatpak metainfo (release)" "version=\"$meta_old\""    "version=\"$new_version\" date=\"$today\""
     echo
     echo "    Vérification attendue : ${GREEN}cohérent${NC}"
     exit 0
@@ -341,6 +374,7 @@ cmd_bump() {
   set_pkgbuild_version "$new_version"
   set_lock_version     "$new_version"
   set_frontend_version "$new_version"
+  set_metainfo_version "$new_version" "$today"
 
   echo "    ${GREEN}OK${NC} crates/app/Cargo.toml      -> version = \"$new_version\""
   echo "    ${GREEN}OK${NC} crates/app/tauri.conf.json -> \"version\": \"$new_version\""
@@ -348,6 +382,7 @@ cmd_bump() {
   echo "    ${GREEN}OK${NC} Cargo.lock                 -> typst-ide-app $new_version"
   echo "    ${GREEN}OK${NC} frontend/package.json      -> $new_version"
   echo "    ${GREEN}OK${NC} frontend/package-lock.json -> $new_version"
+  echo "    ${GREEN}OK${NC} flatpak metainfo (release) -> version=\"$new_version\" date=\"$today\""
 
   echo
   if check_consistency; then
@@ -359,9 +394,10 @@ cmd_bump() {
 
   echo
   echo "Fichiers modifiés :"
-  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json | sed 's/^/    /'
+  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json "$FLATPAK_METAINFO" | sed 's/^/    /'
   echo
   echo "Note : aucun commit ni tag créé. Le hook pre-push vérifiera la cohérence à la prochaine poussée."
+  echo "Le manifeste Flatpak ($(basename "$FLATPAK_MANIFEST")) sera épinglé au tag après sa création : ./manage.sh flatpak-bump v$new_version"
 }
 
 cmd_check() {
@@ -900,6 +936,135 @@ cmd_dev() {
 }
 
 # ---------------------
+# Flatpak
+# ---------------------
+
+flatpak_ready() {
+  command -v flatpak >/dev/null 2>&1 || die "flatpak introuvable (Fedora : sudo dnf install flatpak ; Arch : pacman -S flatpak)"
+}
+
+flatpak_has() {
+  flatpak info --user "$1" >/dev/null 2>&1
+}
+
+# Installe org.flatpak.Builder + runtime/SDK/extensions si absents (installation user).
+# Les branches (GNOME 51, extensions 26.08) sont déclarées en tête de fichier et
+# doivent suivre le runtime du manifeste.
+flatpak_setup() {
+  flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+  local missing=0
+  for ref in "$FLATPAK_BUILDER_APP" "$FLATPAK_RUNTIME" "$FLATPAK_SDK" "$FLATPAK_RUST_EXT" "$FLATPAK_NODE_EXT"; do
+    if flatpak_has "$ref"; then
+      echo "    présent : $ref"
+    else
+      echo "    manque  : $ref"
+      missing=1
+    fi
+  done
+  [ "$missing" = "0" ] && return 0
+  echo "==> Installation (plusieurs Go au premier lancement)..."
+  flatpak install --user -y flathub "$FLATPAK_BUILDER_APP" "$FLATPAK_RUNTIME" "$FLATPAK_SDK" "$FLATPAK_RUST_EXT" "$FLATPAK_NODE_EXT" \
+    || die "l'installation des runtimes Flatpak a échoué"
+}
+
+# contournement d'un bug du linter : il supprime un linter.log qui peut ne pas
+# exister dans le home sandboxé de org.flatpak.Builder
+flatpak_lint_fix() {
+  local log_dir="$HOME/.var/app/$FLATPAK_BUILDER_APP/.local/state/flatpak_builder_lint"
+  mkdir -p "$log_dir"
+  touch "$log_dir/linter.log"
+}
+
+cmd_flatpak_sources() {
+  require_file "$LOCKFILE" "$FRONTEND_LOCK" "$FLATPAK_MANIFEST"
+  command -v python3 >/dev/null 2>&1 || die "python3 introuvable"
+  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || die "node/npm introuvables"
+
+  local tools="$REPO_ROOT/.flatpak-builder/tools"
+  local venv="$tools/venv"
+  local fbt="$tools/flatpak-builder-tools"
+
+  echo "==> flatpak-cargo-generator (Cargo.lock -> flatpak/cargo-sources.json)"
+  if [ ! -x "$venv/bin/python" ]; then
+    python3 -m venv "$venv" \
+      || die "python3 -m venv a échoué : installe python-venv (ou utilise un conteneur python:3.12-slim, voir docs/flatpak.md)"
+  fi
+  if [ ! -f "$fbt/cargo/flatpak-cargo-generator.py" ]; then
+    git clone --depth 1 https://github.com/flatpak/flatpak-builder-tools.git "$fbt" \
+      || die "clone de flatpak-builder-tools a échoué"
+  fi
+  "$venv/bin/pip" install -q 'aiohttp<4.0.0,>=3.9.5' 'PyYAML<7.0.0,>=6.0.2' 'tomlkit>=0.13.3,<1.0' \
+    || die "pip install des dépendances a échoué"
+  "$venv/bin/python" "$fbt/cargo/flatpak-cargo-generator.py" -o "$REPO_ROOT/flatpak/cargo-sources.json" "$LOCKFILE" \
+    || die "flatpak-cargo-generator a échoué"
+  echo "    ${GREEN}OK${NC} flatpak/cargo-sources.json"
+
+  echo "==> flatpak-node-generator (frontend/package-lock.json -> flatpak/node-sources.json)"
+  # paquet Python du dépôt flatpak-builder-tools, installé dans le même venv
+  if [ ! -x "$venv/bin/flatpak-node-generator" ]; then
+    "$venv/bin/pip" install -q "git+https://github.com/flatpak/flatpak-builder-tools.git#subdirectory=node" \
+      || die "pip install flatpak-node-generator a échoué"
+  fi
+  # IMPORTANT : générer depuis un arbre SANS node_modules (bug flatpak-builder-tools#377 :
+  # des paquets présents localement seraient traités comme « locaux » et absents du cache).
+  local clean
+  clean="$(mktemp -d)"
+  trap 'rm -rf "$clean"' RETURN
+  cp "$FRONTEND_PKG" "$FRONTEND_LOCK" "$clean/"
+  "$venv/bin/flatpak-node-generator" --no-requests-cache \
+    -o "$REPO_ROOT/flatpak/node-sources.json" npm "$clean/package-lock.json" \
+    || die "flatpak-node-generator a échoué"
+  echo "    ${GREEN}OK${NC} flatpak/node-sources.json"
+}
+
+cmd_flatpak_build() {
+  flatpak_ready
+  require_file "$FLATPAK_MANIFEST"
+  flatpak_setup
+
+  echo "==> Build + install (org.flatpak.Builder, cache .flatpak-builder)"
+  ( cd "$REPO_ROOT" && flatpak run --command=flathub-build "$FLATPAK_BUILDER_APP" --install "$FLATPAK_MANIFEST" ) \
+    || die "le build Flatpak a échoué"
+
+  echo "==> flatpak-builder-lint manifest"
+  ( cd "$REPO_ROOT" && flatpak run --command=flatpak-builder-lint "$FLATPAK_BUILDER_APP" manifest "$FLATPAK_MANIFEST" ) \
+    || die "lint manifest : erreurs à corriger"
+
+  echo "==> flatpak-builder-lint repo"
+  flatpak_lint_fix
+  ( cd "$REPO_ROOT" && flatpak run --command=flatpak-builder-lint "$FLATPAK_BUILDER_APP" repo "$REPO_ROOT/repo" ) \
+    || die "lint repo : erreurs à corriger"
+
+  echo
+  echo "${GREEN}Flatpak : build et lints OK.${NC} Lancez avec : ./manage.sh flatpak-run"
+}
+
+cmd_flatpak_run() {
+  flatpak_ready
+  flatpak_has "$FLATPAK_APP_ID" || die "l'app n'est pas installée : lancez ./manage.sh flatpak-build"
+  exec flatpak run "$FLATPAK_APP_ID" "$@"
+}
+
+cmd_flatpak_bump() {
+  [ $# -eq 1 ] || die "usage: manage.sh flatpak-bump <tag>"
+  local tag="$1" commit
+  require_file "$FLATPAK_MANIFEST"
+
+  echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || die "format de tag attendu : vX.Y.Z"
+  commit="$(git -C "$REPO_ROOT" rev-parse "$tag^{commit}" 2>/dev/null)" \
+    || die "tag introuvable : $tag"
+
+  sed -i "s|^        tag: .*|        tag: $tag|" "$FLATPAK_MANIFEST"
+  sed -i "s|^        commit: .*|        commit: $commit|" "$FLATPAK_MANIFEST"
+
+  echo "    ${GREEN}OK${NC} $(basename "$FLATPAK_MANIFEST") -> tag $tag, commit $commit"
+  echo
+  echo "Faites un dernier point sur le metainfo (entrée <release>, screenshots), puis :"
+  echo "    git add flatpak/ && git commit && git push"
+  echo "Note : l'entrée <release> du metainfo est mise à jour par 'manage.sh bump' (avant le tag)."
+}
+
+# ---------------------
 # Dispatch
 # ---------------------
 
@@ -913,6 +1078,10 @@ case "$cmd" in
   test)    cmd_test ;;
   build)   cmd_build "$@" ;;
   fix-appimage) cmd_fix_appimage "$@" ;;
+  flatpak-sources) cmd_flatpak_sources ;;
+  flatpak-build)   cmd_flatpak_build ;;
+  flatpak-run)     cmd_flatpak_run "$@" ;;
+  flatpak-bump)    cmd_flatpak_bump "$@" ;;
   clean)   cmd_clean "$@" ;;
   dev)     cmd_dev ;;
   help|-h|--help) usage ;;

@@ -1,6 +1,6 @@
 # Publication sur Flathub : plan et justification des permissions
 
-> **Statut : plan à implémenter, non publiable en l'état.** Ce document décrit les corrections nécessaires avant une soumission Flathub, puis la marche à suivre pour publier Typst IDE. Les éléments concernant les permissions devront être confirmés par un test dans le sandbox et par la revue Flathub.
+> **Statut : packaging implémenté et vérifié, soumission à ouvrir.** Build + install Flatpak, smoke test et les deux `flatpak-builder-lint` (manifest et repo) passent sur GNOME 51. Les étapes restantes sont la PR de soumission Flathub (§9) et la maintenance post-merge. Les commandes de packaging sont intégrées à `manage.sh` (§3).
 
 ## 1. Contexte
 
@@ -63,12 +63,13 @@ docs/flatpak.md                  # ce document
 
 Le manifeste présenté dans la PR Flathub doit être au niveau supérieur du dépôt Flathub, conformément aux exigences actuelles. Le projet amont peut conserver ses fichiers de packaging dans `flatpak/`, mais la PR Flathub doit placer le manifeste et `flathub.json` à la racine du dépôt de soumission.
 
-`manage.sh` pourra gagner :
-- `flatpak-sources` 
-- `flatpak-build`
--  `flatpak-run`
--  `flatpak-bump <tag>`
--  et `bump` mettra à jour l'entrée `<release>` du metainfo
+`manage.sh` gère le packaging :
+
+- `flatpak-sources` : régénère `flatpak/cargo-sources.json` et `flatpak/node-sources.json` (venv + clone shallow de `flatpak-builder-tools` dans `.flatpak-builder/tools/`, générateur npm installé dans `.flatpak-builder/tools/nodegen/` ; l'arbre npm est copié sans `node_modules`, bug flatpak-builder-tools#377)
+- `flatpak-build` : installe `org.flatpak.Builder` + runtime/SDK/extensions si absents (branches en tête de `manage.sh`), build + install, puis les deux lints (`manifest` et `repo`)
+- `flatpak-run` : lance l'app sandboxée
+- `flatpak-bump <tag>` : épingle `tag`/`commit` dans le manifeste, après la sortie du tag
+- `bump` met à jour l'entrée `<release>` du metainfo (version + date du jour) et le hook `pre-push` vérifie sa cohérence
 
 ## 4. Manifest (brouillon)
 ```yaml
@@ -139,21 +140,12 @@ Notes :
 Les builds Flathub sont **sans réseau**. Il faut donc fournir les dépendances :
 
 ```bash
-# Sous-module (une fois)
-git submodule add https://github.com/flatpak/flatpak-builder-tools.git
-
-# Sources cargo (depuis Cargo.lock)
-python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py -o flatpak/cargo-sources.json Cargo.lock
-
-# Sources npm (depuis frontend/package-lock.json) ; IMPORTANT : générer depuis un
-# arbre SANS node_modules (copier package.json + package-lock.json dans un dossier
-# propre), sinon des paquets présents localement sont traités comme « locaux » et
-# absents du cache (bug connu flatpak-builder-tools#377).
-flatpak-node-generator --no-requests-cache -o flatpak/node-sources.json npm <arbre-propre>/package-lock.json
+# Tout en une commande (venv + générateurs installés dans .flatpak-builder/tools/)
+./manage.sh flatpak-sources
 ```
 
-`manage.sh flatpak-sources` encapsulera ces deux commandes (via un venv/pipx ou un conteneur `python:3.12-slim`, pour ne rien installer sur l'hôte).
-À régénérer quand `Cargo.lock` ou `frontend/package-lock.json` changent.
+`flatpak-sources` encapsule les deux commandes (venv Python local, générateur npm local).
+À relancer quand `Cargo.lock` ou `frontend/package-lock.json` changent.
 
 ## 6. Justification des permissions
 
@@ -241,29 +233,28 @@ Déjà implémenté :
 
 ## 8. Vérification locale et CI
 
-Nouveau workflow `.github/workflows/flatpak.yml`, déclenché sur PR et tags, avec l'action officielle :
+Le workflow `.github/workflows/flatpak.yml` (PR, push main et tags) vérifie le build sur les deux architectures avec l'action officielle, dans l'image `ghcr.io/flathub-infra/flatpak-github-actions:gnome-51` :
 
 ```yaml
-- uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+- uses: flatpak/flatpak-github-actions/flatpak-builder@master
   with:
-    manifest-path: io.github.gnoooo.typst-ide.yml
-    cache-key: flatpak-builder-${{ github.sha }}
+    bundle: typst-ide-${{ matrix.arch }}.flatpak
+    manifest-path: flatpak/io.github.gnoooo.typst-ide.yml
+    arch: ${{ matrix.arch }}
 ```
 
-- Build de vérification (le build Flathub officiel reste fait par leur buildbot), artifact `.flatpak` ou option : joindre ce bundle aux releases GitHub.
-- Flathub construit x86_64 **et** aarch64 : si aarch64 pose problème (deps natives npm optionnelles, cf. risques), restreindre via `flatpak/flathub.json` → `"skip-arches": ["aarch64"]`.
+- Matrice x86_64 (`ubuntu-24.04`) + aarch64 (`ubuntu-24.04-arm`) : Flathub construit les deux, la CI les prouve.
+- Build de vérification (le build Flathub officiel reste fait par leur buildbot).
+- Le cache de l'action suit le hash du manifeste (pas de cache-key explicite) : chaud entre deux runs, invalidé quand le manifeste change.
 
-Commandes recommandées avant la PR (vérifiées localement) :
+Commandes locales (équivalent : `./manage.sh flatpak-build` puis `./manage.sh flatpak-run`) :
 
 ```bash
-flatpak install -y flathub org.flatpak.Builder
-flatpak run --command=flathub-build org.flatpak.Builder --install io.github.gnoooo.typst-ide.yml
-flatpak run io.github.gnoooo.typst-ide
-flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest io.github.gnoooo.typst-ide.yml
-flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo repo
+./manage.sh flatpak-build   # install les runtimes si besoin, build + install + les 2 lints
+./manage.sh flatpak-run
 ```
 
-Résultats constatés : le lint `manifest` passe sans erreur ni avertissement sur le runtime GNOME 51. Le lint `repo` ne remonte que `appstream-external-screenshot-url` et `appstream-screenshots-not-mirrored-in-ostree` : ces deux erreurs sont normales pour un build local (le miroir de screenshots `dl.flathub.org/media` est réalisé par l'infrastructure Flathub au moment de la publication, pas par le manifeste).
+Résultats constatés : les lints `manifest` et `repo` passent sans erreur ni avertissement sur le runtime GNOME 51 (le miroir de screenshots `dl.flathub.org/media` est réalisé par l'infrastructure Flathub au moment de la publication, pas par le manifeste).
 
 Tester au minimum le lancement, la création et la réouverture d'un projet, les imports, l'export PDF, un package `@preview`, les fonts, et « révéler dans le gestionnaire de fichiers ».
 
@@ -278,10 +269,10 @@ Soumission (une fois) :
 6. Itérer avec les reviewers, puis accès en écriture au dépôt `flathub/io.github.gnoooo.typst-ide`.
 
 À chaque release :
-1. Mettre à jour la version et une vraie entrée `<release>` dans le metainfo.
-2. Mettre à jour le tag et le commit du manifeste Flathub.
-3. Régénérer les sources si `Cargo.lock` ou `package-lock.json` ont changé.
-4. Construire, installer et tester localement.
+1. `./manage.sh bump <version>` : versions + entrée `<release>` du metainfo (date du jour) ; si `Cargo.lock` ou `frontend/package-lock.json` ont changé, `./manage.sh flatpak-sources` avant.
+2. Commit, tag `vX.Y.Z`, push (le hook `pre-push` vérifie la cohérence metainfo comprise).
+3. `./manage.sh flatpak-bump vX.Y.Z` : épingle `tag`/`commit` dans le manifeste Flathub, puis commit et push.
+4. `./manage.sh flatpak-build` (build + lints) et `./manage.sh flatpak-run` pour le test local.
 5. Ouvrir une PR sur `flathub/io.github.gnoooo.typst-ide`, ou laisser `x-checker-data` proposer une mise à jour à vérifier avant fusion.
 
 ## 10. Risques et replis

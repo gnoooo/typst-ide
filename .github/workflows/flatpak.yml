@@ -1,0 +1,37 @@
+name: Flatpak
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  flatpak:
+    name: "Flatpak (${{ matrix.arch }})"
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+      fail-fast: false
+    runs-on: ${{ matrix.runner }}
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      # Verification build only : the official Flathub build stays on their
+      # buildbot. The manifest is pinned to the last release tag, the CI
+      # proves both architectures build from the vendored sources.
+      # No cache-key : the action's default (hash of the manifest path) keeps
+      # the .flatpak-builder cache warm between runs and invalidates it when
+      # the manifest changes.
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: typst-ide-${{ matrix.arch }}.flatpak
+          manifest-path: flatpak/io.github.gnoooo.typst-ide.yml
+          arch: ${{ matrix.arch }}

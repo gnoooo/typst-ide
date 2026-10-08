@@ -52,6 +52,15 @@ The `manage.sh` wrapper drives every build:
 ./manage.sh clean build --yes              # reclaim cargo intermediates (keeps target/dist)
 ```
 
+Flatpak packaging (see [docs/flatpak.md](./docs/flatpak.md)):
+
+```bash
+./manage.sh flatpak-sources                # regenerate flatpak/cargo-sources.json + node-sources.json
+./manage.sh flatpak-build                  # install runtimes if needed, build + install + lints
+./manage.sh flatpak-run                    # run the sandboxed app
+./manage.sh flatpak-bump vX.Y.Z            # pin tag/commit in the Flatpak manifest (after a release tag)
+```
+
 `target/` grows fast (debug builds, cargo intermediates, container caches). `./manage.sh clean [build|cache|dist|image|all]` removes them safely, keeps the published `dist/` artifacts by default and never runs `cargo clean`. See [docs/appimage.md](./docs/appimage.md#nettoyage) for details.
 
 Artifacts are collected by `scripts/publish-artifacts.sh` into a single tree per build workspace, organized by OS: `target/dist/{linux,windows}/` for host builds and `target/container/dist/{linux,windows}/` for `--container` builds.
