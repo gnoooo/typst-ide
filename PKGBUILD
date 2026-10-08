@@ -31,14 +31,20 @@ makedepends=(
 options=('!strip')
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 source=("${url}/archive/v${pkgver}.tar.gz" "typst-ide.desktop")
 
 sha256sums=('SKIP' 'SKIP')
 =======
+=======
+>>>>>>> Stashed changes
 source=("${url}/archive/v${pkgver}.tar.gz"
         "typst-ide.desktop")
 sha256sums=('SKIP'
             'SKIP')
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 
 build() {
@@ -52,16 +58,22 @@ build() {
   cd ..
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   export CFLAGS="${CFLAGS/-flto=auto}"
   export RUSTFLAGS="${RUSTFLAGS:-} -C linker=cc -C link-arg=-Wl,--no-as-needed -C link-arg=-fuse-ld=lld"
 
   cargo build --release -p typst-ide-app
 =======
+=======
+>>>>>>> Stashed changes
 
   export CFLAGS="${CFLAGS/-flto=auto/}"
   export RUSTFLAGS="${RUSTFLAGS:-} -C linker=cc -C link-arg=-Wl,--no-as-needed"
   
   cargo build --release -p app
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 }
 
@@ -69,8 +81,13 @@ package() {
   cd "${srcdir}/${pkgname}-${pkgver}"
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
   install -Dm755 "target/release/typst-ide" "${pkgdir}/usr/bin/${pkgname}"
   install -Dm644 "$srcdir/typst-ide.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
+=======
+  install -Dm755 "target/release/app" "${pkgdir}/usr/bin/${pkgname}"
+  install -Dm644 "${srcdir}/typst-ide.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
+>>>>>>> Stashed changes
 =======
   install -Dm755 "target/release/app" "${pkgdir}/usr/bin/${pkgname}"
   install -Dm644 "${srcdir}/typst-ide.desktop" "${pkgdir}/usr/share/applications/${pkgname}.desktop"
