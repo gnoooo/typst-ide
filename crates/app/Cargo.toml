@@ -24,6 +24,9 @@ rusqlite = { version = "0.38.0", features = ["bundled"] }
 tauri-plugin-clipboard-manager = "2"
 base64 = "0.22"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+ashpd = { version = "0.13", features = ["open_uri"] }
+
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
 

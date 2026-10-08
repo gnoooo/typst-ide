@@ -1,9 +1,82 @@
 // File system / project management commands
 
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
+
+use crate::portal;
 use crate::state::HistoryDbState;
 use serde::Serialize;
 use tauri::Manager;
 use typst_ide_core::database::history_db;
+
+/// Paths the user picked through a native dialog. Project creation/opening
+/// and template asset copies are only allowed inside these paths (or, on
+/// the host, inside `$HOME`). This keeps a compromised frontend from
+/// reading or creating folders the user never chose, on top of the Flatpak
+/// sandbox itself.
+static GRANTED_PATHS: OnceLock<Mutex<HashSet<std::path::PathBuf>>> = OnceLock::new();
+
+fn granted_paths() -> Option<std::sync::MutexGuard<'static, HashSet<std::path::PathBuf>>> {
+    GRANTED_PATHS
+        .get_or_init(|| Mutex::new(HashSet::new()))
+        .lock()
+        .ok()
+}
+
+/// Records a user-picked path as an allowed source for project operations.
+pub(crate) fn register_granted_path(path: &std::path::Path) {
+    if let Ok(canonical) = std::fs::canonicalize(path)
+        && let Some(mut paths) = granted_paths()
+    {
+        paths.insert(canonical);
+    }
+}
+
+/// Whether `path` was user-picked (or lives inside a user-picked folder).
+pub(crate) fn is_granted(path: &std::path::Path) -> bool {
+    let Some(paths) = granted_paths() else {
+        return false;
+    };
+    let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    paths
+        .iter()
+        .any(|granted| canonical == *granted || canonical.starts_with(granted))
+}
+
+/// Confirms that a project directory chosen by the frontend is one the user
+/// actually picked. Under the Flatpak sandbox only document-portal mounts
+/// (under `/run/user/`) are reachable anyway, so they are accepted too; on
+/// the host, paths inside `$HOME` are accepted so that the "recent projects"
+/// history keeps working after a restart. Everything else must go through
+/// the folder picker.
+pub(crate) fn ensure_project_dir_allowed<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    dir: &std::path::Path,
+) -> Result<(), String> {
+    if is_granted(dir) {
+        return Ok(());
+    }
+    if portal::is_sandboxed() {
+        if dir.starts_with("/run/user/") {
+            return Ok(());
+        }
+        return Err(format!(
+            "Dossier non autorisé : {}. Sélectionnez-le avec le sélecteur de dossiers.",
+            dir.display()
+        ));
+    }
+    if let Ok(home) = app.path().home_dir() {
+        let canonical = std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
+        let home_canonical = std::fs::canonicalize(&home).unwrap_or(home);
+        if canonical.starts_with(&home_canonical) {
+            return Ok(());
+        }
+    }
+    Err(format!(
+        "Dossier non autorisé : {}. Sélectionnez-le avec le sélecteur de dossiers.",
+        dir.display()
+    ))
+}
 
 /// Returns `Ok(canonical)` if `path` resolves (and stays) inside one of the
 /// `roots`. Used to restrict destructive file-system commands to the
@@ -111,14 +184,19 @@ pub fn validate_name_segment(name: &str) -> Result<(), String> {
 /// Opens a native folder picker dialog and returns the selected path, or `null` if cancelled
 #[tauri::command]
 pub async fn open_folder_dialog() -> Option<String> {
-    tauri::async_runtime::spawn_blocking(|| {
+    let picked = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
             .set_title("Sélectionner un dossier")
             .pick_folder()
             .map(|p| p.to_string_lossy().into_owned())
     })
     .await
-    .unwrap_or(None)
+    .unwrap_or(None);
+
+    if let Some(path) = &picked {
+        register_granted_path(std::path::Path::new(path));
+    }
+    picked
 }
 
 /// Creates a new project directory with an optional content in `main.typ` file inside
@@ -126,6 +204,7 @@ pub async fn open_folder_dialog() -> Option<String> {
 /// Returns the full path of the created project folder
 #[tauri::command]
 pub async fn create_project(
+    app: tauri::AppHandle,
     state: tauri::State<'_, HistoryDbState>,
     name: String,
     base_path: String,
@@ -138,6 +217,7 @@ pub async fn create_project(
     validate_name_segment(&name)?;
 
     let base = std::path::PathBuf::from(&base_path);
+    ensure_project_dir_allowed(&app, &base)?;
     let project_path = base.join(&name);
     std::fs::create_dir_all(&project_path).map_err(|e| e.to_string())?;
     let typ_path = project_path.join("main.typ");
@@ -165,8 +245,9 @@ pub struct ProjectInfo {
 /// Opens an existing project directory: finds a `.typ` file (preferring
 /// `main.typ` when present) and returns its content
 #[tauri::command]
-pub async fn open_project(dir_path: String) -> Result<ProjectInfo, String> {
+pub async fn open_project(app: tauri::AppHandle, dir_path: String) -> Result<ProjectInfo, String> {
     let dir = std::path::PathBuf::from(&dir_path);
+    ensure_project_dir_allowed(&app, &dir)?;
     let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
     let mut typ_paths: Vec<std::path::PathBuf> = entries
         .filter_map(|e| e.ok())
@@ -603,6 +684,10 @@ pub async fn pick_files() -> Result<Vec<String>, String> {
     .map_err(|e| e.to_string())?
     .ok_or_else(|| "Aucun fichier sélectionné.".to_string())?;
 
+    for file in &files {
+        register_granted_path(file);
+    }
+
     Ok(files
         .iter()
         .map(|p| p.to_string_lossy().into_owned())
@@ -695,50 +780,64 @@ pub async fn replace_file(
 /// Reveals a file or folder in the OS file manager.
 #[tauri::command]
 pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        #[cfg(target_os = "windows")]
-        {
-            let dir_arg = format!("/select,{}", path);
-            std::process::Command::new("explorer")
-                .arg(&dir_arg)
-                .spawn()
-                .map_err(|e| e.to_string())?;
-        }
-        #[cfg(target_os = "macos")]
-        {
-            let p = std::path::PathBuf::from(&path);
-            let res = if p.is_file() {
-                std::process::Command::new("open")
-                    .arg("-R")
-                    .arg(&path)
+    #[cfg(target_os = "linux")]
+    {
+        let p = std::path::PathBuf::from(&path);
+        let target = if p.is_file() {
+            p.parent().unwrap_or(&p).to_path_buf()
+        } else {
+            p
+        };
+        if portal::is_sandboxed() {
+            // The sandbox path is a document-portal mount that the host can
+            // browse, so the OpenURI portal opens the real location.
+            portal::reveal_in_file_manager(&target).await
+        } else {
+            tauri::async_runtime::spawn_blocking(move || {
+                std::process::Command::new("xdg-open")
+                    .arg(&target)
                     .spawn()
-            } else {
-                std::process::Command::new("open").arg(&path).spawn()
-            };
-            res.map_err(|e| e.to_string())?;
+                    .map_err(|e| e.to_string())?;
+                Ok(())
+            })
+            .await
+            .map_err(|e| e.to_string())?
         }
-        #[cfg(target_os = "linux")]
-        {
-            let p = std::path::PathBuf::from(&path);
-            let target = if p.is_file() {
-                p.parent().unwrap_or(&p).to_path_buf()
-            } else {
-                p
-            };
-            std::process::Command::new("xdg-open")
-                .arg(&target)
-                .spawn()
-                .map_err(|e| e.to_string())?;
-        }
-        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
-        {
-            let _ = path;
-            return Err("Système d'exploitation non supporté.".to_string());
-        }
-        Ok(())
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        tauri::async_runtime::spawn_blocking(move || {
+            #[cfg(target_os = "windows")]
+            {
+                let dir_arg = format!("/select,{}", path);
+                std::process::Command::new("explorer")
+                    .arg(&dir_arg)
+                    .spawn()
+                    .map_err(|e| e.to_string())?;
+            }
+            #[cfg(target_os = "macos")]
+            {
+                let p = std::path::PathBuf::from(&path);
+                let res = if p.is_file() {
+                    std::process::Command::new("open")
+                        .arg("-R")
+                        .arg(&path)
+                        .spawn()
+                } else {
+                    std::process::Command::new("open").arg(&path).spawn()
+                };
+                res.map_err(|e| e.to_string())?;
+            }
+            #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+            {
+                let _ = path;
+                return Err("Système d'exploitation non supporté.".to_string());
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| e.to_string())?
+    }
 }
 
 /// Saves a `data:image/...;base64,...` payload as a file in `<project>/images/`

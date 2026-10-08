@@ -246,6 +246,11 @@ fn copy_assets(dest_dir: &Path, paths: &[String]) -> Result<(), String> {
         if !src_path.exists() {
             return Err(format!("Chemin introuvable : {}", src));
         }
+        // Sources must come from a picker the user interacted with; a
+        // compromised frontend cannot feed arbitrary host paths here.
+        if !crate::commands::fs::is_granted(src_path) {
+            return Err(format!("Source non autorisée : {}", src));
+        }
         let name = src_path
             .file_name()
             .ok_or_else(|| format!("Nom de chemin invalide : {}", src))?;

@@ -182,6 +182,9 @@
   "history.update_error": "Erreur lors de la mise à jour de l'entrée : {error}",
   "history.empty_fields": "Le nom et le chemin ne peuvent pas être vides.",
   "history.preview_unreadable": "(Impossible de lire le fichier source : {error})",
+  "history.relocate_title": "Projet introuvable",
+  "history.relocate_message": "Le dossier « {path} » est introuvable ou inaccessible. Voulez-vous le re-sélectionner ?",
+  "history.sandbox_path_hint": "Sous Flatpak, utilisez le bouton « Choisir un dossier » pour sélectionner le projet.",
   "history.path_label": "Chemin : {path}",
   "history.name_label": "Nom : {name}",
 

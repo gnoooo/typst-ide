@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Typst IDE
+GenericName=Typst Editor
+Comment=A modern IDE for Typst
+Exec=typst-ide
+Icon=io.github.gnoooo.typst-ide
+Categories=Development;IDE;TextEditor;
+Terminal=false
+StartupWMClass=typst-ide
+MimeType=text/typst;

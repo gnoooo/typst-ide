@@ -119,6 +119,9 @@ function rebuildHistoryList(filterText) {
 }
 
 async function createHistoryEntry() {
+    let sandboxed = false;
+    try { sandboxed = await invoke('is_sandboxed'); } catch { /* treat as not sandboxed */ }
+
     const body = document.createElement('div');
     body.className = 'history-entry-form';
 
@@ -141,6 +144,11 @@ async function createHistoryEntry() {
     input.type = 'text';
     input.placeholder = t('history.no_path');
     input.style.width = '100%';
+    if (sandboxed) {
+        // Inside the Flatpak sandbox only portal-picked paths are reachable.
+        input.disabled = true;
+        input.placeholder = t('history.sandbox_path_hint');
+    }
     sub.appendChild(input);
     wrap.appendChild(sub);
     body.appendChild(wrap);
@@ -196,6 +204,9 @@ async function deleteHistoryEntry(entryId) {
 }
 
 async function editHistoryEntry(entry) {
+    let sandboxed = false;
+    try { sandboxed = await invoke('is_sandboxed'); } catch { /* treat as not sandboxed */ }
+
     const body = document.createElement('div');
     body.className = 'history-entry-form';
 
@@ -219,6 +230,12 @@ async function editHistoryEntry(entry) {
     input.value = String(entry.path ?? '');
     input.placeholder = t('history.no_path');
     input.style.width = '100%';
+    if (sandboxed) {
+        // Inside the Flatpak sandbox only portal-picked paths are reachable:
+        // a manually typed host path could never be opened.
+        input.disabled = true;
+        input.placeholder = t('history.sandbox_path_hint');
+    }
     sub.appendChild(input);
     wrap.appendChild(sub);
     body.appendChild(wrap);
@@ -283,10 +300,12 @@ async function viewHistoryEntry(entry) {
     });
 
     let content;
+    let previewError = false;
     try {
       const info = await invoke('open_project', { dirPath: entry.path });
       content = info.content;
     } catch (err) {
+      previewError = true;
       content = t('history.preview_unreadable', { error: err });
     }
 
@@ -318,6 +337,26 @@ async function viewHistoryEntry(entry) {
     body.appendChild(meta);
     body.appendChild(contentDiv);
 
+    // Stale path (revoked portal grant, moved folder, ...): offer to pick
+    // the folder again, persist the new path and reopen the preview.
+    if (previewError) {
+        const relocateBtn = document.createElement('button');
+        relocateBtn.className = 'ide-button tool-btn';
+        relocateBtn.style.marginTop = '10px';
+        relocateBtn.textContent = t('history.relocate_title');
+        relocateBtn.addEventListener('click', async () => {
+            const newPath = await invoke('open_folder_dialog');
+            if (!newPath) return;
+            try {
+                await invoke('update_history_entry', { id: entry.id, name: entry.name, path: newPath });
+            } catch { /* preview still reopens with the fresh path */ }
+            entry.path = newPath;
+            closeHistory();
+            await viewHistoryEntry(entry);
+        });
+        body.appendChild(relocateBtn);
+    }
+
     openModal({
         title: t('history.preview_title'),
         body: body,
@@ -327,10 +366,39 @@ async function viewHistoryEntry(entry) {
 }
 
 async function openProject(entry) {
-    await openProjectFromPath(entry.path, (content) => {
+    const setContent = (content) => {
         const editor = window.__typstEditor;
         if (editor) editor.setValue(content);
-    });
+    };
+
+    let dirPath = entry.path;
+    let opened = await openProjectFromPath(dirPath, setContent);
+
+    // The stored path may be stale: revoked portal grant, moved folder or
+    // (outside the sandbox) a location that is not reachable anymore.
+    // Offer to pick the folder again and keep the entry in sync.
+    if (!opened) {
+        const relocate = await showConfirm({
+            title: t('history.relocate_title'),
+            message: t('history.relocate_message', { path: dirPath }),
+            confirmLabel: t('modal.choose_folder'),
+            cancelLabel: t('modal.cancel'),
+        });
+        if (!relocate) {
+            closeHistory();
+            return;
+        }
+        const newPath = await invoke('open_folder_dialog');
+        if (!newPath) {
+            closeHistory();
+            return;
+        }
+        try {
+            await invoke('update_history_entry', { id: entry.id, name: entry.name, path: newPath });
+        } catch { /* reopening below still uses the fresh path */ }
+        entry.path = newPath;
+        await openProjectFromPath(newPath, setContent);
+    }
     closeHistory();
 }
 

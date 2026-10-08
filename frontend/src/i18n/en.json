@@ -182,6 +182,9 @@
   "history.update_error": "Error updating entry: {error}",
   "history.empty_fields": "Name and path cannot be empty.",
   "history.preview_unreadable": "(Unable to read source file: {error})",
+  "history.relocate_title": "Project not found",
+  "history.relocate_message": "The folder \"{path}\" was not found or is not accessible. Do you want to pick it again?",
+  "history.sandbox_path_hint": "Under Flatpak, use the \"Choose a folder\" button to select the project.",
   "history.path_label": "Path: {path}",
   "history.name_label": "Name: {name}",
 

@@ -1,6 +1,6 @@
 # Publication sur Flathub : plan et justification des permissions
 
-> **Statut : plan à implémenter.** Ce document décrit la marche à suivre pour publier Typst IDE sur Flathub, les fichiers à créer, et surtout **pourquoi** chaque permission de bac à sable est nécessaire (éléments à fournir aux reviewers Flathub).
+> **Statut : plan à implémenter, non publiable en l'état.** Ce document décrit les corrections nécessaires avant une soumission Flathub, puis la marche à suivre pour publier Typst IDE. Les éléments concernant les permissions devront être confirmés par un test dans le sandbox et par la revue Flathub.
 
 ## 1. Contexte
 
@@ -15,26 +15,34 @@ Références utiles :
 Ce qui est déjà en place dans le dépôt et réutilisable :
 | Élément | État |
 |---|---|
-| App ID reverse-DNS | `com.typst.ide` (identifiant Tauri) |
+| App ID Flathub à utiliser | `io.github.gnoooo.typst-ide` (le projet est hébergé sur GitHub) |
 | Licence | GPL-3.0 (`LICENSE` à la racine) |
 | `Cargo.lock` commité, aucune dépendance git | vendoring cargo simple |
 | Fork `crates/typst-as-library` inclus dans le dépôt | source git autoportante |
-| AppStream | `scripts/appimage/com.typst.ide.appdata.xml` (à décliner en statique) |
+| AppStream | `scripts/appimage/io.github.gnoooo.typst-ide.metainfo.xml` à créer à partir de l'existant |
 | Desktop + icônes | `typst-ide.desktop`, `crates/app/icons/*` |
 | Tags Git | `v1.6.13` (`3d5a80bb42024d97ab85dba980a6218476091d48`) |
 
-## 2. Phase 0 : Prérequis et vérifications bloquantes
+## 2. Phase 0 : corrections bloquantes
+
+Avant de générer le manifeste, les identifiants doivent être alignés sur `io.github.gnoooo.typst-ide`. Flathub impose le préfixe `io.github.` pour les applications hébergées sur GitHub. Il faut modifier l'identifiant Tauri, le metainfo, le desktop file, le nom des icônes et le manifeste. Cette décision doit être prise avant la première soumission : un changement d'identifiant après publication nécessite une nouvelle soumission.
+
+Le metainfo actuel n'est pas encore valide : il contient le placeholder `@DATE@` et aucun élément `<developer>`. Il faut également utiliser une URL de screenshot immuable (tag ou commit, pas `main`) et fournir une release réelle. Le desktop file copié dans Flatpak doit avoir `Icon=io.github.gnoooo.typst-ide`, et l'icône installée doit porter ce même nom.
+
+Le code d'accès aux projets est maintenant validé : `create_project()` et `open_project()` n'acceptent que des dossiers choisis via un dialogue (registre `GRANTED_PATHS` de `commands/fs.rs`), les montages document-portal sous le sandbox, ou `$HOME` hors sandbox. Les sources de templates passent par le même contrôle.
+
+Les outils Flatpak ne sont pas encore présents sur tous les environnements de développement : le build et les linters ci-dessous sont obligatoires avant soumission.
 
 ```bash
 # Outils locaux
-sudo dnf install flatpak-builder
+sudo dnf install flatpak flatpak-builder
 
-# Runtime + SDK + extensions (branche à confirmer en Phase 0)
-flatpak install flathub org.gnome.Platform//50 org.gnome.Sdk//50 org.freedesktop.Sdk.Extension.rust-stable org.freedesktop.Sdk.Extension.node24
+# Runtime + SDK + extensions (branche alignée sur le runtime : GNOME 51 → extensions 26.08)
+flatpak install flathub org.gnome.Platform//51 org.gnome.Sdk//51 org.freedesktop.Sdk.Extension.rust-stable//26.08 org.freedesktop.Sdk.Extension.node24//26.08
 
 # Vérifier que le runtime fournit bien WebKitGTK 4.1 (requis par Tauri v2)
-flatpak run --command=sh org.gnome.Platform//50 -c 'ls /usr/lib/x86_64-linux-gnu | grep -E "webkit2gtk|javascriptcoregtk"'
-# Attendu : libwebkit2gtk-4.1.so.0 (RapidRAW, app Tauri, tourne sur ce runtime)
+flatpak run --command=sh org.gnome.Platform//51 -c 'ls /usr/lib/x86_64-linux-gnu | grep -E "webkit2gtk|javascriptcoregtk"'
+# Attendu : libwebkit2gtk-4.1.so.0 (vérifié sur GNOME 51)
 ```
 
 Si le runtime courant ne fournit plus `webkit2gtk-4.1`, choisir le plus récent qui le fournit (le linter Flathub refuse les runtimes trop anciens) ou, en dernier recours, compiler WebKitGTK en module (chantier lourd à éviter).
@@ -43,9 +51,9 @@ Si le runtime courant ne fournit plus `webkit2gtk-4.1`, choisir le plus récent 
 
 ```
 flatpak/
-├── com.typst.ide.yml            # manifest flatpak-builder
-├── com.typst.ide.metainfo.xml   # AppStream statique (validée appstreamcli)
-├── com.typst.ide.desktop        # desktop file au nom de l'app ID
+├── io.github.gnoooo.typst-ide.yml       # manifest flatpak-builder
+├── io.github.gnoooo.typst-ide.metainfo.xml # AppStream statique validée
+├── io.github.gnoooo.typst-ide.desktop    # desktop file au nom de l'app ID
 ├── flathub.json                 # options Flathub (skip-arches si besoin)
 ├── cargo-sources.json           # généré (flatpak-cargo-generator)
 └── node-sources.json            # généré (flatpak-node-generator)
@@ -53,7 +61,9 @@ flatpak-builder-tools/           # sous-module git (génération des sources)
 docs/flatpak.md                  # ce document
 ```
 
-`manage.sh` gagnera : 
+Le manifeste présenté dans la PR Flathub doit être au niveau supérieur du dépôt Flathub, conformément aux exigences actuelles. Le projet amont peut conserver ses fichiers de packaging dans `flatpak/`, mais la PR Flathub doit placer le manifeste et `flathub.json` à la racine du dépôt de soumission.
+
+`manage.sh` pourra gagner :
 - `flatpak-sources` 
 - `flatpak-build`
 -  `flatpak-run`
@@ -62,9 +72,9 @@ docs/flatpak.md                  # ce document
 
 ## 4. Manifest (brouillon)
 ```yaml
-id: com.typst.ide
+id: io.github.gnoooo.typst-ide
 runtime: org.gnome.Platform
-runtime-version: '50'
+runtime-version: '51'
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
@@ -77,7 +87,9 @@ finish-args:
   - --share=ipc               # mémoire partagée X11/GTK (MIT-SHM)
   - --device=dri              # rendu accéléré WebKitGTK (EGL/GBM)
   - --share=network           # téléchargement des packages Typst (packages.typst.org)
-  - --filesystem=home         # projets, arborescence de fichiers, historique
+  # Aucune permission --filesystem : tout l'accès aux fichiers passe par les
+  # portails XDG (FileChooser/Documents pour les dialogues et montages,
+  # OpenURI pour « révéler dans le gestionnaire de fichiers »).
 
 build-options:
   append-path: /usr/lib/sdk/node24/bin:/usr/lib/sdk/rust-stable/bin
@@ -106,12 +118,12 @@ modules:
       - npm run build
       - cargo build --release --offline -p typst-ide-app
       - install -Dm755 target/release/typst-ide /app/bin/typst-ide
-      - install -Dm644 flatpak/com.typst.ide.desktop /app/share/applications/com.typst.ide.desktop
-      - install -Dm644 flatpak/com.typst.ide.metainfo.xml /app/share/metainfo/com.typst.ide.metainfo.xml
-      - install -Dm644 crates/app/icons/32x32.png /app/share/icons/hicolor/32x32/apps/com.typst.ide.png
-      - install -Dm644 crates/app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/com.typst.ide.png
-      - install -Dm644 crates/app/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/com.typst.ide.png
-      - install -Dm644 LICENSE /app/share/licenses/com.typst.ide/LICENSE
+      - install -Dm644 flatpak/io.github.gnoooo.typst-ide.desktop /app/share/applications/io.github.gnoooo.typst-ide.desktop
+      - install -Dm644 flatpak/io.github.gnoooo.typst-ide.metainfo.xml /app/share/metainfo/io.github.gnoooo.typst-ide.metainfo.xml
+      - install -Dm644 crates/app/icons/32x32.png /app/share/icons/hicolor/32x32/apps/io.github.gnoooo.typst-ide.png
+      - install -Dm644 crates/app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.gnoooo.typst-ide.png
+      - install -Dm644 crates/app/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/io.github.gnoooo.typst-ide.png
+      - install -Dm644 LICENSE /app/share/licenses/io.github.gnoooo.typst-ide/LICENSE
 ```
 
 Notes :
@@ -119,6 +131,8 @@ Notes :
 - Pas besoin du CLI Tauri dans le sandbox : `npm run build` puis `cargo build -p typst-ide-app` (le frontend est embarqué à la compilation via `frontendDist`).
 - `node24` (et non `node20`) : Node 20 est en fin de maintenance depuis avril 2026, Vite 8 exige `^20.19 || >=22.12`, donc 24 convient.
 - `x-checker-data` permet au bot Flathub d'ouvrir une PR de bump à chaque nouveau tag.
+- Les fichiers `node-sources.json`/`cargo-sources.json` doivent être référencés par des **chaînes nues** dans `sources:` (fichier manifeste de sources à inclure), pas par `type: file` (qui se contente de copier le JSON).
+- Le build local est vérifié : `npm ci --offline`, `vite build`, `cargo build --release --offline`, `appstreamcli compose`, export `.desktop`/icônes/metainfo — tout passe sur GNOME 51.
 
 ## 5. Sources hors-ligne
 
@@ -131,8 +145,11 @@ git submodule add https://github.com/flatpak/flatpak-builder-tools.git
 # Sources cargo (depuis Cargo.lock)
 python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py -o flatpak/cargo-sources.json Cargo.lock
 
-# Sources npm (depuis frontend/package-lock.json)
-flatpak-node-generator --no-requests-cache -o flatpak/node-sources.json npm frontend/package-lock.json
+# Sources npm (depuis frontend/package-lock.json) — IMPORTANT : générer depuis un
+# arbre SANS node_modules (copier package.json + package-lock.json dans un dossier
+# propre), sinon des paquets présents localement sont traités comme « locaux » et
+# absents du cache (bug connu flatpak-builder-tools#377).
+flatpak-node-generator --no-requests-cache -o flatpak/node-sources.json npm <arbre-propre>/package-lock.json
 ```
 
 `manage.sh flatpak-sources` encapsulera ces deux commandes (via un venv/pipx ou un conteneur `python:3.12-slim`, pour ne rien installer sur l'hôte).
@@ -148,41 +165,27 @@ flatpak-node-generator --no-requests-cache -o flatpak/node-sources.json npm fron
 | `--share=ipc` | Mémoire partagée GTK/X11 (MIT-SHM), requise avec le socket X11. | Standard GTK |
 | `--device=dri` | Rendu accéléré WebKitGTK (EGL/GBM), sans lui, rendu logiciel lent ou cassé. | WebKitGTK (Tauri) |
 | `--share=network` | Résolution des packages Typst (`#import "@preview/..."`) : téléchargement de `packages.typst.org`. Sans réseau, toute compilation utilisant un package non présent échoue. De plus, l'accès à ces librairies est très utile pour les utilisateurs. | `crates/typst-as-library/src/lib.rs:218` (`download_package`), URL `packages.typst.org` ligne `:228` |
-| `--filesystem=home` | Éditeur local : le projet est créé/ouvert n'importe où dans le dossier personnel, mémorisé par chemin absolu et **rouvert sans sélecteur**, imports/exports et "révéler" depuis des emplacements choisis par l'utilisateur. L'app restreint elle-même ses opérations fichier au projet. | `crates/app/src/commands/fs.rs:69` (`allowed_roots`), `:21` (`assert_within`), `:128` (`create_project`), `:168` (`open_project`) et `frontend/src/js/history.js:287` (réouverture par chemin) |
+| (aucune permission fichiers) | L'accès au système de fichiers passe par les portails XDG : `FileChooser` pour les dialogues, `Documents` pour les montages accordés, `OpenURI` pour « révéler ». Aucune permission statique n'est nécessaire. | `crates/app/src/portal.rs`, `crates/app/src/commands/fs.rs` (`open_folder_dialog`, `pick_files`, `reveal_in_file_manager`, registre de chemins accordés) |
 
 ### 6.2 Détail
 
+#### Aucune permission fichiers statique : tout passe par les portails
+
+Les dialogues natifs de l'application utilisent `rfd`, dont le backend Linux est le portail XDG Desktop Portal (comportement par défaut de rfd 0.17). Sous Flatpak :
+
+1. **Choisir un dossier/fichier** (`open_folder_dialog`, `pick_files`, dialogues d'import/export) appelle `org.freedesktop.portal.FileChooser`. Le portail renvoie des montages « document portal » (`/run/user/<uid>/doc/...`) : l'utilisateur accorde précisément ces chemins au moment du choix, et uniquement eux.
+2. **Créer/ouvrir un projet** : `create_project` et `open_project` reçoivent ces chemins accordés. Le backend ne les accepte que s'ils ont été choisis via un dialogue (registre `GRANTED_PATHS` dans `commands/fs.rs`) ou, hors sandbox, s'ils sont dans `$HOME` (pour l'historique après redémarrage).
+3. **Réouverture depuis l'historique** : l'historique stocke le chemin retourné par le portail. Si l'autorisation a été révoquée ou le dossier déplacé, l'ouverture échoue et l'interface propose de re-sélectionner le dossier (et met l'entrée à jour).
+4. **Révéler dans le gestionnaire de fichiers** : passe par `org.freedesktop.portal.OpenURI` (`crates/app/src/portal.rs`) ; le montage document-portal est visible de l'hôte, donc le gestionnaire de fichiers ouvre le vrai emplacement.
+5. **Fonts** : les fonts de l'hôte sont chargées depuis `/run/host/fonts` (montage standard en lecture seule, aucune permission requise).
+
+En plus du sandbox, l'application restreint déjà toutes ses opérations au projet courant (plus ses dossiers de données/config) via `allowed_roots()`/`assert_within()` (`fs.rs`), et les copies d'assets de templates n'acceptent que les chemins choisis via un dialogue.
+
 **`--share=network` : packages Typst.**
 
-Le compilateur Typst est embarqué, mais la résolution des packages `@preview` (et des packages locaux publiés sur le registre) passe par le réseau : `download_package()` télécharge `https://packages.typst.org/{namespace}/{name}-{version}.tar.gz` dans le cache applicatif, puis décompresse localement. 
+Le compilateur Typst est embarqué, mais la résolution des packages `@preview` (et des packages locaux publiés sur le registre) passe par le réseau : `download_package()` télécharge `https://packages.typst.org/{namespace}/{name}-{version}.tar.gz` dans le cache applicatif, puis décompresse localement.
 
 Sous Flatpak sans `--share=network`, `ureq` ne peut pas sortir du bac à sable et la compilation d'un document qui importe un package échoue. C'est le **seul** usage réseau de l'application : aucune télémétrie, aucun updater, aucun compte. (L'ouverture de liens externes passe par le portail OpenURI, pas par cette permission.)
-
-**`--filesystem=home` : projets et arborescence.**
-Typst IDE n'est pas juste une visionneuse : c'est un éditeur *local-first* avec un gestionnaire de projets intégré. 
-
-Concrètement :
-1. **Création/ouverture de projet** : 
-   l'utilisateur choisit un dossier parent (`open_folder_dialog`) puis l'app crée le projet dedans (`create_project(base_path, ...)`, `fs.rs:128`) ou ouvre un dossier existant (`open_project`, `fs.rs:168`). 
-   Un projet peut vivre n'importe où dans le dossier personnel (dépôt git, dossier partagé, projet existant).
-
-2. **Réouverture sans sélecteur** : 
-   l'historique stocke des chemins absolus et rouvre le projet directement (`history.js:287`, `open_project`). 
-   Avec un portail seul, il faudrait repasser par une boîte de dialogue à chaque fois et gérer l'indirection des chemins du document portal, ce qui casserait le flux "projets récents".
-
-3. **Imports/exports et gestion** : 
-   import de fichiers depuis n'importe où (`import_file_dialog`, `fs.rs:503`, `import_folder_dialog`, `fs.rs:615`), export PDF vers un chemin choisi, « révéler dans le gestionnaire de fichiers », bibliographies `.bib` et images référencées par le projet.
-
-Bonne nouvelle pour la revue : **l'application restreint elle-même toutes ses opérations fichier** au projet courant (plus ses dossiers de données/config) via `allowed_roots()` (`fs.rs:69`) et `assert_within()` (`fs.rs:21`). Tandis que l'arborescence de fichiers, la sauvegarde, les renommages/suppressions ne sortent jamais du projet. 
-La permission `home` sert donc uniquement à pouvoir **choisir** où créer/ouvrir le projet et à le rouvrir depuis l'historique, ce n'est pas un accès large non maîtrisé.
-
-Ce qui reste **hors** de cette permission : les bases SQLite (notes, historique), les templates et les caches restent dans le dossier applicatif bac à sable `~/.var/app/com.typst.ide/`. Aucun accès système/host n'est demandé.
-
-Alternatives écartées :
-- `--filesystem=host` (trop large, inclut les systèmes de fichiers montés)
-- `xdg-documents`, `xdg-download`... : trop restrictif, les projets peuvent être n'importe où (dépôts git, partages, `/mnt`, etc.), là est l'utilité aussi (utiliser l'intégralité du filesystem pour permettre à l'utilisateur un plein contrôle)
-- portails seuls : la réouverture des projets récents stockés en chemin absolu ne serait pas garantie (indirection `/run/user/.../doc/...`, permissions à re-négocier) et il faudrait repenser l'historique et les imports (plus de
-  travail pour un résultat moins fiable)
 
 **`--device=dri`.** 
 
@@ -207,72 +210,95 @@ Permission justifications:
   to compile. This is the only network usage: no telemetry, no updater, no
   account, no remote content otherwise.
 
-- --filesystem=home
-  The application is a local-first editor with a built-in project workflow.
-  It must be able to:
-    - create/open a project in any directory the user chooses (projects may
-      live anywhere in $HOME: git repositories, shared folders, ...)
-    - reopen recent projects directly from its stored history, by absolute
-      path, without showing a file chooser again (frontend/src/js/history.js)
-    - import files (images, bibliographies, sub-documents) and export PDF to
-      user-chosen locations
-      
-  Flatpak's document portal only grants access to paths explicitly picked in a
-  dialog, and does not fit persisted absolute paths / a "recent projects"
-  workflow without major rework. Note that the app itself is already
-  restricted: every file operation (tree listing, save, rename, delete) is
-  confined to the current project root + the sandboxed app data/config dirs,
-  enforced by allowed_roots()/assert_within() (crates/app/src/commands/fs.rs).
-  Application data (SQLite notes/history, templates, caches) stays inside the
-  sandboxed app directory (~/.var/app/com.typst.ide/). No host/system access is
+- No static filesystem permissions: file access goes through the XDG portals.
+  Native open/save dialogs (rfd, xdg-desktop-portal backend) return
+  document-portal mounts granted by the user at pick time; the application
+  only accepts project folders the user actually picked (granted-paths
+  registry in crates/app/src/commands/fs.rs, plus $HOME outside the sandbox
+  so the "recent projects" history survives restarts) and "reveal in file
+  manager" goes through the OpenURI portal. File operations are additionally
+  confined to the current project root + sandboxed app data/config dirs via
+  allowed_roots()/assert_within(). Application data (SQLite notes/history,
+  templates, caches) stays inside the sandboxed app directory
+  (~/.var/app/io.github.gnoooo.typst-ide/). No host/system access is
   requested.
 ```
 
-## 7. Adaptations prévues côté code (sandbox)
+## 7. Adaptations côté code (sandbox)
+
+Déjà implémenté :
+
+1. **Révéler dans le gestionnaire de fichiers** : `reveal_in_file_manager` (`commands/fs.rs`) utilise le portail OpenURI sous sandbox (`crates/app/src/portal.rs`, `ashpd`), avec repli `xdg-open` hors sandbox (et `explorer`/`open` sur Windows/macOS).
+2. **Fonts** : `fontdb` charge aussi `/run/host/fonts` et `/run/host/fonts-cache` quand ils existent (`commands/misc.rs`, helper `load_fonts`).
+3. **Validation des chemins** : `create_project()` et `open_project()` n'acceptent que les chemins choisis via un dialogue (`GRANTED_PATHS` dans `commands/fs.rs`), les montages document-portal sous sandbox, ou `$HOME` hors sandbox. Les sources de templates (`copy_assets`) passent par le même contrôle.
+4. **Frontend** : si un projet de l'historique n'est plus accessible (autorisation révoquée, dossier déplacé), l'interface propose de re-sélectionner le dossier et met l'entrée à jour. Sous sandbox, la saisie manuelle de chemin est désactivée (`is_sandboxed`).
 
 À valider pendant les tests locaux :
-1. **Révéler dans le gestionnaire de fichiers** : 
-   `reveal_in_file_manager` (`crates/app/src/commands/fs.rs:697`) lance `xdg-open`, absent du bac à sable. 
-    Correctif : si `/.flatpak-info` existe, lancer `gio open <dossier>` (passe par le portail OpenURI), sinon garder `xdg-open`.
-2. **Fonts** : 
-   `fontdb` scanne les répertoires système (`crates/app/src/commands/misc.rs:15`), mais les fonts de l'hôte sont
-   montées sous `/run/host/fonts`. 
-   Correctif : charger aussi `/run/host/fonts` (et `/run/host/fonts-cache`) quand le dossier existe.
 
-## 8. CI de vérification
+1. **Persistance des montages document-portal** : vérifier qu'un projet ajouté à l'historique se rouvre après redémarrage de la session ; sinon le repli « re-sélectionner le dossier » couvre le cas.
+2. **`canonicalize` sur les montages FUSE** : si la résolution échoue sur `/run/user/<uid>/doc/...`, adapter `assert_within()`/`is_granted()` (repli lexical déjà prévu pour les chemins inexistants).
+3. **Comportement hors Flatpak** : vérifier la création/ouverture/réouverture de projets sur l'AppImage et le `.deb` (les projets hors `$HOME` sur supports externes doivent être re-sélectionnés après redémarrage : c'est voulu).
+
+## 8. Vérification locale et CI
 
 Nouveau workflow `.github/workflows/flatpak.yml`, déclenché sur PR et tags, avec l'action officielle :
 
 ```yaml
 - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
   with:
-    manifest-path: flatpak/com.typst.ide.yml
+    manifest-path: io.github.gnoooo.typst-ide.yml
     cache-key: flatpak-builder-${{ github.sha }}
 ```
 
 - Build de vérification (le build Flathub officiel reste fait par leur buildbot), artifact `.flatpak` ou option : joindre ce bundle aux releases GitHub.
 - Flathub construit x86_64 **et** aarch64 : si aarch64 pose problème (deps natives npm optionnelles, cf. risques), restreindre via `flatpak/flathub.json` → `"skip-arches": ["aarch64"]`.
 
+Commandes recommandées avant la PR (vérifiées localement) :
+
+```bash
+flatpak install -y flathub org.flatpak.Builder
+flatpak run --command=flathub-build org.flatpak.Builder --install io.github.gnoooo.typst-ide.yml
+flatpak run io.github.gnoooo.typst-ide
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest io.github.gnoooo.typst-ide.yml
+flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo repo
+```
+
+Résultats constatés : le lint `manifest` passe sans erreur ni avertissement sur le runtime GNOME 51. Le lint `repo` ne remonte que `appstream-external-screenshot-url` et `appstream-screenshots-not-mirrored-in-ostree` : ces deux erreurs sont normales pour un build local — le miroir de screenshots (`dl.flathub.org/media`) est réalisé par l'infrastructure Flathub au moment de la publication, pas par le manifeste.
+
+Tester au minimum le lancement, la création et la réouverture d'un projet, les imports, l'export PDF, un package `@preview`, les fonts, et « révéler dans le gestionnaire de fichiers ».
+
 ## 9. Soumission et maintenance
 
 Soumission (une fois) :
-1. Fork de `flathub/flathub`, branche `new-pr`.
-2. Ajouter `com.typst.ide.yml`, `cargo-sources.json`, `node-sources.json` (le metainfo, le desktop et les icônes viennent du git source).
-3. PR contre `new-pr` avec le bloc de justification (paragraphe 6.3).
-4. Itérer avec les reviewers, puis accès en écriture au dépôt `flathub/com.typst.ide`.
+1. Fork de `flathub/flathub`, puis clone de la branche `new-pr`.
+2. Créer une branche de soumission.
+3. Ajouter au niveau supérieur `io.github.gnoooo.typst-ide.yml`, `cargo-sources.json`, `node-sources.json` et, si nécessaire, `flathub.json`.
+4. Vérifier que le metainfo et le desktop file intégrés dans la source amont correspondent exactement à `io.github.gnoooo.typst-ide`.
+5. Ouvrir une PR contre `new-pr` avec le bloc de justification (paragraphe 6.3) et les informations sur les permissions.
+6. Itérer avec les reviewers, puis accès en écriture au dépôt `flathub/io.github.gnoooo.typst-ide`.
 
 À chaque release :
-1. `./manage.sh bump <version>` (met à jour la release du metainfo Flatpak).
-2. `./manage.sh flatpak-bump vX.Y.Z` (tag + commit dans le manifest local).
-3. `./manage.sh flatpak-sources` si `Cargo.lock`/`node` ont changé.
-4. `./manage.sh flatpak-build` (vérification locale), puis PR sur `flathub/com.typst.ide`, ou laisser `x-checker-data` ouvrir automatiquement la PR de bump du tag.
+1. Mettre à jour la version et une vraie entrée `<release>` dans le metainfo.
+2. Mettre à jour le tag et le commit du manifeste Flathub.
+3. Régénérer les sources si `Cargo.lock` ou `package-lock.json` ont changé.
+4. Construire, installer et tester localement.
+5. Ouvrir une PR sur `flathub/io.github.gnoooo.typst-ide`, ou laisser `x-checker-data` proposer une mise à jour à vérifier avant fusion.
 
 ## 10. Risques et replis
 
 | Risque | Niveau | Repli |
 |---|---|---|
-| Review refuse `--filesystem=home` | Moyen | Justifier (bloc paragraphe 6.3), sinon `xdg-documents`/`xdg-download` + portails, avec adaptations de l'arborescence |
+| ID `com.typst.ide` refusé | Élevé | Utiliser `io.github.gnoooo.typst-ide` avant la première soumission |
+| Metainfo invalide (`@DATE@`, développeur absent) | Élevé | Ajouter le développeur, une date réelle et valider avec le linter Flathub |
+| Desktop file/icône incohérents | Élevé | Utiliser le nouvel ID partout, y compris `Icon=` et les chemins d'installation |
+| Runtime GNOME dépassé | Moyen | À chaque soumission/bump, vérifier la dernière branche GNOME sur Flathub et aligner les extensions (`//26.08` pour GNOME 51) |
+| Montages document-portal non persistants entre sessions | Moyen | Le repli « re-sélectionner le dossier » de l'historique couvre le cas ; vérifier avant soumission |
+| `canonicalize` défaillant sur les montages FUSE du portail | Moyen | Adapter `assert_within()`/`is_granted()` (repli lexical prévu) |
+| Projets hors `$HOME` (supports externes) à re-sélectionner après redémarrage | Faible | Comportement voulu, documenté ; le picker est disponible dans l'historique |
 | Deps npm natives optionnelles (esbuild/rollup) hors-ligne sur aarch64 | Moyen | `flatpak-node-generator` embarque toutes les plateformes ; tester localement les deux arches, sinon `skip-arches` |
-| Runtime sans `webkit2gtk-4.1` | Faible | Vérifié en Phase 0 : choisir le dernier runtime qui le fournit |
-| `reveal`/fonts cassés dans le sandbox | Faible/Moyen | Correctifs prévus paragraphe 7 |
+| `reveal`/fonts cassés dans le sandbox | Faible | Correctifs implémentés (portail OpenURI, `/run/host/fonts`) ; à confirmer en test interactif |
 | Build Flatpak long en CI | Faible | Action officielle + cache |
+
+## 11. Politique Flathub à connaître
+
+Les fichiers envoyés dans la PR Flathub doivent être maintenables et ne doivent pas contenir de contenu généré par une IA. Les manifests et scripts de packaging doivent donc être écrits et vérifiés manuellement. Toute contribution générée avec assistance doit être revue et déclarée conformément à la politique Flathub applicable au moment de la soumission.

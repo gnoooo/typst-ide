@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod portal;
 mod state;
 
 #[cfg(test)]
@@ -136,6 +137,7 @@ fn main() {
             fs::read_image_as_base64,
             fs::save_data_image,
             fs::file_hash,
+            portal::is_sandboxed,
             db::add_note,
             db::get_all_notes,
             db::delete_note,

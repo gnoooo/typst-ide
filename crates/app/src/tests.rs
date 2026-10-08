@@ -314,3 +314,44 @@ fn assert_within_rejects_symlinks_escaping_the_root() {
         future
     );
 }
+
+// ---------------------------------------------------------------
+// Project directory grants (Flatpak portal model)
+// ---------------------------------------------------------------
+
+#[test]
+fn project_dir_must_be_user_picked_outside_home() {
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+
+    let app = mock_app();
+    let handle = app.handle().clone();
+
+    // Not picked through a dialog and not under $HOME: rejected.
+    assert!(
+        crate::commands::fs::ensure_project_dir_allowed(&handle, &project).is_err(),
+        "an unpicked directory outside $HOME must be rejected"
+    );
+
+    // Picked through a dialog: accepted.
+    crate::commands::fs::register_granted_path(&project);
+    assert!(
+        crate::commands::fs::ensure_project_dir_allowed(&handle, &project).is_ok(),
+        "a user-picked directory must be accepted"
+    );
+}
+
+#[test]
+fn granted_folder_accepts_nested_paths_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let picked = dir.path().join("picked");
+    std::fs::create_dir_all(picked.join("sub")).unwrap();
+    let other = dir.path().join("other");
+    std::fs::create_dir_all(&other).unwrap();
+
+    crate::commands::fs::register_granted_path(&picked);
+    assert!(crate::commands::fs::is_granted(&picked));
+    assert!(crate::commands::fs::is_granted(&picked.join("sub")));
+    assert!(!crate::commands::fs::is_granted(&other));
+}

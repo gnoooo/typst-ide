@@ -229,7 +229,9 @@ export async function openProjectFromPath(dirPath, setEditorContent) {
         const info = await invoke('open_project', { dirPath });
         loadProject(info, setEditorContent);
         showToast('success', t('project.opened', { name: info.name }));
+        return true;
     } catch (err) {
         showToast('error', t('project.open_error_path', { path: dirPath, error: err }));
+        return false;
     }
 }

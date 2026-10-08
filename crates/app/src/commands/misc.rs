@@ -6,13 +6,26 @@ pub fn set_webview_zoom(window: tauri::WebviewWindow, factor: f64) -> Result<(),
     window.set_zoom(factor).map_err(|e| e.to_string())
 }
 
+/// Loads the system fonts into `db`. Inside a Flatpak sandbox the host
+/// fonts are mounted read-only at `/run/host/fonts` and are not part of the
+/// system font directories, so they are loaded explicitly when present.
+fn load_fonts(db: &mut fontdb::Database) {
+    db.load_system_fonts();
+    for dir in ["/run/host/fonts", "/run/host/fonts-cache"] {
+        let path = std::path::Path::new(dir);
+        if path.is_dir() {
+            db.load_fonts_dir(path);
+        }
+    }
+}
+
 /// Checks whether a font family name is available on the system
 #[tauri::command]
 pub fn font_exists(name: String) -> bool {
     use fontdb::{Database, Family, Query};
 
     let mut db = Database::new();
-    db.load_system_fonts();
+    load_fonts(&mut db);
     db.query(&Query {
         families: &[Family::Name(&name)],
         ..Default::default()
@@ -33,7 +46,7 @@ pub fn suggest_font(name: String) -> Option<String> {
     let families = FAMILIES.get_or_init(|| {
         let mut set = BTreeSet::new();
         let mut db = Database::new();
-        db.load_system_fonts();
+        load_fonts(&mut db);
         for face in db.faces() {
             for (family, _) in &face.families {
                 set.insert(family.clone());
