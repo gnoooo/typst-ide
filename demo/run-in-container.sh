@@ -1,5 +1,5 @@
 #!/bin/bash
-# run-in-container.sh — executed inside the demo container (see Dockerfile).
+# run-in-container.sh : executed inside the demo container (see Dockerfile).
 # Builds the app, records the demo scenarios and converts them to GIFs and
 # static screenshots. The repo is mounted at /work.
 set -euo pipefail

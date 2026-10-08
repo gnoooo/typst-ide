@@ -1,5 +1,5 @@
 /**
- * Walkthrough 2 — Typing
+ * Walkthrough 2 : Typing
  * Types a Typst document and shows the preview updating in real time.
  */
 const {

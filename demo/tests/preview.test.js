@@ -1,5 +1,5 @@
 /**
- * Preview screenshot — the "hero" image of the app.
+ * Preview screenshot: the "hero" image of the app.
  * Shows the editor with a polished demo document and the live preview.
  * The last frame of this scenario is exported to images/preview.png.
  */

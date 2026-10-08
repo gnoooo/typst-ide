@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# demo.sh — record demo GIFs for Typst IDE
+# demo.sh : record demo GIFs for Typst IDE
 #
 # Usage:
 #   cd demo && bash demo.sh              # full pipeline: build + record + gif

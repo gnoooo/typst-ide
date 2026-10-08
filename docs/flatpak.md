@@ -132,7 +132,7 @@ Notes :
 - `node24` (et non `node20`) : Node 20 est en fin de maintenance depuis avril 2026, Vite 8 exige `^20.19 || >=22.12`, donc 24 convient.
 - `x-checker-data` permet au bot Flathub d'ouvrir une PR de bump à chaque nouveau tag.
 - Les fichiers `node-sources.json`/`cargo-sources.json` doivent être référencés par des **chaînes nues** dans `sources:` (fichier manifeste de sources à inclure), pas par `type: file` (qui se contente de copier le JSON).
-- Le build local est vérifié : `npm ci --offline`, `vite build`, `cargo build --release --offline`, `appstreamcli compose`, export `.desktop`/icônes/metainfo — tout passe sur GNOME 51.
+- Le build local est vérifié : `npm ci --offline`, `vite build`, `cargo build --release --offline`, `appstreamcli compose`, export `.desktop`/icônes/metainfo ; tout passe sur GNOME 51.
 
 ## 5. Sources hors-ligne
 
@@ -145,7 +145,7 @@ git submodule add https://github.com/flatpak/flatpak-builder-tools.git
 # Sources cargo (depuis Cargo.lock)
 python3 flatpak-builder-tools/cargo/flatpak-cargo-generator.py -o flatpak/cargo-sources.json Cargo.lock
 
-# Sources npm (depuis frontend/package-lock.json) — IMPORTANT : générer depuis un
+# Sources npm (depuis frontend/package-lock.json) ; IMPORTANT : générer depuis un
 # arbre SANS node_modules (copier package.json + package-lock.json dans un dossier
 # propre), sinon des paquets présents localement sont traités comme « locaux » et
 # absents du cache (bug connu flatpak-builder-tools#377).
@@ -263,7 +263,7 @@ flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest io.githu
 flatpak run --command=flatpak-builder-lint org.flatpak.Builder repo repo
 ```
 
-Résultats constatés : le lint `manifest` passe sans erreur ni avertissement sur le runtime GNOME 51. Le lint `repo` ne remonte que `appstream-external-screenshot-url` et `appstream-screenshots-not-mirrored-in-ostree` : ces deux erreurs sont normales pour un build local — le miroir de screenshots (`dl.flathub.org/media`) est réalisé par l'infrastructure Flathub au moment de la publication, pas par le manifeste.
+Résultats constatés : le lint `manifest` passe sans erreur ni avertissement sur le runtime GNOME 51. Le lint `repo` ne remonte que `appstream-external-screenshot-url` et `appstream-screenshots-not-mirrored-in-ostree` : ces deux erreurs sont normales pour un build local (le miroir de screenshots `dl.flathub.org/media` est réalisé par l'infrastructure Flathub au moment de la publication, pas par le manifeste).
 
 Tester au minimum le lancement, la création et la réouverture d'un projet, les imports, l'export PDF, un package `@preview`, les fonts, et « révéler dans le gestionnaire de fichiers ».
 

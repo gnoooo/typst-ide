@@ -1,12 +1,12 @@
 /**
- * Walkthrough 1 — First open
+ * Walkthrough 1 : First open
  * Shows the two-pane layout and blinking toolbar buttons.
  */
 const { createRecorder, waitForEditor } = require("./helpers");
 
 const shot = createRecorder("walkthrought1");
 
-// Captures `count` frames spaced by `delay` ms — makes scenes as dense as typing ones
+// Captures `count` frames spaced by `delay` ms, so scenes become as dense as typing ones
 async function hold(label, count = 8, delay = 150) {
   for (let i = 0; i < count; i++) {
     await browser.pause(delay);

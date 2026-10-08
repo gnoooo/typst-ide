@@ -1,6 +1,12 @@
 # Rust build artifacts
 target/
 
+# Flatpak build outputs (flatpak-builder)
+.flatpak-builder/
+builddir/
+repo/
+demo/output/
+
 # Node.js
 frontend/node_modules/
 

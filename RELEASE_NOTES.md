@@ -4,7 +4,7 @@
 
 ### For developers
 
-- **Demo images regenerated** : the walkthrough GIFs and the static screenshots (`images/preview.png`, `images/preview-popup.png`) now reflect the current UI. The demo pipeline runs in a disposable Ubuntu 24.04 container (`demo/run-container.sh`) — Arch does not ship `WebKitWebDriver`, required by `tauri-driver` — and the static screenshot scenarios (`preview`, `preview-popup`) are exported by `demo.sh`.
+- **Demo images regenerated** : the walkthrough GIFs and the static screenshots (`images/preview.png`, `images/preview-popup.png`) now reflect the current UI. The demo pipeline runs in a disposable Ubuntu 24.04 container (`demo/run-container.sh`), because Arch does not ship `WebKitWebDriver` (required by `tauri-driver`). The static screenshot scenarios (`preview`, `preview-popup`) are exported by `demo.sh`.
 - **Flathub metainfo** : release entry bumped to 1.7.4, both screenshots pinned to an immutable commit.
 
 ## v1.7.3
