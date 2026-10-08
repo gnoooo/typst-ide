@@ -65,7 +65,30 @@ dependencies = [
 name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+<<<<<<< Updated upstream
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
+=======
+checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
+
+[[package]]
+name = "app"
+version = "1.2.6"
+dependencies = [
+ "base64 0.22.1",
+ "core",
+ "font-kit",
+ "rfd",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "strsim",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-clipboard-manager",
+ "tauri-plugin-opener",
+ "tokio",
+]
+>>>>>>> Stashed changes
 
 [[package]]
 name = "approx"
