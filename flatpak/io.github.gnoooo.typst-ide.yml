@@ -13,12 +13,11 @@ finish-args:
   - --share=ipc               # mémoire partagée X11/GTK (MIT-SHM)
   - --device=dri              # rendu accéléré WebKitGTK (EGL/GBM)
   - --share=network           # téléchargement des packages Typst (packages.typst.org)
-  # Aucune permission --filesystem : tout l'accès aux fichiers passe par les
-  # portails XDG. Les dialogues natifs (rfd, backend xdg-desktop-portal)
-  # rendent des montages document-portal (/run/user/<uid>/doc/...) accordés
-  # par l'utilisateur au moment du choix ; « révéler dans le gestionnaire de
-  # fichiers » passe par le portail OpenURI. L'application ne voit jamais le
-  # reste du système de fichiers de l'hôte.
+
+  # Aucune permission --filesystem : tout l'accès aux fichiers passe par les portails XDG.
+  # Les dialogues natifs (rfd, backend xdg-desktop-portal) rendent des montages document-portal (/run/user/<uid>/doc/...) accordés par l'utilisateur au moment du choix
+  # "Révéler dans le gestionnaire de fichiers" passe par le portail OpenURI.
+  # L'application ne voit jamais le reste du système de fichiers de l'hôte.
 
 build-options:
   append-path: /usr/lib/sdk/node24/bin:/usr/lib/sdk/rust-stable/bin
