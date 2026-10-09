@@ -42,7 +42,7 @@ Les items sont groupés par priorité.
 - [x] Preview dans un autre onglet (Si activé : éditeur qui prend toute la place sur la fenêtre principale. Si fenêtre tuée (croix), l'affichage de Typst-IDE redevient normal)
 - [x] Exportation de configuration
 - [x] Importation de configuration
-- [ ] Mode sombre
+- [X] Mode sombre
 
 ## Divers
 
