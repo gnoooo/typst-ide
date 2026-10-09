@@ -34,7 +34,10 @@ export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/target/container}"
 # All caches live under <cargo target dir>/cache (manage.sh migrates the old
 # layout on the host before starting the container).
 export CACHE_DIR="${CACHE_DIR:-$CARGO_TARGET_DIR/cache}"
-export CARGO_HOME="${CARGO_HOME:-$CACHE_DIR/cargo-home}"
+# Inconditionnel : l'image définit ENV CARGO_HOME=/usr/local/cargo (root-only),
+# et le conteneur docker rootful tourne sous l'UID hôte (manage.sh --user) ;
+# le repli ${VAR:-} ne s'appliquerait jamais.
+export CARGO_HOME="$CACHE_DIR/cargo-home"
 export npm_config_cache="${npm_config_cache:-$CACHE_DIR/npm-cache}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$CACHE_DIR}"
 # Windows SDK/CRT downloaded by cargo-xwin, persistent across runs.
