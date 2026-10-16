@@ -64,7 +64,7 @@ pub fn get_project_bibliographies(project_path: &str) -> Result<Vec<ProjectBibFi
         .collect())
 }
 
-/// `Err(NotFound)` means the entry is already gone — treat as a benign race.
+/// `Err(NotFound)` means the entry is already gone, treat as a benign race.
 /// All other IO errors are propagated so the frontend can surface them.
 fn io_err_to_string(e: std::io::Error) -> Result<bool, String> {
     if e.kind() == ErrorKind::NotFound {

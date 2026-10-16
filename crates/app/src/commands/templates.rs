@@ -159,7 +159,7 @@ pub fn rename_template(
     name: String,
     new_name: String,
 ) -> Result<(), String> {
-    // `name` joins under `templates_root` directly — it MUST be a single
+    // `name` joins under `templates_root` directly, it MUST be a single
     // path segment, otherwise `..` would let it escape the templates
     // directory. (`new_name` is validated inside `template_dir`.)
     validate_name_segment(&name)?;

@@ -42,7 +42,9 @@ fn parse_entries(content: &str) -> Vec<EntrySpan> {
 
                 let opens = line.chars().filter(|&c| c == '{').count();
                 let closes = line.chars().filter(|&c| c == '}').count();
-                brace_count = opens - closes;
+                // saturating: a hand-edited line like `@misc{key,},` has more`}` than `{`
+                // without this a usize underflow panics (debug) or pins brace_count high, silently dropping later entries.
+                brace_count = opens.saturating_sub(closes);
 
                 if brace_count == 0 {
                     // one-line entry: header only, nothing else to collect
@@ -83,8 +85,9 @@ fn parse_entries(content: &str) -> Vec<EntrySpan> {
                 entry.data.insert(key, value);
             }
 
-            brace_count += line.chars().filter(|&c| c == '{').count();
-            brace_count -= line.chars().filter(|&c| c == '}').count();
+            let opens = line.chars().filter(|&c| c == '{').count();
+            let closes = line.chars().filter(|&c| c == '}').count();
+            brace_count = brace_count.saturating_add(opens).saturating_sub(closes);
 
             if brace_count == 0 {
                 let (entry, start) = current.take().unwrap();
@@ -464,6 +467,31 @@ mod tests {
     }
 
     #[test]
+    fn extra_closing_brace_drops_nothing() {
+        // Hand-edited header with an extra `}` must not underflow (panic in debug / stuck brace_count in release).
+        // Later entries still parse.
+        let content = "@misc{key,},\n\n@online{second,\n    title = \"{y}\",\n},\n";
+        let entries = parse_entries(content);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entry.cite_key, "key");
+        assert_eq!(entries[1].entry.cite_key, "second");
+        assert_eq!(entries[1].entry.data["title"], "{y}");
+    }
+
+    #[test]
+    fn extra_closing_brace_then_multiline_entry() {
+        // Malformed header (`@misc{key},` has more `}` than `{`), then stray field lines,
+        // then a valid multi-line entry: the parser must resync on the next `@` instead of panicking (debug)
+        // or dropping everything after the bad line (release, saturating usize underflow).
+        let content = "@misc{key},\n    title = \"x\",\n},\n\n@online{second,\n    title = \"{y}\",\n},\n";
+        let entries = parse_entries(content);
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entry.cite_key, "key");
+        assert_eq!(entries[1].entry.cite_key, "second");
+        assert_eq!(entries[1].entry.data["title"], "{y}");
+    }
+
+    #[test]
     fn one_line_entry_does_not_panic() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("one.bib");
@@ -482,10 +510,9 @@ mod tests {
 
     #[test]
     fn build_escapes_double_quotes_in_values() {
-        // A value containing `"` must not produce an invalid .bib that re-parses
-        // as a different entry. The encoder doubles `"` (BibTeX string concatenation).
-        // `replace_whole_bib_source` always passes the `data` object directly,
-        // not nested under a "data" key — mirror that shape here.
+        // A value containing `"` must not produce an invalid .bib that re-parses as a different entry.
+        // The encoder doubles `"` (BibTeX string concatenation).
+        // `replace_whole_bib_source` always passes the `data` object directly, not nested under a "data" key, mirror that shape here.
         let data = serde_json::json!({ "title": "She said \"hello\" loudly" });
         let text = build_bib_entry("misc", "quoted", &data);
         assert!(
@@ -507,7 +534,7 @@ mod tests {
         });
         replace_whole_bib_source(path.to_str().unwrap(), "cpsat-primer", &json).unwrap();
 
-        // Parse the file back; the doubly-encoded "hi" round-trips to a single ".
+        // Parse the file back, the doubly-encoded "hi" round-trips to a single ".
         let entries = parse_bib_file(path.to_str().unwrap()).unwrap();
         assert_eq!(entries[0].cite_key, "round");
         assert!(

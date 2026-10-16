@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# AppRun — Typst IDE (AppImage)
+# AppRun : Typst IDE (AppImage)
 #
 # Replaces the stock linuxdeploy AppRun. Two modes:
 #

@@ -108,7 +108,7 @@ export function isValidKeyword(keyword) {
 export function saveKeytags(list) {
   if (!Array.isArray(list)) return;
   const clean = list.map(_normalize).filter(Boolean);
-  // Reject duplicate keywords (case-insensitive) — keeps matching unambiguous.
+  // Reject duplicate keywords (case-insensitive), keeps matching unambiguous.
   const seen = new Set();
   const unique = clean.filter((kt) => {
     const key = kt.keyword.toLowerCase();

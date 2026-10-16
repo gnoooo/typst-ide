@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# fix-appimage.sh — turn the AppImage produced by `tauri build` into a
+# fix-appimage.sh : turn the AppImage produced by `tauri build` into a
 # conforming AppImage.
 #
 # What it does, in order:

@@ -254,7 +254,7 @@ fn best_glyph_in_frame(frame: &Frame, span: Span, target_offset: u16) -> Option<
 /// giving precise cursor placement for multi-line text nodes that wrap across pages.
 ///
 /// Critically, it examines ALL pages and picks the *closest* glyph match by
-/// `glyph.span.1` distance — not the first page that happens to contain the span.
+/// `glyph.span.1` distance, not the first page that happens to contain the span.
 fn find_precise_cursor_position(
     document: &PagedDocument,
     source: &typst::syntax::Source,
@@ -315,7 +315,7 @@ pub fn create_world_with_root(root: &str, content: &str) -> TypstWrapperWorld {
 ///
 /// 1. **Persistent world**: the `TypstWrapperWorld` (which caches imported files,
 ///    package downloads, etc.) is kept alive in a global `Mutex` between calls.
-///    On the same project root it is reused — only the main source is swapped via
+///    On the same project root it is reused, only the main source is swapped via
 ///    `reset_source`.  When the root changes the world is recreated from scratch.
 ///
 /// 2. **SVG page cache**: each compiled `Page` is hashed with `typst_utils::hash128`.

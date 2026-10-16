@@ -12,7 +12,7 @@ use typst::utils::LazyHash;
 use typst::{Feature, Features, Library, LibraryExt};
 use typst_kit::fonts::FontStore;
 
-/// Cached font search result — computed once at first compilation, reused afterwards.
+/// Cached font search result, computed once at first compilation, reused afterwards.
 /// On Linux with many system fonts, this scan can take hundreds of milliseconds.
 static FONT_STORE: OnceLock<Arc<FontStore>> = OnceLock::new();
 
@@ -159,7 +159,7 @@ impl FileEntry {
 
     /// Whether the cached bytes still match the current on-disk state.
     ///
-    /// Compares size and modification time against a cheap `stat` — no content
+    /// Compares size and modification time against a cheap `stat`, no content
     /// read, so cache hits cost a few microseconds instead of a full file read.
     fn is_current(&self, path: &Path) -> bool {
         let fingerprint = std::fs::metadata(path)

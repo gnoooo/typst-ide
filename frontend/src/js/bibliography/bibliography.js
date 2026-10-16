@@ -238,7 +238,7 @@ async function editBibliographyEntry(entry) {
     titleInput.type = 'text';
     titleInput.placeholder = t('bib.title_placeholder');
     titleInput.style.width = '100%';
-    titleInput.value = String(entry.title ?? ''); // was: `value="${entry.title}"` — attribute injection vector
+    titleInput.value = String(entry.title ?? ''); // was: `value="${entry.title}"`, attribute injection vector
     titleInput.required = true;
     wrap.appendChild(titleInput);
     body.appendChild(wrap);

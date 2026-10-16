@@ -16,7 +16,7 @@ pub struct CursorPos {
 }
 
 /// Compiles Typst source code to a preview HTML document (pages rendered as inline SVGs)
-/// At most one compilation runs at a time — the semaphore suspends excess callers
+/// At most one compilation runs at a time, the semaphore suspends excess callers
 /// asynchronously (zero thread cost) until the running compile finishes.
 #[tauri::command]
 pub async fn render_preview(

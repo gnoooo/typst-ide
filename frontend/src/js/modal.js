@@ -28,7 +28,7 @@ import { escapeHtml } from './utils/escape.js'
  * Open a modal with arbitrary content.
  *
  * `body` may be either a string (interpreted as plain text and escaped)
- * or an HTMLElement (used as-is — caller is responsible for safely
+ * or an HTMLElement (used as-is, caller is responsible for safely
  * building it, e.g. via `createElement`/`textContent`). This avoids the
  * historical XSS where backend-controlled content was interpolated into
  * `innerHTML` strings.
@@ -54,7 +54,7 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
 
-    // Header (title is auto-escaped via textContent — no innerHTML).
+    // Header (title is auto-escaped via textContent, no innerHTML).
     const header = document.createElement('div');
     header.className = 'ide-modal-header';
     const titleEl = document.createElement('h2');
@@ -147,7 +147,7 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
 /**
  * Show a confirmation dialog.
  *
- * `message` is rendered as plain text (safe against XSS) — pass composed
+ * `message` is rendered as plain text (safe against XSS), pass composed
  * DOM via `bodyElement` instead if you need formatting. Filenames and
  * other user-controlled input should be passed via `t()`-substituted
  * translations here too; this helper never interprets the string as HTML.
@@ -258,7 +258,7 @@ export function showSelect({ title, label, optionsdata, validate }) {
     const selectId = 'modal-prompt-input-' + Date.now();
     const errorId = 'modal-prompt-error-' + Date.now();
 
-    // Build the body with createElement / textContent — option `value` and
+    // Build the body with createElement / textContent, option `value` and
     // display name are escaped automatically, regardless of what keys the
     // caller passes in `optionsdata`.
     const bodyEl = document.createElement('div');

@@ -8,7 +8,7 @@
 # Windows binaries are cross-compiled for the MSVC target with cargo-xwin
 # (the method documented by Tauri), so no Windows machine is required.
 #
-# Used by `./manage.sh build <targets> --container` — see docs/appimage.md
+# Used by `./manage.sh build <targets> --container`, see docs/appimage.md
 # and docs/windows-build.md.
 # =============================================================================
 ARG BASE_IMAGE=ubuntu:22.04

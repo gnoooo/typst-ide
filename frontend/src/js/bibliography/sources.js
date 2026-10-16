@@ -253,7 +253,7 @@ export async function addNewSource(filepath) {
   if (!entry_type) return;
   const chosen_entry_type_data = biblatex[entry_type];
 
-  // `field` is from the hard-coded biblatex schema — not user input — so
+  // `field` is from the hard-coded biblatex schema, not user input, so
   // direct string concatenation is acceptable here. We still use DOM
   // construction rather than innerHTML to keep the codepath uniform.
   const body = document.createElement('div');

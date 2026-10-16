@@ -394,7 +394,7 @@ function viewNote(note) {
       meta.appendChild(p);
     }
 
-    // PREVIEW: render the note content as plain text (escaped) — was an
+    // PREVIEW: render the note content as plain text (escaped), was an
     // innerHTML sink exploited via crafted note titles/content.
     const contentDiv = document.createElement('div');
     contentDiv.id = 'note-preview-content';

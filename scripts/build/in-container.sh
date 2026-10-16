@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# in-container.sh — build steps executed inside the release container
+# in-container.sh : build steps executed inside the release container
 # (scripts/build/Containerfile.ubuntu2204).
 #
 # Driven by `./manage.sh build <targets> --container`; not meant to be run

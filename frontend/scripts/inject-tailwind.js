@@ -15,7 +15,7 @@ let html = fs.readFileSync(distSrc, 'utf8');
 if (html.includes('href="css/output.css"')) {
   // already injected
   fs.writeFileSync(out, html, 'utf8');
-  console.log('Tailwind CSS link already present — copied to dist/index.html');
+  console.log('Tailwind CSS link already present, copied to dist/index.html');
   process.exit(0);
 }
 

@@ -386,7 +386,7 @@ function bindMenuAction(id, fn) {
 
 // External-link buttons (replaces the previous inline `onclick="..."`,
 // which would break a future strict CSP). Each button carries the URL
-// in a `data-tauri-open-url` attribute — we read it here and pass it to
+// in a `data-tauri-open-url` attribute, we read it here and pass it to
 // the opener plugin.
 function bindOpenUrl(id) {
   const el = document.getElementById(id);

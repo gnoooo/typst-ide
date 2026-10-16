@@ -10,6 +10,6 @@ pub struct HistoryDbState(pub Mutex<rusqlite::Connection>);
 
 /// Semaphore that limits preview compilation to one at a time.
 /// The JS scheduler already ensures at most one in-flight invoke, but this is a
-/// belt-and-suspenders guard at the Rust level — prevents concurrent CPU-bound
+/// belt-and-suspenders guard at the Rust level, prevents concurrent CPU-bound
 /// compiles from piling up if multiple callers ever bypass the JS scheduler.
 pub struct CompileState(pub Arc<Semaphore>);

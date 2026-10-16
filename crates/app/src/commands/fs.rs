@@ -80,7 +80,7 @@ pub(crate) fn ensure_project_dir_allowed<R: tauri::Runtime>(
 
 /// Returns `Ok(canonical)` if `path` resolves (and stays) inside one of the
 /// `roots`. Used to restrict destructive file-system commands to the
-/// project directory and template roots — even if the frontend
+/// project directory and template roots, even if the frontend
 /// (`withGlobalTauri: true`) is compromised, an XSS payload cannot escape
 /// the project's working area.
 ///
@@ -114,7 +114,7 @@ pub fn assert_within(
     }
 
     // The target does not exist yet (about to be created). Resolve the
-    // deepest ancestor that exists and require IT to be inside a root —
+    // deepest ancestor that exists and require IT to be inside a root,
     // comparing the raw lexical path could be tricked by a symlink
     // component (e.g. `projet/lien -> /outside`).
     let mut ancestor = path.to_path_buf();
@@ -136,7 +136,7 @@ pub fn assert_within(
 /// touch, given an optional current project root.
 ///
 /// The app's data directory is always allowed (templates, saved history,
-/// etc. live there). The project root is added when provided — so a
+/// etc. live there). The project root is added when provided, so a
 /// compromised frontend can still only touch the project the user
 /// currently has open, not `/etc` or `~/Documents`.
 pub fn allowed_roots(
@@ -405,7 +405,7 @@ fn collect_entries(
             .into_owned()
             // Normalize to forward slashes so the JS frontend (which uses
             // `split('/')`, `lastIndexOf('/')` and `startsWith(folder + '/')`
-            // on `relative_path`) works on Windows too — `Path::strip_prefix`
+            // on `relative_path`) works on Windows too, `Path::strip_prefix`
             // yields OS-native separators (backslashes on Windows), which
             // collapses the file-manager tree into a flat list.
             .replace('\\', "/");
@@ -667,7 +667,7 @@ pub async fn import_image_dialog(
         .unwrap_or(&dest_path)
         .to_string_lossy()
         .into_owned()
-        // Normalize to forward slashes — see comment in `collect_entries`.
+        // Normalize to forward slashes, see comment in `collect_entries`.
         .replace('\\', "/"))
 }
 

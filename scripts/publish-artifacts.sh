@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# publish-artifacts.sh — collect the build outputs into a single, tidy
+# publish-artifacts.sh : collect the build outputs into a single, tidy
 # artifacts directory.
 #
 #   dist/

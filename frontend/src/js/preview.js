@@ -4,7 +4,7 @@
  *
  * The module has two roles:
  *  - main window: `initPreview(opts)` wires the editor to the compile pipeline
- *    and renders into the embedded pane — or, when the external preview window
+ *    and renders into the embedded pane, or when the external preview window
  *    is active (`isExternalPreviewActive()`), forwards the compiled pages to it
  *    via the `preview:update` event instead of writing the local DOM;
  *  - preview window: the exported render primitives (`renderUpdate`,
@@ -275,7 +275,7 @@ export function initPreview(opts) {
 
 /**
  * Schedules an immediate compile, bypassing the debounce
- * Safe to call at any time — deduplicated if a compile is already running
+ * Safe to call at any time, deduplicated if a compile is already running
  */
 export function forceCompile() {
     scheduleCompile();
@@ -447,7 +447,7 @@ async function loadHtml(frame, html) {
     } catch (err) {
         // A real rejection (e.g. Blob/URL failure) must propagate so
         // `_doCompile` can surface the error instead of hanging the
-        // scheduler — the previous `new Promise(async (resolve) => …)`
+        // scheduler, the previous `new Promise(async (resolve) => …)`
         // swallowed async rejections and left this pending forever.
         throw err;
     }

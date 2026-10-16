@@ -9,7 +9,7 @@
  *  The keyword must start the comment content (leading whitespace allowed),
  *  and is matched case-insensitively.
  *
- *  Columns are 1-based in UTF-16 code units — exactly Monaco's contract,
+ *  Columns are 1-based in UTF-16 code units, exactly Monaco's contract,
  *  and since JS string indices are UTF-16 code units, offsets map 1:1.
  */
 

@@ -224,7 +224,7 @@ fn preview_picks_up_image_rewritten_externally() {
     let v1 = render();
     assert!(v1.pages[0].svg.contains(PNG_RED_B64));
 
-    // External rewrite of the image file in place — no invalidation command,
+    // External rewrite of the image file in place, no invalidation command,
     // same world, same source. The staleness check must re-read the file.
     std::fs::write(dir.path().join("img.png"), PNG_BLUE).unwrap();
     let v2 = render();

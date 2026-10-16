@@ -35,7 +35,7 @@ Elle donne une parité totale avec `windows-latest`, mais demande un provisionne
 | **VM Windows** | (manuel / à venir) | identique `windows-latest` | VM QEMU/KVM | ★★★★ |
 
 > La CI GitHub exécute les mêmes commandes que le local (`manage.sh`, publication
-> `dist/`, versions épinglées — Rust/Node/Tauri CLI identiques au Containerfile).
+> `dist/`, versions épinglées, Rust/Node/Tauri CLI identiques au Containerfile).
 > Côté Windows, la CI compile en **MSVC natif** et le conteneur local en
 > **cargo-xwin** : les deux produisent un binaire MSVC auto-contenu, pas
 > bit-à-bit identique.

@@ -13,7 +13,7 @@
  *  (`commentSpansFromText`) is the fallback for environments where Monaco
  *  tokenization is unavailable (unit tests).
  *
- *  Positions are expressed in UTF-16 code units (Monaco's contract) —
+ *  Positions are expressed in UTF-16 code units (Monaco's contract),
  *  JS string indices are UTF-16, so they map 1:1.
  */
 

@@ -5,7 +5,7 @@
  *  jumps the editor cursor to it.
  *
  *  Also hosts the "add comment" flow: pick a keytag, insert
- *  `// KEYTAG: ` at the cursor — the book stays open and refreshes.
+ *  `// KEYTAG: ` at the cursor, the book stays open and refreshes.
  */
 
 import { t } from '../../i18n/index.js';

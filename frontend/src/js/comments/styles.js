@@ -1,6 +1,6 @@
 /**
  * styles.js
- *  Pure style/hover generators for the marker feature — no Monaco, no DOM,
+ *  Pure style/hover generators for the marker feature, no Monaco, no DOM,
  *  so they are directly unit-testable.
  *
  *  The line band is aligned to the glyphs instead of the full row: Monaco

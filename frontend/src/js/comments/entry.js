@@ -1,8 +1,7 @@
 /**
  * entry.js
- *  Pure DOM builder for a marker-book row. No Monaco, no editor, no i18n
- *  module — labels and the jump callback are injected, so the builder is
- *  directly unit-testable (jsdom) and reused by the book.
+ *  Pure DOM builder for a marker-book row. No Monaco, no editor, no i18n module,
+ * labels and the jump callback are injected, so the builder is directly unit-testable (jsdom) and reused by the book.
  *
  *  All user-controlled text goes through textContent (XSS-safe).
  */

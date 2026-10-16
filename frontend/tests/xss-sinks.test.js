@@ -133,8 +133,7 @@ describe('XSS: notepad view/edit builder', () => {
 describe('XSS: modal.js title/body sinks', () => {
   it('openModal treats string body as textContent (no HTML execution)', async () => {
     // The module reads `window.__TAURI__`; jsdom doesn't have it, so we
-    // mock the bits the module uses during construction (none for
-    // openModal — it's pure DOM).
+    // mock the bits the module uses during construction (none for openModal, it's pure DOM).
     const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
     // Polyfill what jsdom doesn't ship.
     dom.window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 0);

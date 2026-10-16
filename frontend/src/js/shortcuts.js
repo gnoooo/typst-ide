@@ -203,7 +203,7 @@ export function registerShortcuts({
         e.preventDefault();
         editor.getAction("editor.action.commentLine")?.run();
       }
-      // Ctrl+Alt+M : open the marker book. Do not require ctrlKey — when
+      // Ctrl+Alt+M : open the marker book. Do not require ctrlKey, when
       // the combo is seen as AltGr, WebKitGTK may report altKey only.
       if (e.altKey && !e.shiftKey && isMKey(e)) {
         e.preventDefault();
