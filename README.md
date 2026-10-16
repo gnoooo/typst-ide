@@ -38,6 +38,11 @@ Install the frontend dependencies (only needed once):
 cd frontend && npm install
 ```
 
+Build the frontend once (Tauri embeds `frontend/dist` at compile time, so plain `cargo check|test` fail without it) :
+```bash
+npm run build
+```
+
 ### Build the app
 The `manage.sh` wrapper drives every build:
 
