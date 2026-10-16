@@ -34,6 +34,7 @@ import {
  * @param {() => void} opts.onEditorZoomReset
  * @param {() => void} opts.onNewProject
  * @param {() => void} opts.onOpenProject
+ * @param {() => Promise<void>} opts.onExportPDF
  * @param {() => Promise<boolean>} opts.onInsertComment
  * @param {() => void} opts.onOpenCommentBook
  */
@@ -45,6 +46,7 @@ export function registerShortcuts({
   onEditorZoomReset,
   onNewProject,
   onOpenProject,
+  onExportPDF,
   onInsertComment,
   onOpenCommentBook,
 }) {
