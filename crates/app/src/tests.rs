@@ -355,3 +355,19 @@ fn granted_folder_accepts_nested_paths_only() {
     assert!(crate::commands::fs::is_granted(&picked.join("sub")));
     assert!(!crate::commands::fs::is_granted(&other));
 }
+
+#[test]
+fn system_lang_from_env() {
+    use crate::commands::misc::lang_from_env;
+    let fr = |s: &str| lang_from_env(Some(s.to_string()));
+    let none = || lang_from_env(None);
+
+    assert_eq!(fr("fr_FR.UTF-8"), "fr");
+    assert_eq!(fr("fr"), "fr");
+    assert_eq!(fr("en_US.UTF-8"), "en");
+    assert_eq!(fr("C"), "en");
+    assert_eq!(fr("C.UTF-8"), "en");
+    assert_eq!(fr("  fr_CA.utf8  "), "fr");
+    assert_eq!(fr("   "), "en");
+    assert_eq!(none(), "en");
+}

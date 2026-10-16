@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { t, setLang, getLang } from '../src/i18n/index.js';
+import { t, setLang, getLang, initI18n } from '../src/i18n/index.js';
 import fr from '../src/i18n/fr.json';
 import en from '../src/i18n/en.json';
 
@@ -51,5 +51,58 @@ describe('i18n', () => {
         const enKeys = Object.keys(en).sort();
         expect(frKeys).toEqual(enKeys);
         expect(frKeys.length).toBeGreaterThan(0);
+    });
+});
+
+describe('initI18n', () => {
+    // Stubs configurables, réinstallés par chaque test
+    const setup = ({ saved, invokeError, tauri, sysLang, navLang }) => {
+        localStorage.store.clear();
+        if (saved !== undefined) localStorage.setItem('lang', saved);
+        globalThis.window = tauri ? {
+            __TAURI__: {
+                core: {
+                    invoke: async (cmd) => {
+                        if (invokeError) throw new Error('invoke failed');
+                        if (cmd === 'system_lang') return sysLang;
+                        throw new Error('unknown command ' + cmd);
+                    },
+                },
+            },
+        } : {};
+        Object.defineProperty(globalThis, 'navigator', {
+            value: { language: navLang },
+            configurable: true,
+        });
+    };
+
+    it('uses the system lang from Tauri when nothing is saved', async () => {
+        setup({ tauri: true, sysLang: 'en' });
+        await initI18n();
+        expect(getLang()).toBe('en');
+    });
+
+    it('maps a French system to fr', async () => {
+        setup({ tauri: true, sysLang: 'fr' });
+        await initI18n();
+        expect(getLang()).toBe('fr');
+    });
+
+    it('saved preference wins over system detection', async () => {
+        setup({ tauri: true, sysLang: 'fr', saved: 'en' });
+        await initI18n();
+        expect(getLang()).toBe('en');
+    });
+
+    it('falls back to navigator.language without Tauri', async () => {
+        setup({ tauri: false, navLang: 'fr-FR' });
+        await initI18n();
+        expect(getLang()).toBe('fr');
+    });
+
+    it('defaults to en when invoke fails', async () => {
+        setup({ tauri: true, invokeError: true, navLang: 'de-DE' });
+        await initI18n();
+        expect(getLang()).toBe('en');
     });
 });

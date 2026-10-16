@@ -37,7 +37,7 @@ import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 import { t, initI18n, setLang } from '../i18n/index.js'
 
 async function main() {
-  initI18n()
+  await initI18n()
 
   document.querySelectorAll('.submenu .menu-trigger').forEach(btn => {
     btn.addEventListener('click', (e) => e.stopPropagation())

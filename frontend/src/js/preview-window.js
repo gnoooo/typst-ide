@@ -39,7 +39,7 @@ async function main() {
     }
   });
 
-  initI18n();
+  await initI18n();
 
   // Apply the same persisted webview zoom as the main window so the toolbar
   // buttons have the exact same size on screen.

@@ -181,8 +181,8 @@ function bindChrome() {
   );
 }
 
-function init() {
-  initI18n();
+async function init() {
+  await initI18n();
   applyTheme();
   _steps = listSteps(getLang());
   bindChrome();

@@ -159,6 +159,7 @@ fn main() {
             export::pick_pdf_path,
             export::export_pdf,
             misc::set_webview_zoom,
+            misc::system_lang,
             misc::font_exists,
             misc::suggest_font,
             templates::get_templates_dir,

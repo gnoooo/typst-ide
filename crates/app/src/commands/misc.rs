@@ -19,6 +19,27 @@ fn load_fonts(db: &mut fontdb::Database) {
     }
 }
 
+/// Returns "fr" if the system locale is French, "en" otherwise.
+/// Reads the locale env vars (LC_ALL > LC_MESSAGES > LANG), which Flatpak forwards from the host into the sandbox
+/// more reliable than `navigator.language` under WebKitGTK.
+#[tauri::command]
+pub fn system_lang() -> &'static str {
+    lang_from_env(
+        std::env::var("LC_ALL")
+            .ok()
+            .filter(|v| !v.trim().is_empty())
+            .or_else(|| std::env::var("LC_MESSAGES").ok().filter(|v| !v.trim().is_empty()))
+            .or_else(|| std::env::var("LANG").ok().filter(|v| !v.trim().is_empty())),
+    )
+}
+
+pub fn lang_from_env(val: Option<String>) -> &'static str {
+    match val.as_deref().map(str::trim) {
+        Some(v) if v.starts_with("fr") => "fr",
+        _ => "en",
+    }
+}
+
 /// Checks whether a font family name is available on the system
 #[tauri::command]
 pub fn font_exists(name: String) -> bool {

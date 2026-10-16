@@ -53,9 +53,20 @@ export function applyI18n(root = document) {
   root.querySelectorAll('[data-i18n-title]').forEach(applyI18nToEl)
 }
 
-export function initI18n() {
-  currentLang = localStorage.getItem('lang') || 'fr'
-  if (!locales[currentLang]) currentLang = 'fr'
+export async function initI18n() {
+  const saved = localStorage.getItem('lang')
+  if (saved && locales[saved]) {
+    currentLang = saved
+  } else {
+    // Machine language: prefer the Tauri command (reads the host locale env vars, reliable inside the Flatpak sandbox) over navigator.language,
+    // whose behaviour varies under WebKitGTK.
+    let sys = null
+    if (window.__TAURI__) {
+      try { sys = await window.__TAURI__.core.invoke('system_lang') } catch (_) {}
+    }
+    if (!sys) sys = navigator.language?.startsWith('fr') ? 'fr' : 'en'
+    currentLang = locales[sys] ? sys : 'en'
+  }
   document.documentElement.lang = currentLang
   applyI18n()
 }
