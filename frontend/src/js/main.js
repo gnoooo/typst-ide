@@ -236,11 +236,6 @@ async function main() {
   bindMenuAction("manage-bibliography", () => openBibliography());
   bindMenuAction("console-ignore-btn", () => openConsoleIgnoreEditor());
 
-  // The "Save PDF" shortcut (Ctrl+S) routes to `savePdf` (the toolbar
-  // button). Previously the bindings sent users to an unused code path
-  // and Ctrl+S did nothing (see FIXME in the README shortcut table).
-  const pdfShortcut = () => savePdf(editor);
-
   // Zoom buttons in toolbar (zoom the entire WebView)
   bindMenuAction("webview-zoom-in", () => webviewZoomIn());
   bindMenuAction("webview-zoom-out", () => webviewZoomOut());
@@ -297,10 +292,6 @@ async function main() {
   bindMenuAction("underline-btn", () =>
     getEditor().getAction("typst-underline")?.run(),
   );
-
-  // The "Save PDF" toolbar button uses `savePdf`; reuse it for Ctrl+S via
-  // the shortcuts module below.
-  void pdfShortcut;
 
   // Structure button...
   updateBtn();
