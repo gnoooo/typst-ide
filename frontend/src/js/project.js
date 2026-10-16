@@ -81,6 +81,23 @@ export function scheduleAutosave(contentOrGetter) {
     }, 800);
 }
 
+/**
+ * Save immediately whatever the debounce hasn't written yet.
+ * Used before switching project, before a page reload and on pagehide,
+ * so the last ~800 ms of typing always reach the disk.
+ */
+export async function flushPendingSave() {
+    if (!pendingSave) return;
+    clearTimeout(saveTimer);
+    const content = _pendingContentGetter?.();
+    _pendingContentGetter = null;
+    if (content != null) await flushSave(content);
+}
+
+// Best-effort save when the window is closed/reloaded: the invoke races the
+// webview teardown and may not complete, but it's free to try.
+window.addEventListener('pagehide', () => { flushPendingSave(); });
+
 async function flushSave(content) {
     const proj = currentProject;
     if (!proj || !pendingSave) return;
@@ -155,7 +172,10 @@ export function notifySaveIndicator(unsaved) {
  * @param {{ name, path, typ_file, content }} info
  * @param {(content: string) => void} setEditorContent
  */
-function loadProject(info, setEditorContent) {
+async function loadProject(info, setEditorContent) {
+    // Write the previous project's pending autosave first: the editor still
+    // holds its content and `flushSave` must capture the old `currentProject`.
+    await flushPendingSave();
     currentProject = { name: info.name, path: info.path, typFile: info.typ_file };
     sessionStorage.removeItem("pdf-export-path");
     // addToHistory(currentProject);
@@ -221,7 +241,7 @@ export async function openProject(setEditorContent) {
 
     try {
         const info = await invoke('open_project', { dirPath });
-        loadProject(info, setEditorContent);
+        await loadProject(info, setEditorContent);
         showToast('success', t('project.opened', { name: info.name }));
     } catch (err) {
         showToast('error', t('project.open_error', { error: err }));
@@ -231,7 +251,7 @@ export async function openProject(setEditorContent) {
 export async function openProjectFromPath(dirPath, setEditorContent) {
     try {
         const info = await invoke('open_project', { dirPath });
-        loadProject(info, setEditorContent);
+        await loadProject(info, setEditorContent);
         showToast('success', t('project.opened', { name: info.name }));
         return true;
     } catch (err) {

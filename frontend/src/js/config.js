@@ -16,6 +16,7 @@
 import { t } from '../i18n/index.js';
 import { openModal } from './modal.js';
 import { showToast } from './toast.js';
+import { flushPendingSave } from './project.js';
 
 const FORMAT_ID = 'typst-ide-config';
 const FORMAT_VERSION = 1;
@@ -368,7 +369,9 @@ export async function importConfig() {
   );
 
   // Reload to apply theme, fonts, zoom, language and marker highlights in
-  // one go (same mechanism as the language switch).
+  // one go (same mechanism as the language switch). Flush the editor's
+  // pending autosave first so unsaved typing isn't lost by the reload.
+  await flushPendingSave();
   setTimeout(() => window.location.reload(), 1200);
 }
 
