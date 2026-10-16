@@ -82,12 +82,16 @@ export function scheduleAutosave(contentOrGetter) {
 }
 
 async function flushSave(content) {
-    if (!currentProject || !pendingSave) return;
-    const filePath = `${currentProject.path}/${currentProject.typFile}`;
+    const proj = currentProject;
+    if (!proj || !pendingSave) return;
+    const filePath = `${proj.path}/${proj.typFile}`;
     try {
-        await invoke('save_file', { path: filePath, content, projectRoot: currentProject.path });
-        pendingSave = false;
-        notifySaveIndicator(false);
+        await invoke('save_file', { path: filePath, content, projectRoot: proj.path });
+        // Don't clear a pendingSave scheduled by a newer project while this stale save for the previous one was in flight.
+        if (currentProject === proj) {
+            pendingSave = false;
+            notifySaveIndicator(false);
+        }
     } catch (err) {
         showToast('error', t('project.save_error', { error: err }));
         // Retry on next keystroke via scheduleAutosave (which restarts the debounce).
