@@ -368,6 +368,8 @@ fn system_lang_from_env() {
     assert_eq!(fr("C"), "en");
     assert_eq!(fr("C.UTF-8"), "en");
     assert_eq!(fr("  fr_CA.utf8  "), "fr");
+    assert_eq!(fr("fr_FR:en_US"), "fr");
+    assert_eq!(fr("en_GB:fr_FR"), "en");
     assert_eq!(fr("   "), "en");
     assert_eq!(none(), "en");
 }

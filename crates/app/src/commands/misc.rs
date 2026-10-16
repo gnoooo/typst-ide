@@ -20,16 +20,19 @@ fn load_fonts(db: &mut fontdb::Database) {
 }
 
 /// Returns "fr" if the system locale is French, "en" otherwise.
-/// Reads the locale env vars (LC_ALL > LC_MESSAGES > LANG), which Flatpak forwards from the host into the sandbox
-/// more reliable than `navigator.language` under WebKitGTK.
+/// Reads the locale env vars (LANGUAGE > LC_ALL > LC_MESSAGES > LANG)
+/// LANGUAGE comes first because gettext gives it priority over LC_* for UI text.
 #[tauri::command]
 pub fn system_lang() -> &'static str {
     lang_from_env(
-        std::env::var("LC_ALL")
+        std::env::var("LANGUAGE")
             .ok()
-            .filter(|v| !v.trim().is_empty())
-            .or_else(|| std::env::var("LC_MESSAGES").ok().filter(|v| !v.trim().is_empty()))
-            .or_else(|| std::env::var("LANG").ok().filter(|v| !v.trim().is_empty())),
+            .filter(|v| !v.trim().is_empty() && v.trim() != "C")
+            .or_else(|| {
+                ["LC_ALL", "LC_MESSAGES", "LANG"].into_iter().find_map(|k| {
+                    std::env::var(k).ok().filter(|v| !v.trim().is_empty())
+                })
+            }),
     )
 }
 
