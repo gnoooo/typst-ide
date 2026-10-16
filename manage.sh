@@ -689,8 +689,20 @@ cmd_build() {
     die "prérequis manquants pour la cible Windows"
   fi
 
+  # Tauri reconstruit lui-même le frontend (beforeBuildCommand de
+  # tauri.conf.json). Sauf cas `rust` : le cargo build direct ne lance pas ce
+  # beforeBuildCommand, dist doit donc exister ici.
+  local tauri_targets=0
+  if [ -n "$native_bundles" ] || [ "$want_nsis" = "1" ] || [ "$want_windows" = "1" ]; then
+    tauri_targets=1
+  fi
+
   echo "== Frontend =="
-  ( cd "$REPO_ROOT/frontend" && npm run build ) && echo "    build frontend: ${GREEN}OK${NC}" || die "    le build frontend a échoué"
+  if [ "$tauri_targets" = "1" ] && ! echo " $list " | grep -qw rust; then
+    echo "    build frontend: délégué au beforeBuildCommand de Tauri (tauri.conf.json)"
+  else
+    ( cd "$REPO_ROOT/frontend" && npm run build ) && echo "    build frontend: ${GREEN}OK${NC}" || die "    le build frontend a échoué"
+  fi
 
   if echo " $list " | grep -qw rust; then
     echo
