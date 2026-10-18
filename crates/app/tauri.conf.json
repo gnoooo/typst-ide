@@ -4,7 +4,10 @@
     "version": "1.7.4",
     "identifier": "com.typst.ide",
     "build": {
-        "beforeBuildCommand": "npm --prefix ../../frontend run build",
+        "beforeBuildCommand": {
+            "script": "npm run build",
+            "cwd": "../../frontend"
+        },
         "frontendDist": "../../frontend/dist"
     },
     "app": {
