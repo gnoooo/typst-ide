@@ -262,7 +262,7 @@ async function editBibliographyEntry(entry) {
           const newPath = `${projectPath}/${newTitle}.bib`;
 
           if (newTitle !== entry.title) {
-            await invoke("rename_file", { oldPath: oldPath, newPath: newPath, projectRoot: projectPath });
+            await invoke("rename_file", { oldPath, newPath });
           }
 
           showToast("success", t('bib.updated'));
@@ -290,8 +290,7 @@ async function rawBibliographyEntry(entry) {
   textarea.style.tabSize = "2";
 
   try {
-    const projectRoot = getCurrentProject()?.path ?? null;
-    const content = await invoke("read_file", { path: entry.path, projectRoot });
+    const content = await invoke("read_file", { path: entry.path });
     textarea.value = content;
   } catch (err) {
     showToast("error", t('bib.read_error', { error: err }));
@@ -308,7 +307,7 @@ async function rawBibliographyEntry(entry) {
       { label: t('modal.cancel'), primary: false, onClick: (close) => close() },
       { label: t('modal.save'), primary: true, onClick: async (close) => {
         try {
-          await invoke("save_file", { path: entry.path, content: textarea.value, projectRoot: getCurrentProject()?.path ?? null });
+          await invoke("save_file", { path: entry.path, content: textarea.value });
           showToast("success", t('bib.file_saved'));
           close();
         } catch (err) {
@@ -326,7 +325,7 @@ async function deleteBibliographyEntry(entry) {
     });
     if (confirmed) {
         try {
-            await invoke('delete_file_or_dir', { path: entry.path, projectRoot: getCurrentProject()?.path ?? null });
+            await invoke('delete_file_or_dir', { path: entry.path });
             showToast("success", t('bib.deleted'));
         } catch (err) {
             showToast("error", t('bib.delete_error', { error: err }));

@@ -111,7 +111,7 @@ async function handleSave() {
     }
 
     try {
-        await invoke('save_file', { path, content: editor.getValue(), projectRoot: getCurrentProject()?.path ?? null });
+        await invoke('save_file', { path, content: editor.getValue() });
         _lastSavedHash = hashText(editor.getValue());
         notifySaveIndicator(false);
         showToast('success', t('filesync.saved'));
@@ -140,7 +140,7 @@ async function handleReload() {
     }
 
     try {
-        const content = await invoke('read_file', { path, projectRoot: getCurrentProject()?.path ?? null });
+        const content = await invoke('read_file', { path });
         editor.setValue(content);
         _lastSavedHash = hashText(content);
         showToast('success', t('filesync.reloaded'));

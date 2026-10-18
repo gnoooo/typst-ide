@@ -24,7 +24,7 @@ use commands::misc;
 use commands::preview;
 use commands::preview_window;
 use commands::templates;
-use state::{CompileState, HistoryDbState, NotesDbState};
+use state::{CompileState, HistoryDbState, NotesDbState, PdfExportPathState, ProjectRootState};
 
 /// Initialises one of the SQLite databases, showing a native error dialog and
 /// returning the error if anything goes wrong (instead of panicking).
@@ -79,6 +79,11 @@ fn main() {
 
             // Semaphore(1): at most one Typst compile at a time
             app.manage(CompileState(Arc::new(Semaphore::new(1))));
+
+            // FS sandbox + PDF export anchors, filled by open/create_project
+            // and pick_pdf_path respectively. Never set from frontend args.
+            app.manage(ProjectRootState(Mutex::new(None)));
+            app.manage(PdfExportPathState(Mutex::new(None)));
 
             // Tutorial window on first launch (flag = already shown once)
             let tutorial_flag = data_dir.join("tutorial_seen");

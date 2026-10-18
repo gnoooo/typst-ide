@@ -5,6 +5,7 @@
   "menu.file": "Fichier",
   "menu.new_project": "Nouveau projet",
   "menu.open_project": "Ouvrir un projet",
+  "menu.export_pdf_as": "Exporter le PDF sous...",
   "menu.edit": "Édition",
   "menu.undo": "Annuler",
   "menu.redo": "Rétablir",

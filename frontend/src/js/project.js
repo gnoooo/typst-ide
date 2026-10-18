@@ -19,15 +19,6 @@ let currentProject = null;
 /** Listeners called when a project is loaded/changed */
 const onChangeListeners = [];
 
-/**
- * Returns the value to send as `projectRoot` argument to FS-scoped
- * Tauri commands. Centralised so every call site passes the current
- * project consistently.
- */
-export function projectRootArg() {
-    return currentProject?.path ?? null;
-}
-
 export function onProjectChange(fn) {
     onChangeListeners.push(fn);
 }
@@ -103,7 +94,7 @@ async function flushSave(content) {
     if (!proj || !pendingSave) return;
     const filePath = `${proj.path}/${proj.typFile}`;
     try {
-        await invoke('save_file', { path: filePath, content, projectRoot: proj.path });
+        await invoke('save_file', { path: filePath, content });
         // Don't clear a pendingSave scheduled by a newer project while this stale save for the previous one was in flight.
         if (currentProject === proj) {
             pendingSave = false;

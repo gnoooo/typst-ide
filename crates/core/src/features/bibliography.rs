@@ -483,7 +483,8 @@ mod tests {
         // Malformed header (`@misc{key},` has more `}` than `{`), then stray field lines,
         // then a valid multi-line entry: the parser must resync on the next `@` instead of panicking (debug)
         // or dropping everything after the bad line (release, saturating usize underflow).
-        let content = "@misc{key},\n    title = \"x\",\n},\n\n@online{second,\n    title = \"{y}\",\n},\n";
+        let content =
+            "@misc{key},\n    title = \"x\",\n},\n\n@online{second,\n    title = \"{y}\",\n},\n";
         let entries = parse_entries(content);
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].entry.cite_key, "key");

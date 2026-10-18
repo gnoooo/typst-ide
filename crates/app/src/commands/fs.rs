@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
 
 use crate::portal;
-use crate::state::HistoryDbState;
+use crate::state::{HistoryDbState, ProjectRootState};
 use serde::Serialize;
 use tauri::Manager;
 use typst_ide_core::database::history_db;
@@ -90,7 +90,6 @@ pub(crate) fn ensure_project_dir_allowed<R: tauri::Runtime>(
 /// roots — this defeats `projet/lien -> /etc` followed by a write to
 /// `lien/x.txt` (the leaf doesn't exist, so a naive lexical prefix check
 /// would happily let the write through and create `/etc/x.txt`).
-#[allow(dead_code)]
 pub fn assert_within(
     path: &std::path::Path,
     roots: &[&std::path::Path],
@@ -132,17 +131,13 @@ pub fn assert_within(
     Err(format!("Path '{display}' is outside the allowed roots"))
 }
 
-/// Returns the list of FS roots a destructive/read command is allowed to
-/// touch, given an optional current project root.
-///
-/// The app's data directory is always allowed (templates, saved history,
-/// etc. live there). The project root is added when provided, so a
-/// compromised frontend can still only touch the project the user
-/// currently has open, not `/etc` or `~/Documents`.
-pub fn allowed_roots(
-    app: &tauri::AppHandle,
-    project_root: Option<&str>,
-) -> Vec<std::path::PathBuf> {
+/// Returns the list of FS roots a destructive/read command is allowed to touch:
+/// the app's data/config directories (templates, saved history, etc. live there)
+/// plus the project root anchored Rust-side by `open_project` / `create_project`.
+/// The frontend never contributes a root:
+/// a compromised webview cannot widen the sandbox by passing its own `project_root`,
+/// the invoke arguments are simply not consulted.
+pub fn allowed_roots<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<std::path::PathBuf> {
     let mut roots: Vec<std::path::PathBuf> = Vec::new();
     if let Ok(data_dir) = app.path().app_data_dir() {
         roots.push(data_dir);
@@ -150,22 +145,52 @@ pub fn allowed_roots(
     if let Ok(config_dir) = app.path().app_config_dir() {
         roots.push(config_dir);
     }
-    if let Some(p) = project_root {
-        let pb = std::path::PathBuf::from(p);
-        if !pb.as_os_str().is_empty() {
-            roots.push(pb);
-        }
+    if let Some(state) = app.try_state::<ProjectRootState>()
+        && let Ok(current) = state.0.lock()
+        && let Some(p) = current.as_ref()
+    {
+        roots.push(p.clone());
     }
     roots
+}
+
+/// Anchors the Rust-side project root. Only called from `create_project` / `open_project`,
+/// after `ensure_project_dir_allowed` validated the dir came from a native picker.
+/// Also clears the PDF export anchor so switching projects always re-asks for a save destination.
+pub(crate) fn set_project_root<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    dir: &std::path::Path,
+) {
+    let Some(state) = app.try_state::<ProjectRootState>() else {
+        return;
+    };
+    if let Ok(mut current) = state.0.lock() {
+        *current = Some(std::fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf()));
+    }
+    if let Some(export_state) = app.try_state::<crate::state::PdfExportPathState>()
+        && let Ok(mut anchor) = export_state.0.lock()
+    {
+        *anchor = None;
+    }
+}
+
+/// Verifies that `path` is within the Rust-anchored roots (app data/config dirs + current project root).
+/// Shared by every FS-touching command.
+pub(crate) fn check_in_roots<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    path: &str,
+) -> Result<(), String> {
+    let roots = allowed_roots(app);
+    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
+    assert_within(std::path::Path::new(path), &root_refs).map(|_| ())
 }
 
 fn path_components(name: &str) -> impl Iterator<Item = &str> {
     name.split(['/', '\\']).filter(|s| !s.is_empty())
 }
 
-/// Rejects names that would escape the parent directory when joined to it
-/// (`..`, absolute paths, embedded separators). Mirrors the frontend
-/// `INVALID_NAME` regex but rejects `..` which the regex lets through.
+/// Rejects names that would escape the parent directory when joined to it (`..`, absolute paths, embedded separators).
+/// Mirrors the frontend `INVALID_NAME` regex but rejects `..` which the regex lets through.
 pub fn validate_name_segment(name: &str) -> Result<(), String> {
     if name.is_empty() || name == "." || name == ".." {
         return Err(format!("Invalid name '{name}'"));
@@ -220,6 +245,7 @@ pub async fn create_project(
     ensure_project_dir_allowed(&app, &base)?;
     let project_path = base.join(&name);
     std::fs::create_dir_all(&project_path).map_err(|e| e.to_string())?;
+    set_project_root(&app, &project_path);
     let typ_path = project_path.join("main.typ");
     if !typ_path.exists() {
         std::fs::write(&typ_path, content.as_deref().unwrap_or("")).map_err(|e| e.to_string())?;
@@ -248,6 +274,7 @@ pub struct ProjectInfo {
 pub async fn open_project(app: tauri::AppHandle, dir_path: String) -> Result<ProjectInfo, String> {
     let dir = std::path::PathBuf::from(&dir_path);
     ensure_project_dir_allowed(&app, &dir)?;
+    set_project_root(&app, &dir);
     let entries = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
     let mut typ_paths: Vec<std::path::PathBuf> = entries
         .filter_map(|e| e.ok())
@@ -291,30 +318,16 @@ pub async fn open_project(app: tauri::AppHandle, dir_path: String) -> Result<Pro
 }
 
 #[tauri::command]
-pub fn read_file(
-    app: tauri::AppHandle,
-    path: String,
-    project_root: Option<String>,
-) -> Result<String, String> {
-    let p = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(p, &root_refs)?;
+pub fn read_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    check_in_roots(&app, &path)?;
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 /// Writes `content` to the file at `path`, creating intermediate directories if needed
 #[tauri::command]
-pub async fn save_file(
-    app: tauri::AppHandle,
-    path: String,
-    content: String,
-    project_root: Option<String>,
-) -> Result<(), String> {
+pub async fn save_file(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
     let p = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(p, &root_refs)?;
+    check_in_roots(&app, &path)?;
     if let Some(parent) = p.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -326,12 +339,9 @@ pub fn rename_file(
     app: tauri::AppHandle,
     old_path: String,
     new_path: String,
-    project_root: Option<String>,
 ) -> Result<(), String> {
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(std::path::Path::new(&old_path), &root_refs)?;
-    assert_within(std::path::Path::new(&new_path), &root_refs)?;
+    check_in_roots(&app, &old_path)?;
+    check_in_roots(&app, &new_path)?;
     std::fs::rename(&old_path, &new_path).map_err(|e| e.to_string())
 }
 
@@ -348,15 +358,9 @@ pub struct FileEntry {
 /// Lists all files and directories recursively inside `dir_path`.
 /// Returns a flat list; the frontend builds the tree from relative paths.
 #[tauri::command]
-pub fn list_directory(
-    app: tauri::AppHandle,
-    dir_path: String,
-    project_root: Option<String>,
-) -> Result<Vec<FileEntry>, String> {
+pub fn list_directory(app: tauri::AppHandle, dir_path: String) -> Result<Vec<FileEntry>, String> {
     let root = std::path::PathBuf::from(&dir_path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(&root, &root_refs)?;
+    check_in_roots(&app, &dir_path)?;
     if !root.is_dir() {
         return Err("Le chemin n'est pas un dossier.".to_string());
     }
@@ -504,29 +508,16 @@ mod tests {
 
 /// Creates a directory (including parents if needed)
 #[tauri::command]
-pub fn create_dir(
-    app: tauri::AppHandle,
-    dir_path: String,
-    project_root: Option<String>,
-) -> Result<(), String> {
-    let p = std::path::Path::new(&dir_path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(p, &root_refs)?;
-    std::fs::create_dir_all(p).map_err(|e| e.to_string())
+pub fn create_dir(app: tauri::AppHandle, dir_path: String) -> Result<(), String> {
+    check_in_roots(&app, &dir_path)?;
+    std::fs::create_dir_all(&dir_path).map_err(|e| e.to_string())
 }
 
 /// Deletes a file or directory (recursively)
 #[tauri::command]
-pub fn delete_file_or_dir(
-    app: tauri::AppHandle,
-    path: String,
-    project_root: Option<String>,
-) -> Result<(), String> {
+pub fn delete_file_or_dir(app: tauri::AppHandle, path: String) -> Result<(), String> {
     let p = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(p, &root_refs)?;
+    check_in_roots(&app, &path)?;
     if p.is_dir() {
         std::fs::remove_dir_all(p).map_err(|e| e.to_string())
     } else {
@@ -537,7 +528,8 @@ pub fn delete_file_or_dir(
 /// Computes the FNV-1a 64-bit hash of a file's content (hex, 16 chars).
 /// Used to detect external modifications of the file being edited.
 #[tauri::command]
-pub fn file_hash(path: String) -> Result<String, String> {
+pub fn file_hash(app: tauri::AppHandle, path: String) -> Result<String, String> {
+    check_in_roots(&app, &path)?;
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     let hash = bytes.iter().fold(0xcbf29ce484222325_u64, |h, &b| {
         (h ^ b as u64).wrapping_mul(0x100000001b3)
@@ -547,16 +539,10 @@ pub fn file_hash(path: String) -> Result<String, String> {
 
 /// Reads an image file and returns it as a base64 data URL
 #[tauri::command]
-pub fn read_image_as_base64(
-    app: tauri::AppHandle,
-    path: String,
-    project_root: Option<String>,
-) -> Result<String, String> {
+pub fn read_image_as_base64(app: tauri::AppHandle, path: String) -> Result<String, String> {
     use base64::Engine;
     let p = std::path::Path::new(&path);
-    let roots: Vec<std::path::PathBuf> = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(p, &root_refs)?;
+    check_in_roots(&app, &path)?;
     let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
     // Infer MIME type from extension
     let ext = p
@@ -584,12 +570,9 @@ pub fn read_image_as_base64(
 pub async fn import_file_dialog(
     app: tauri::AppHandle,
     dest_dir: String,
-    project_root: Option<String>,
 ) -> Result<Vec<String>, String> {
     let dest_pb = std::path::PathBuf::from(&dest_dir);
-    let roots = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(&dest_pb, &root_refs)?;
+    check_in_roots(&app, &dest_dir)?;
 
     let files = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -625,9 +608,7 @@ pub async fn import_image_dialog(
     project_path: String,
 ) -> Result<String, String> {
     let project_pb = std::path::PathBuf::from(&project_path);
-    let roots = allowed_roots(&app, Some(&project_path));
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(&project_pb, &root_refs)?;
+    check_in_roots(&app, &project_path)?;
 
     let file = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -700,12 +681,9 @@ pub async fn pick_files() -> Result<Vec<String>, String> {
 pub async fn import_folder_dialog(
     app: tauri::AppHandle,
     dest_dir: String,
-    project_root: Option<String>,
 ) -> Result<String, String> {
     let dest_pb = std::path::PathBuf::from(&dest_dir);
-    let roots = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(&dest_pb, &root_refs)?;
+    check_in_roots(&app, &dest_dir)?;
 
     let folder = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -748,15 +726,9 @@ pub(crate) fn copy_dir_recursive(
 /// with the chosen file (the target name/path is kept).
 /// Returns the chosen file name, or an error if cancelled.
 #[tauri::command]
-pub async fn replace_file(
-    app: tauri::AppHandle,
-    path: String,
-    project_root: Option<String>,
-) -> Result<String, String> {
+pub async fn replace_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let dest_pb = std::path::PathBuf::from(&path);
-    let roots = allowed_roots(&app, project_root.as_deref());
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(&dest_pb, &root_refs)?;
+    check_in_roots(&app, &path)?;
 
     let src = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -779,7 +751,8 @@ pub async fn replace_file(
 
 /// Reveals a file or folder in the OS file manager.
 #[tauri::command]
-pub async fn reveal_in_file_manager(path: String) -> Result<(), String> {
+pub async fn reveal_in_file_manager(app: tauri::AppHandle, path: String) -> Result<(), String> {
+    check_in_roots(&app, &path)?;
     #[cfg(target_os = "linux")]
     {
         let p = std::path::PathBuf::from(&path);
@@ -859,10 +832,7 @@ pub async fn save_data_image(
     // Validate the project root before doing any work. The path is then
     // constrained to `<project>/images/...` so the scoping is preserved
     // by construction even if `project_path` were a symlink to /etc.
-    let project_pb = std::path::PathBuf::from(&project_path);
-    let roots = allowed_roots(&app, Some(&project_path));
-    let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(&project_pb, &root_refs)?;
+    check_in_roots(&app, &project_path)?;
 
     let remainder = &data_url[PREFIX.len()..];
     let (raw_ext, base64_payload) = remainder

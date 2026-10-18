@@ -547,7 +547,7 @@ export const STRUCT_ELEMENTS = [
         if (!project?.path) return;
         try {
           const fullPath = path.startsWith('/') ? path : `${project.path}/${path}`;
-          const dataUrl = await window.__TAURI__.core.invoke('read_image_as_base64', { path: fullPath, projectRoot: project.path });
+          const dataUrl = await window.__TAURI__.core.invoke('read_image_as_base64', { path: fullPath });
           img.src = dataUrl;
           img.style.display = '';
           empty.style.display = 'none';

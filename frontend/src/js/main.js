@@ -226,6 +226,7 @@ async function main() {
   // ## Toolbar menu actions #######################################
   bindMenuAction("new-project", () => createNewProject((content) => editor.setValue(content)));
   bindMenuAction("open-project", () => openProject((content) => editor.setValue(content)));
+  bindMenuAction("export-pdf-as", () => savePdf(editor, true));
   bindMenuAction("action-undo", () => editor.trigger("", "undo", null));
   bindMenuAction("action-redo", () => editor.trigger("", "redo", null));
   bindMenuAction("action-search", () => editor.getAction("actions.find")?.run());
@@ -616,22 +617,23 @@ function applyMonacoMarkers(editor, diagnostics) {
     monaco.editor.setModelMarkers(model, "typst", markers);
 }
 
-// Export current source to PDF, asking for a path on first save
-async function savePdf(editor) {
+// Export current source to PDF. The destination path lives Rust-side
+// (anchored by `pick_pdf_path`); the frontend only tracks whether the
+// user has been asked once. `forcePrompt` re-opens the native dialog.
+async function savePdf(editor, forcePrompt = false) {
   const { invoke } = window.__TAURI__.core;
   try {
-    let path = sessionStorage.getItem("pdf-export-path");
-    if (!path) {
-      path = await invoke("pick_pdf_path");
+    let asked = sessionStorage.getItem("pdf-export-path");
+    if (forcePrompt || !asked) {
+      const path = await invoke("pick_pdf_path");
       if (!path) return; // user cancelled
       sessionStorage.setItem("pdf-export-path", path);
     }
     await invoke("export_pdf", {
       source: editor.getValue(),
-      path,
       root: getCurrentProject()?.path ?? null,
     });
-    writeToConsole("success", t('project.pdf_exported', { path }));
+    writeToConsole("success", t('project.pdf_exported', { path: sessionStorage.getItem("pdf-export-path") }));
   } catch (err) {
     writeToConsole("error", String(err));
     showConsole();

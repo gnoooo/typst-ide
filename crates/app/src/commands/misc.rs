@@ -29,9 +29,9 @@ pub fn system_lang() -> &'static str {
             .ok()
             .filter(|v| !v.trim().is_empty() && v.trim() != "C")
             .or_else(|| {
-                ["LC_ALL", "LC_MESSAGES", "LANG"].into_iter().find_map(|k| {
-                    std::env::var(k).ok().filter(|v| !v.trim().is_empty())
-                })
+                ["LC_ALL", "LC_MESSAGES", "LANG"]
+                    .into_iter()
+                    .find_map(|k| std::env::var(k).ok().filter(|v| !v.trim().is_empty()))
             }),
     )
 }

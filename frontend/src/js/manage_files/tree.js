@@ -23,7 +23,7 @@ export async function refreshTree(container) {
   container.appendChild(loading);
 
   try {
-    setFiles(await invoke("list_directory", { dirPath: project.path, projectRoot: project.path }));
+    setFiles(await invoke("list_directory", { dirPath: project.path }));
     rebuildTreeView(container);
   } catch (err) {
     const errMsg = document.createElement('p');
@@ -364,7 +364,7 @@ function setupImagePreview(nameSpan, relativePath) {
     stillHovering = true;
     timer = setTimeout(async () => {
       try {
-        const dataUrl = await invoke("read_image_as_base64", { path: fullPath, projectRoot: project.path });
+        const dataUrl = await invoke("read_image_as_base64", { path: fullPath });
         if (!stillHovering) return;
         previewEl = document.createElement("div");
         previewEl.className = "file-tree-preview-tooltip";

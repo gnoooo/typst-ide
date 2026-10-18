@@ -5,6 +5,7 @@
   "menu.file": "File",
   "menu.new_project": "New project",
   "menu.open_project": "Open project",
+  "menu.export_pdf_as": "Export PDF as...",
   "menu.edit": "Edit",
   "menu.undo": "Undo",
   "menu.redo": "Redo",

@@ -8,7 +8,9 @@ use tauri::Manager;
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tokio::sync::Semaphore;
 
-use crate::state::{CompileState, HistoryDbState, NotesDbState};
+use crate::state::{
+    CompileState, HistoryDbState, NotesDbState, PdfExportPathState, ProjectRootState,
+};
 use typst_ide_core::database::{history_db, notes_db};
 
 /// Builds a mock Tauri app with in-memory SQLite databases for notes/history.
@@ -20,6 +22,8 @@ fn mock_app() -> tauri::App<tauri::test::MockRuntime> {
         .manage(NotesDbState(Mutex::new(notes)))
         .manage(HistoryDbState(Mutex::new(history)))
         .manage(CompileState(Arc::new(Semaphore::new(1))))
+        .manage(ProjectRootState(Mutex::new(None)))
+        .manage(PdfExportPathState(Mutex::new(None)))
         .build(mock_context(noop_assets()))
         .unwrap()
 }
@@ -354,6 +358,58 @@ fn granted_folder_accepts_nested_paths_only() {
     assert!(crate::commands::fs::is_granted(&picked));
     assert!(crate::commands::fs::is_granted(&picked.join("sub")));
     assert!(!crate::commands::fs::is_granted(&other));
+}
+
+// The FS sandbox must only trust the Rust-anchored project root: a forged invoke cannot widen it by passing its own `project_root`
+// (there is no such argument anymore, and none is consulted).
+#[test]
+fn allowed_roots_come_from_the_rust_anchor_only() {
+    let app = mock_app();
+    let handle = app.handle();
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+
+    crate::commands::fs::set_project_root(handle, &project);
+    let roots = crate::commands::fs::allowed_roots(handle);
+    let canonical = std::fs::canonicalize(&project).unwrap();
+    assert!(
+        roots.iter().any(|r| r == &canonical),
+        "anchored project root must be in the allowed roots, got {roots:?}"
+    );
+
+    // Opening another project replaces the anchor (no accumulation).
+    let other = dir.path().join("other");
+    std::fs::create_dir_all(&other).unwrap();
+    crate::commands::fs::set_project_root(handle, &other);
+    let roots = crate::commands::fs::allowed_roots(handle);
+    assert!(!roots.iter().any(|r| r == &canonical));
+}
+
+#[test]
+fn read_file_rejects_paths_outside_the_anchored_root() {
+    let app = mock_app();
+    let handle = app.handle();
+    let dir = tempfile::tempdir().unwrap();
+    let project = dir.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    let inside = project.join("main.typ");
+    std::fs::write(&inside, "ok").unwrap();
+
+    crate::commands::fs::set_project_root(handle, &project);
+
+    // The command delegates its check to `check_in_roots`, so exercising it with the mock runtime is equivalent to calling the command.
+    assert!(
+        crate::commands::fs::check_in_roots(handle, &inside.to_string_lossy()).is_ok(),
+        "a path inside the anchored root must be accepted"
+    );
+    // A path next to the project (outside the anchor) must be rejected even though the file exists.
+    let outside = dir.path().join("secret.txt");
+    std::fs::write(&outside, "no").unwrap();
+    assert!(
+        crate::commands::fs::check_in_roots(handle, &outside.to_string_lossy()).is_err(),
+        "a path outside the anchored root must be rejected"
+    );
 }
 
 #[test]
