@@ -37,10 +37,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 APPIMAGE_NAME="typst-ide"
-DEFAULT_APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-# sha256 of the asset above; bump both when upstream rebuilds the mutable
-# 'continuous' release (a mismatch here fails the build on purpose).
-DEFAULT_APPIMAGETOOL_SHA256="95cbe7cce9717fce90c484e34052ee7c7f1d7635b33c12525b4776826a7d29b6"
+# Immutable release tag: the URL cannot silently change (an asset re-uploaded
+# under the tag is still caught by the sha256 check below).
+DEFAULT_APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage"
+# sha256 of the asset above; bump both when upgrading on purpose (a mismatch
+# here fails the build on purpose).
+DEFAULT_APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 DEFAULT_UPDATE_INFO="gh-releases-zsync|gnoooo|typst-ide|latest|typst-ide-*-x86_64.AppImage.zsync"
 
 VERSION=""
@@ -252,7 +254,7 @@ else
     chmod +x "$TOOL"
     if [ -n "$EXPECTED_SHA256" ] && [ "$(tool_sha256)" != "$EXPECTED_SHA256" ]; then
       rm -f "$TOOL"
-      die "downloaded appimagetool does not match the pinned sha256 (upstream rebuilt the 'continuous' asset?); update DEFAULT_APPIMAGETOOL_SHA256 or set APPIMAGETOOL to a local copy"
+      die "downloaded appimagetool does not match the pinned sha256 (upstream asset changed?); update DEFAULT_APPIMAGETOOL_SHA256 or set APPIMAGETOOL to a local copy"
     fi
   fi
 fi
