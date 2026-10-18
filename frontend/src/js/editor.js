@@ -10,6 +10,7 @@
 import * as monaco from 'monaco-editor';
 import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
 import { registerTypstLanguage, getThemeName } from './typst-syntax.js';
+import { isValidFontFamily } from './font-family.js';
 
 const DEFAULT_FONT_SIZE = 14;
 const MIN_FONT_SIZE     = 8;
@@ -33,12 +34,13 @@ export function createEditor(container) {
   registerTypstLanguage();
   const savedTheme = localStorage.getItem('theme') ?? 'light';
   const savedFamily = localStorage.getItem('editor-font-family');
+    const DEFAULT_FAMILY = "'Fira Code', 'Cascadia Code', 'Courier New', monospace";
     _editor = monaco.editor.create(container, {
         value: '',
         language: 'typst',
         theme: getThemeName(savedTheme),
         fontSize: _currentSize,
-        fontFamily: savedFamily || "'Fira Code', 'Cascadia Code', 'Courier New', monospace",
+        fontFamily: isValidFontFamily(savedFamily) ? savedFamily : DEFAULT_FAMILY,
         fontLigatures: true,
         minimap: { enabled: false },
         glyphMargin: true, // gutter lane for keytag markers (comments feature)
@@ -111,8 +113,9 @@ export function getCurrentFontFamily() {
     return _editor?.getOption(monaco.editor.EditorOption.fontFamily) ?? '';
 }
 
+// The value is validated in ./font-family.js before it ever reaches here.
 export function setEditorFontFamily(fontFamily) {
-    if (!_editor) return;
+    if (!_editor || !isValidFontFamily(fontFamily)) return;
     _editor.updateOptions({ fontFamily });
     localStorage.setItem('editor-font-family', fontFamily);
 }

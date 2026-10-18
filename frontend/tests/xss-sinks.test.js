@@ -130,6 +130,21 @@ describe('XSS: notepad view/edit builder', () => {
   });
 });
 
+describe('XSS: editor font family (config import)', () => {
+  it('rejects font values that could break out of a style="..." attribute', async () => {
+    const { isValidFontFamily } = await import('../src/js/font-family.js');
+    // Payload from a malicious config file: breaks out of style="font-family: ...".
+    expect(isValidFontFamily('"><img src=x onerror=alert(1)>')).toBe(false);
+    expect(isValidFontFamily('<script>alert(1)</script>')).toBe(false);
+    expect(isValidFontFamily('x"; } img { background:url(x) }')).toBe(false);
+    expect(isValidFontFamily(42)).toBe(false);
+    // Legitimate stacks must still pass (default + accented names).
+    expect(isValidFontFamily("'Fira Code', 'Cascadia Code', 'Courier New', monospace")).toBe(true);
+    expect(isValidFontFamily('IBM Plex Sans 3')).toBe(true);
+    expect(isValidFontFamily('Source Serif é')).toBe(true);
+  });
+});
+
 describe('XSS: modal.js title/body sinks', () => {
   it('openModal treats string body as textContent (no HTML execution)', async () => {
     // The module reads `window.__TAURI__`; jsdom doesn't have it, so we
