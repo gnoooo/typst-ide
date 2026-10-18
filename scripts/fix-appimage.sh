@@ -27,7 +27,7 @@
 #
 # Environment:
 #   APPIMAGETOOL           path to an appimagetool AppImage (skips download)
-#   TYPST_IDE_APPIMAGETOOL_URL  download URL override
+#   TYPST_IDE_APPIMAGETOOL_URL  download URL override (skips the sha256 check)
 #   TYPST_IDE_UPDATE_INFO  update information override
 # =============================================================================
 
@@ -38,6 +38,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 APPIMAGE_NAME="typst-ide"
 DEFAULT_APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+# sha256 of the asset above; bump both when upstream rebuilds the mutable
+# 'continuous' release (a mismatch here fails the build on purpose).
+DEFAULT_APPIMAGETOOL_SHA256="95cbe7cce9717fce90c484e34052ee7c7f1d7635b33c12525b4776826a7d29b6"
 DEFAULT_UPDATE_INFO="gh-releases-zsync|gnoooo|typst-ide|latest|typst-ide-*-x86_64.AppImage.zsync"
 
 VERSION=""
@@ -232,11 +235,25 @@ else
   CACHE_DIR="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/typst-ide"
   mkdir -p "$CACHE_DIR"
   TOOL="$CACHE_DIR/appimagetool-x86_64.AppImage"
+  # Verify the pinned sha256 before executing the tool (cached or fresh).
+  # A URL override means a deliberately custom tool: skip verification.
+  EXPECTED_SHA256=""
+  [ -n "${TYPST_IDE_APPIMAGETOOL_URL:-}" ] || EXPECTED_SHA256="$DEFAULT_APPIMAGETOOL_SHA256"
+  tool_sha256() { sha256sum "$TOOL" | awk '{print $1}'; }
+
+  if [ -x "$TOOL" ] && [ -n "$EXPECTED_SHA256" ] && [ "$(tool_sha256)" != "$EXPECTED_SHA256" ]; then
+    info "cached appimagetool checksum mismatch; re-downloading..."
+    rm -f "$TOOL"
+  fi
   if [ ! -x "$TOOL" ]; then
     info "downloading appimagetool..."
     curl -fL --retry 3 -o "$TOOL" "${TYPST_IDE_APPIMAGETOOL_URL:-$DEFAULT_APPIMAGETOOL_URL}" \
       || die "failed to download appimagetool (set APPIMAGETOOL to use a local copy)"
     chmod +x "$TOOL"
+    if [ -n "$EXPECTED_SHA256" ] && [ "$(tool_sha256)" != "$EXPECTED_SHA256" ]; then
+      rm -f "$TOOL"
+      die "downloaded appimagetool does not match the pinned sha256 (upstream rebuilt the 'continuous' asset?); update DEFAULT_APPIMAGETOOL_SHA256 or set APPIMAGETOOL to a local copy"
+    fi
   fi
 fi
 
