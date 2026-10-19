@@ -33,6 +33,11 @@ git clone https://github.com/gnoooo/typst-ide
 cd typst-ide
 ```
 
+Install the git hooks (pre-commit / pre-push checks), once per clone:
+```sh
+./hooks/install.sh
+```
+
 Install the frontend dependencies (only needed once):
 ```bash
 cd frontend && npm install
