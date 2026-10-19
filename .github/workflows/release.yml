@@ -126,14 +126,14 @@ jobs:
         with:
           name: typst-ide-linux-deb
           path: target/dist/linux/*.deb
-          if-no-files-found: warn
+          if-no-files-found: error
 
       - name: Upload .rpm (Linux)
         uses: actions/upload-artifact@v4
         with:
           name: typst-ide-linux-rpm
           path: target/dist/linux/*.rpm
-          if-no-files-found: warn
+          if-no-files-found: error
 
   build-windows:
     runs-on: windows-latest
