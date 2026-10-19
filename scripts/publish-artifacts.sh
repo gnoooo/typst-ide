@@ -84,12 +84,14 @@ mkdir -p "$DIST/linux" "$DIST/windows"
 has_kind() { case " $KINDS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 
 # Copies the files matching the given find patterns from SRC into DEST.
+# The bundle dir keeps older builds (names embed the version), so only files
+# matching --version are copied; empty VERSION matches everything.
 # copy_kind SRC DEST LABEL "find-name-expression..."
 copy_kind() {
   local src="$1" dest="$2" label="$3"
   shift 3
   local -a files=()
-  mapfile -t files < <(find "$src" -maxdepth 1 -type f \( "$@" \) 2>/dev/null | sort)
+  mapfile -t files < <(find "$src" -maxdepth 1 -type f \( "$@" \) -name "*${VERSION}*" 2>/dev/null | sort)
   [ "${#files[@]}" -gt 0 ] || die "no $label file found in $src"
   local f
   for f in "${files[@]}"; do
