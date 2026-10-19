@@ -334,7 +334,11 @@ async function editNote(note) {
                 if (title && text) {
                     let project_id;
                     if (scope == 'project'){
-                        project_id = await invoke('get_current_project_id', { projectPath: getCurrentProject()?.path });
+                        if (!getCurrentProject()) {
+                            showToast("warning", t('notepad.no_project'));
+                            return;
+                        }
+                        project_id = await invoke('get_current_project_id', { projectPath: getCurrentProject().path });
                     } else {
                         project_id = null;
                     }
