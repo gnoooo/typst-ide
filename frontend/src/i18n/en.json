@@ -201,6 +201,7 @@
   "project.save_error": "Save error: {error}",
   "project.pdf_error": "Error exporting PDF: {error}",
   "project.pdf_exported": "PDF exported: {path}",
+  "project.pdf_export_error": "PDF export error: {error}",
 
   "structures.table": "Table",
   "structures.grid": "Grid",

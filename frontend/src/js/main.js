@@ -26,6 +26,7 @@ import {
   unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, scheduleAutosave, notifySaveIndicator, getCurrentProject
 } from "./project.js";
 import { openModal, showPrompt } from "./modal.js";
+import { showToast } from "./toast.js";
 import { openNotepad } from "./notepad.js";
 import { initComments, openCommentBook, insertComment, openKeytagManager } from "./comments/index.js";
 import { openHistory } from "./history.js";
@@ -634,8 +635,10 @@ async function savePdf(editor, forcePrompt = false) {
       root: getCurrentProject()?.path ?? null,
     });
     writeToConsole("success", t('project.pdf_exported', { path: sessionStorage.getItem("pdf-export-path") }));
+    showToast('success', t('project.pdf_exported', { path: sessionStorage.getItem("pdf-export-path") }));
   } catch (err) {
     writeToConsole("error", String(err));
+    showToast('error', t('project.pdf_export_error', { error: err }));
     showConsole();
   }
 }

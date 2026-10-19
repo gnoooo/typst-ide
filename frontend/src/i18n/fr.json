@@ -201,6 +201,7 @@
   "project.save_error": "Erreur de sauvegarde : {error}",
   "project.pdf_error": "Erreur lors de l'export PDF : {error}",
   "project.pdf_exported": "PDF exporté : {path}",
+  "project.pdf_export_error": "Erreur lors de l'export PDF : {error}",
 
   "structures.table": "Tableau",
   "structures.grid": "Grille pour placer les éléments",
