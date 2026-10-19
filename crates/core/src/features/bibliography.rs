@@ -7,6 +7,8 @@ use std::{
     io::{Error, ErrorKind, Result, Write as IoWrite},
 };
 
+use crate::fs::write_atomic;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BibEntry {
     pub entry_type: String,
@@ -248,7 +250,7 @@ pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Valu
         }
     }
 
-    fs::write(filepath, out)?;
+    write_atomic(filepath, out.as_bytes())?;
     Ok(())
 }
 
@@ -274,7 +276,7 @@ pub fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Resu
         out.push('\n');
     }
 
-    fs::write(filepath, out)?;
+    write_atomic(filepath, out.as_bytes())?;
     Ok(())
 }
 
@@ -338,7 +340,7 @@ pub fn delete_bib_source_value(
         out = content;
     }
 
-    fs::write(filepath, out)?;
+    write_atomic(filepath, out.as_bytes())?;
     Ok(())
 }
 
@@ -404,6 +406,29 @@ mod tests {
         assert_eq!(
             entries[1].data["url"],
             "{https://developers.google.com/optimization/}"
+        );
+    }
+
+    #[test]
+    fn bib_rewrites_leave_no_tmp_leftover() {
+        let dir = tempdir().unwrap();
+        let path = write_sample(&dir);
+
+        let json = serde_json::json!({
+            "entry_type": "online",
+            "cite_key": "cpsat-primer",
+            "data": { "author": "A, B", "title": "New title" }
+        });
+        replace_whole_bib_source(&path, "cpsat-primer", &json).unwrap();
+        delete_whole_bib_source(&path, "ortools").unwrap();
+
+        let content = fs::read_to_string(&path).unwrap();
+        assert!(content.contains("cpsat-primer"));
+        assert!(!content.contains("ortools"));
+        assert_eq!(
+            fs::read_dir(dir.path()).unwrap().count(),
+            1,
+            "no .tmp leftover after rewrites"
         );
     }
 

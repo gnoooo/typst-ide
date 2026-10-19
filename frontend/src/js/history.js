@@ -4,7 +4,7 @@ const { invoke } = window.__TAURI__.core;
 
 
 import { t, getLang } from '../i18n/index.js'
-import { openModal, showConfirm } from './modal.js';
+import { openModal, showConfirm, closeTopModal } from './modal.js';
 import { getCurrentFontFamily } from './editor.js';
 import { showToast } from './toast.js';
 import { openProjectFromPath } from './project.js';
@@ -452,6 +452,5 @@ export async function openHistory() {
 }
 
 function closeHistory() {
-    const overlay = document.querySelector('.ide-modal-overlay');
-    if (overlay) overlay.remove();
+    closeTopModal();
 }

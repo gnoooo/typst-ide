@@ -89,10 +89,7 @@ pub async fn export_pdf(
     };
     tauri::async_runtime::spawn_blocking(move || {
         let bytes = compile_to_pdf(root.as_deref(), &source)?;
-        if let Some(parent) = dest.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-        }
-        std::fs::write(&dest, &bytes).map_err(|e| e.to_string())
+        typst_ide_core::fs::write_atomic(dest, &bytes).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?

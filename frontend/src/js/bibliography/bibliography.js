@@ -3,7 +3,7 @@
 const { invoke } = window.__TAURI__.core;
 import { t } from '../../i18n/index.js';
 
-import { openModal, showConfirm } from "../modal.js";
+import { openModal, showConfirm, closeTopModal } from "../modal.js";
 import { showToast } from '../toast.js';
 import { getCurrentProject } from "../project.js";
 import { openSources, addNewSource } from "./sources.js";
@@ -215,12 +215,7 @@ export async function openBibliography() {
 }
 
 export function closeBibliography() {
-  const overlays = document.querySelectorAll(".ide-modal-overlay");
-  const top = overlays[overlays.length - 1];
-  if (top) {
-    top.classList.remove("ide-modal-overlay--visible");
-    top.addEventListener("transitionend", () => top.remove(), { once: true });
-  }
+  closeTopModal();
 }
 
 async function editBibliographyEntry(entry) {

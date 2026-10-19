@@ -326,12 +326,8 @@ pub fn read_file(app: tauri::AppHandle, path: String) -> Result<String, String> 
 /// Writes `content` to the file at `path`, creating intermediate directories if needed
 #[tauri::command]
 pub async fn save_file(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
-    let p = std::path::Path::new(&path);
     check_in_roots(&app, &path)?;
-    if let Some(parent) = p.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    std::fs::write(p, &content).map_err(|e| e.to_string())
+    typst_ide_core::fs::write_atomic(path, content.as_bytes()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

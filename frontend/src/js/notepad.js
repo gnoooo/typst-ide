@@ -34,7 +34,7 @@
 const { invoke } = window.__TAURI__.core;
 
 import { t, getLang } from '../i18n/index.js'
-import { openModal, showPrompt, showConfirm } from './modal.js';
+import { openModal, showPrompt, showConfirm, closeTopModal } from './modal.js';
 import { getCurrentFontFamily, getEditor } from './editor.js';
 import { getCurrentProject } from './project.js';
 
@@ -471,6 +471,5 @@ export async function openNotepad() {
 }
 
 function closeNotepad() {
-    const overlay = document.querySelector('.ide-modal-overlay');
-    if (overlay) overlay.remove();
+    closeTopModal();
 }

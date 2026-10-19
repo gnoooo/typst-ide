@@ -12,6 +12,10 @@
  *   opts.onClose    (function, optional) : called when the modal is dismissed
  *   opts.closable   (boolean, optional) : whether backdrop-click / Escape closes it (default: true)
  *
+ * closeTopModal() -> void
+ *   Closes the top-most open modal through its own close() (no leaked keydown listener, onClose runs).
+ *   Used as teardown by notepad/history/bibliography.
+ *
  * showConfirm(opts) -> Promise<boolean>
  *   opts.title, opts.message, opts.confirmLabel, opts.cancelLabel
  *
@@ -23,6 +27,20 @@ import { t } from '../i18n/index.js'
 import { escapeHtml } from './utils/escape.js'
 
 // ## Core ####################################################################
+
+// Stack of currently open modals: Escape closes only the top-most one, and
+// every teardown goes through close() so no document-level listener leaks.
+const _openStack = [];
+
+/**
+ * Close the top-most open modal. For callers that kept a parameter-less
+ * "close my modal" helper (notepad, history, bibliography): their modal is
+ * always on top of the stack when they call it.
+ */
+export function closeTopModal() {
+    const top = _openStack[_openStack.length - 1];
+    top?.close();
+}
 
 /**
  * Open a modal with arbitrary content.
@@ -111,32 +129,39 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    // Double rAF ensures the element is painted before the transition starts
-    requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('ide-modal-overlay--visible')));
-
     function close() {
+        if (closed) return;
+        closed = true;
+        const i = _openStack.indexOf(self);
+        if (i !== -1) _openStack.splice(i, 1);
         overlay.classList.remove('ide-modal-overlay--visible');
-        overlay.addEventListener('transitionend', () => overlay.remove(), { once: true });
+        // Fallback: transitionend may never fire (e.g. display:none ancestor).
+        setTimeout(() => overlay.remove(), 200);
         onClose?.();
         document.removeEventListener('keydown', onKeyDown);
     }
 
     function closeAll() {
-        document.querySelectorAll('.ide-modal-overlay').forEach(el => {
-            el.classList.remove('ide-modal-overlay--visible');
-            el.addEventListener('transitionend', () => el.remove(), { once: true });
-        });
-        onClose?.();
-        document.removeEventListener('keydown', onKeyDown);
+        // Teardown every modal through its own close() so each document-level
+        // Escape listener is removed and below-promises (showConfirm/...) resolve.
+        [..._openStack].forEach(m => m.close());
     }
+
+    const self = { close, overlay };
+    _openStack.push(self);
+    let closed = false;
+
+    // Double requestAnimationFrame ensures the element is painted before the transition starts
+    requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('ide-modal-overlay--visible')));
 
     if (closable) {
         overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
         document.addEventListener('keydown', onKeyDown);
     }
 
+    // Escape closes only the top-most modal, not the whole stack.
     function onKeyDown(e) {
-        if (e.key === 'Escape') close();
+        if (e.key === 'Escape' && _openStack[_openStack.length - 1] === self) close();
     }
 
     return { close, overlay };
