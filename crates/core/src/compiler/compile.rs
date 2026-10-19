@@ -337,7 +337,9 @@ pub fn compile_to_preview_html(
     //    behind the whole compile+render pipeline.
     let t_world = Instant::now();
     let (document, jump_pos, world_ms, compile_ms) = {
-        let mut world_guard = preview_world_cache().lock().unwrap();
+        let mut world_guard = preview_world_cache()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
         match world_guard.as_mut() {
             Some((world, cached_root)) if *cached_root == root_str => {
                 // Same project root: update only the source; keep file cache warm.
@@ -377,7 +379,7 @@ pub fn compile_to_preview_html(
 
     // 3. Render pages to SVG (with per-page cache)
     let t_svg = Instant::now();
-    let mut svg_guard = svg_cache().lock().unwrap();
+    let mut svg_guard = svg_cache().lock().unwrap_or_else(|p| p.into_inner());
     let pages: Vec<RenderedPage> = document
         .pages()
         .iter()
@@ -441,7 +443,9 @@ pub fn resolve_click(
     y: f64,
 ) -> Option<ClickResult> {
     let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
-    let mut world_guard = preview_world_cache().lock().ok()?;
+    let mut world_guard = preview_world_cache()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
     let (world, cached_root) = world_guard.as_mut()?;
 
     // Ensure the world has the correct root and source.
@@ -474,10 +478,11 @@ pub fn resolve_click(
 /// (e.g. a `.typ` module, an image, a data file) so that the next compilation
 /// re-reads the updated content from disk.
 pub fn invalidate_preview_file_cache() {
-    if let Some(guard) = PREVIEW_WORLD.get()
-        && let Ok(mut opt) = guard.lock()
-        && let Some((world, _)) = opt.as_mut()
-    {
+    let Some(guard) = PREVIEW_WORLD.get() else {
+        return;
+    };
+    let mut opt = guard.lock().unwrap_or_else(|p| p.into_inner());
+    if let Some((world, _)) = opt.as_mut() {
         world.reset_files();
     }
 }
@@ -586,5 +591,27 @@ mod tests {
             content
         );
         println!("resolve_click -> line {}, col {}", res.line, res.column);
+    }
+
+    #[test]
+    fn preview_survives_a_poisoned_world_cache() {
+        // Same root as the click test above: the persistent world cache is global,
+        // and a compile with a different root would swap the world under a concurrently running test.
+        let root = Some("/tmp/opencode/click-test-root".to_string());
+        let warm = compile_to_preview_html(root.as_deref(), "Hello", None);
+        assert!(warm.is_ok(), "precondition: warm-up compile succeeds");
+
+        // Poison the cache: panic while holding the lock (mirrors a Typst
+        // panic mid-compile that unwinds through the mutex guard).
+        let cache = preview_world_cache();
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = cache.lock().unwrap();
+            panic!("simulated typst panic while holding the world lock");
+        }));
+        assert!(cache.is_poisoned(), "precondition: mutex got poisoned");
+
+        // The next compile must recover instead of panicking on the poison.
+        let res = compile_to_preview_html(root.as_deref(), "Hello", None);
+        assert!(res.is_ok(), "preview must survive a poisoned world cache");
     }
 }
