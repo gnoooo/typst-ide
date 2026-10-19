@@ -197,6 +197,13 @@ jobs:
       contents: write
 
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches crate version
+        run: |
+          ver="$(sed -n 's/^version = "\(.*\)"/\1/p' crates/app/Cargo.toml | head -1)"
+          [ "${GITHUB_REF_NAME#v}" = "$ver" ] || { echo "tag $GITHUB_REF_NAME != Cargo.toml $ver" >&2; exit 1; }
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
