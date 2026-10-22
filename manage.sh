@@ -182,13 +182,13 @@ check_consistency() {
   front="$(frontend_version)"
   meta="$(metainfo_version 2>/dev/null || true)"
 
+  # Meme regle que le hook pre-push (version_mismatches, scripts/version.sh).
+  # La verifie en plus le Cargo.lock, que le hook ne connait pas.
+  local mismatches
+  mismatches="$(version_mismatches "$app" "$tauri" "$pkgbuild" "$meta")"
   local ok=1
-  [ -n "$app" ]      || ok=0
-  [ "$app" = "$tauri" ]    || ok=0
-  [ "$app" = "$pkgbuild" ] || ok=0
-  [ "$app" = "$lock" ]     || ok=0
-  # le metainfo Flatpak suit `bump` ; il bloque comme les fichiers de version
-  [ "$app" = "$meta" ]     || ok=0
+  [ -n "$mismatches" ] && ok=0
+  [ "$app" = "$lock" ]  || ok=0
 
   if [ "$pretty" = "1" ]; then
     row() {

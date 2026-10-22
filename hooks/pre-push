@@ -25,27 +25,14 @@ tauri_ver="$(version_from_json "$TAURICONF")"
 pkgbuild_ver="$(version_from_pkgbuild "$PKGBUILD")"
 metainfo_ver="$(version_from_metainfo "$METAINFO" 2>/dev/null)"
 
-# Check A: the three version files must agree with each other
-if [ -z "$cargo_ver" ] || [ -z "$tauri_ver" ] || [ -z "$pkgbuild_ver" ]; then
-  fail "could not extract a version from the version files (Cargo.toml='$cargo_ver', tauri.conf.json='$tauri_ver', PKGBUILD='$pkgbuild_ver')"
-fi
-
-if [ "$cargo_ver" != "$tauri_ver" ] || [ "$tauri_ver" != "$pkgbuild_ver" ]; then
+# Checks A + C in one place: the file list must agree with the Cargo.toml version,
+# including the Flatpak metainfo (same rule as manage.sh check_consistency).
+mismatches="$(version_mismatches "$cargo_ver" "$tauri_ver" "$pkgbuild_ver" "$metainfo_ver")"
+if [ -n "$mismatches" ]; then
   {
     echo "pre-push: version files are inconsistent:"
-    echo "  crates/app/Cargo.toml      -> $cargo_ver"
-    echo "  crates/app/tauri.conf.json -> $tauri_ver"
-    echo "  PKGBUILD                   -> $pkgbuild_ver"
-    echo "  Align them before pushing."
-  } >&2
-  exit 1
-fi
-
-# Check C: the Flatpak metainfo <release> must follow the version files
-if [ -n "$metainfo_ver" ] && [ "$metainfo_ver" != "$cargo_ver" ]; then
-  {
-    echo "pre-push: Flatpak metainfo release ($metainfo_ver) does not match version files ($cargo_ver)."
-    echo "  Run './manage.sh bump <version>' or align flatpak/io.github.gnoooo.typst-ide.metainfo.xml."
+    echo "$mismatches" | sed 's/^/  /'
+    echo "  crates/app/Cargo.toml holds the reference version, align the files above"
   } >&2
   exit 1
 fi
