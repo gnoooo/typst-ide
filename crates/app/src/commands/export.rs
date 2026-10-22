@@ -2,8 +2,10 @@
 
 use typst_ide_core::compiler::compile_to_pdf;
 
+use crate::commands::fs::anchored_project_root;
 use crate::state::PdfExportPathState;
 use tauri::Manager;
+use tauri::Runtime;
 
 /// Opens a native "Save as" dialog filtered to PDF files,
 /// anchors the chosen path Rust-side (the only destination `export_pdf` will ever
@@ -69,13 +71,12 @@ mod tests {
 }
 
 /// Compiles `source` to PDF and writes it to the Rust-anchored export path (set by `pick_pdf_path`).
-/// No `path` comes from the frontend: a forged invoke cannot choose the destination,
-/// and overwriting an existing file was already confirmed by the user through the native save dialog.
+/// Neither the destination nor the compile root comes from the frontend: a forged invoke cannot
+/// choose where to write, nor widen the read sandbox (the invoke arguments are not consulted).
 #[tauri::command]
-pub async fn export_pdf(
-    app: tauri::AppHandle,
+pub async fn export_pdf<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
     source: String,
-    root: Option<String>,
 ) -> Result<(), String> {
     let dest = {
         let state = app.state::<PdfExportPathState>();
@@ -87,6 +88,7 @@ pub async fn export_pdf(
             "Aucune destination d'export : utilisez « Exporter le PDF sous… »".to_string()
         })?
     };
+    let root = anchored_project_root(&app).map(|p| p.to_string_lossy().into_owned());
     tauri::async_runtime::spawn_blocking(move || {
         let bytes = compile_to_pdf(root.as_deref(), &source)?;
         typst_ide_core::fs::write_atomic(dest, &bytes).map_err(|e| e.to_string())

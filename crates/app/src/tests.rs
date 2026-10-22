@@ -154,9 +154,9 @@ fn preview_compiles_valid_source_and_diagnostics_for_bad_source() {
     let app = mock_app();
 
     let result = crate::commands::preview::render_preview(
+        app.handle().clone(),
         app.state::<CompileState>(),
         "Hello world".into(),
-        None,
         None,
     );
     let pages = tauri::async_runtime::block_on(result)
@@ -165,9 +165,9 @@ fn preview_compiles_valid_source_and_diagnostics_for_bad_source() {
     assert!(pages.pages[0].svg.starts_with("<svg"));
 
     let errors = tauri::async_runtime::block_on(crate::commands::preview::render_preview(
+        app.handle().clone(),
         app.state::<CompileState>(),
         "#let : not valid".into(),
-        None,
         None,
     ));
     match errors {
@@ -206,14 +206,16 @@ fn preview_picks_up_image_rewritten_externally() {
     // Unique project root per test: the persistent preview world (keyed by
     // root) is a process-wide static, so cross-test state must not leak.
     let dir = tempfile::tempdir().unwrap();
-    let root = dir.path().to_string_lossy().to_string();
     let source = "#image(\"img.png\")\n".to_string();
+    // The root is anchored Rust-side (there is no invoke argument anymore):
+    // emulate `open_project` by anchoring the tempdir like a picked project.
+    crate::commands::fs::set_project_root(app.handle(), dir.path());
 
     let render = || {
         let result = tauri::async_runtime::block_on(crate::commands::preview::render_preview(
+            app.handle().clone(),
             app.state::<CompileState>(),
             source.clone(),
-            Some(root.clone()),
             None,
         ));
         result.unwrap_or_else(|e| {
@@ -384,6 +386,22 @@ fn allowed_roots_come_from_the_rust_anchor_only() {
     crate::commands::fs::set_project_root(handle, &other);
     let roots = crate::commands::fs::allowed_roots(handle);
     assert!(!roots.iter().any(|r| r == &canonical));
+}
+
+// The compile commands (preview, click resolution, PDF export) must also read the
+// project root from the Rust anchor only: a forged invoke no longer contributes one at all.
+#[test]
+fn compile_roots_come_from_the_rust_anchor_only() {
+    let app = mock_app();
+    let handle = app.handle();
+    assert_eq!(crate::commands::fs::anchored_project_root(handle), None);
+
+    let dir = tempfile::tempdir().unwrap();
+    crate::commands::fs::set_project_root(handle, dir.path());
+    assert_eq!(
+        crate::commands::fs::anchored_project_root(handle),
+        Some(std::fs::canonicalize(dir.path()).unwrap())
+    );
 }
 
 #[test]

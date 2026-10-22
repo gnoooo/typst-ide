@@ -632,7 +632,6 @@ async function savePdf(editor, forcePrompt = false) {
     }
     await invoke("export_pdf", {
       source: editor.getValue(),
-      root: getCurrentProject()?.path ?? null,
     });
     writeToConsole("success", t('project.pdf_exported', { path: sessionStorage.getItem("pdf-export-path") }));
     showToast('success', t('project.pdf_exported', { path: sessionStorage.getItem("pdf-export-path") }));

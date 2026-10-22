@@ -131,12 +131,20 @@ pub fn assert_within(
     Err(format!("Path '{display}' is outside the allowed roots"))
 }
 
+/// Returns the project root anchored Rust-side by `set_project_root`, if any. The frontend never contributes a root:
+/// a compromised webview cannot widen the sandbox by passing its own `project_root`,
+/// the invoke arguments are simply not consulted.
+pub(crate) fn anchored_project_root<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Option<std::path::PathBuf> {
+    let state = app.try_state::<ProjectRootState>()?;
+    let current = state.0.lock().ok()?;
+    current.as_ref().cloned()
+}
+
 /// Returns the list of FS roots a destructive/read command is allowed to touch:
 /// the app's data/config directories (templates, saved history, etc. live there)
 /// plus the project root anchored Rust-side by `open_project` / `create_project`.
-/// The frontend never contributes a root:
-/// a compromised webview cannot widen the sandbox by passing its own `project_root`,
-/// the invoke arguments are simply not consulted.
 pub fn allowed_roots<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<std::path::PathBuf> {
     let mut roots: Vec<std::path::PathBuf> = Vec::new();
     if let Ok(data_dir) = app.path().app_data_dir() {
@@ -145,11 +153,8 @@ pub fn allowed_roots<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Vec<std::p
     if let Ok(config_dir) = app.path().app_config_dir() {
         roots.push(config_dir);
     }
-    if let Some(state) = app.try_state::<ProjectRootState>()
-        && let Ok(current) = state.0.lock()
-        && let Some(p) = current.as_ref()
-    {
-        roots.push(p.clone());
+    if let Some(p) = anchored_project_root(app) {
+        roots.push(p);
     }
     roots
 }

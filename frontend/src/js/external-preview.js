@@ -13,8 +13,6 @@
  *  The mode is transient: nothing is persisted, each launch starts embedded.
  */
 
-import { getCurrentProject } from './project.js';
-
 let _active = false;
 let _onStateChange = null;
 let _handlers = {};
@@ -123,12 +121,10 @@ async function resolvePreviewClick(payload) {
     if (!editor) return;
 
     const source = editor.getValue();
-    const root = getCurrentProject()?.path ?? null;
     let result;
     try {
         result = await window.__TAURI__.core.invoke('resolve_preview_click', {
             source,
-            root,
             page,
             x,
             y,

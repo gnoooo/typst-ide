@@ -589,11 +589,9 @@ export function setupPreviewClickHandler(frame, onRegion) {
  */
 async function handleRegionClick(page, x, y) {
     const source = _opts.getSource();
-    const root = getCurrentProject()?.path ?? null;
     try {
         const result = await invoke('resolve_preview_click', {
             source,
-            root,
             page,
             x,
             y,
@@ -680,7 +678,6 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onZo
     try {
         const result = await invoke('render_preview', {
             source,
-            root:   getCurrentProject()?.path ?? null,
             cursor,
         });
         const ipcMs = Math.round(performance.now() - t0);

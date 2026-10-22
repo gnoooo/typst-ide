@@ -1,6 +1,8 @@
 // Preview commands: compile to HTML, invalidate cache, resolve clicks
 
+use crate::commands::fs::anchored_project_root;
 use crate::state::CompileState;
+use tauri::Runtime;
 use typst_ide_core::compiler::{
     ClickResult, DiagnosticInfo, PreviewResult, compile_to_preview_html,
     invalidate_preview_file_cache, resolve_click,
@@ -18,13 +20,15 @@ pub struct CursorPos {
 /// Compiles Typst source code to a preview HTML document (pages rendered as inline SVGs)
 /// At most one compilation runs at a time, the semaphore suspends excess callers
 /// asynchronously (zero thread cost) until the running compile finishes.
+/// The compile root is the Rust-anchored project root: the invoke arguments are not consulted.
 #[tauri::command]
-pub async fn render_preview(
+pub async fn render_preview<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
     state: tauri::State<'_, CompileState>,
     source: String,
-    root: Option<String>,
     cursor: Option<CursorPos>,
 ) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
+    let root = anchored_project_root(&app).map(|p| p.to_string_lossy().into_owned());
     // Acquire before spawning the blocking work: suspends (not blocks) extra callers
     let _permit = state.0.acquire().await.map_err(|e| {
         vec![DiagnosticInfo {
@@ -74,13 +78,14 @@ pub async fn invalidate_file_cache() {
 /// Runs on the blocking thread pool so it never freezes the UI even if
 /// the preview world lock is temporarily held by a concurrent compile.
 #[tauri::command]
-pub async fn resolve_preview_click(
+pub async fn resolve_preview_click<R: Runtime + 'static>(
+    app: tauri::AppHandle<R>,
     source: String,
-    root: Option<String>,
     page: usize,
     x: f64,
     y: f64,
 ) -> Option<ClickResult> {
+    let root = anchored_project_root(&app).map(|p| p.to_string_lossy().into_owned());
     tauri::async_runtime::spawn_blocking(move || {
         resolve_click(root.as_deref(), &source, page, x, y)
     })
