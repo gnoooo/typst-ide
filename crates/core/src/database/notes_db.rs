@@ -82,7 +82,7 @@ pub fn get_all_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
             updated_at: row.get(6)?,
         })
     })?;
-    Ok(notes.filter_map(Result::ok).collect())
+    Ok(notes.collect::<Result<Vec<_>>>()?)
 }
 
 pub fn get_global_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
@@ -101,7 +101,7 @@ pub fn get_global_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
             updated_at: row.get(6)?,
         })
     })?;
-    Ok(notes.filter_map(Result::ok).collect())
+    Ok(notes.collect::<Result<Vec<_>>>()?)
 }
 
 pub fn get_project_notes(conn: &Connection, project_id: &str) -> Result<Vec<Note>, Error> {
@@ -120,7 +120,7 @@ pub fn get_project_notes(conn: &Connection, project_id: &str) -> Result<Vec<Note
             updated_at: row.get(6)?,
         })
     })?;
-    Ok(notes.filter_map(Result::ok).collect())
+    Ok(notes.collect::<Result<Vec<_>>>()?)
 }
 
 pub fn delete_note(conn: &Connection, note_id: &str) -> Result<()> {
@@ -148,8 +148,10 @@ pub fn update_note(
 /// Inserts exported notes, skipping any whose id already exists.
 /// Returns the number of notes actually inserted.
 pub fn import_notes(conn: &Connection, notes: &[NoteImport]) -> Result<usize> {
+    // Une transaction pour que l'échec d'une ligne annule tout l'import.
+    let tx = conn.unchecked_transaction()?;
     let now = Utc::now().to_rfc3339();
-    let mut stmt = conn.prepare(
+    let mut stmt = tx.prepare(
         "INSERT OR IGNORE INTO notes (id, title, content, scope, project_id, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )?;
@@ -165,6 +167,8 @@ pub fn import_notes(conn: &Connection, notes: &[NoteImport]) -> Result<usize> {
             &now,
         ))?;
     }
+    drop(stmt);
+    tx.commit()?;
     Ok(inserted)
 }
 
@@ -230,5 +234,46 @@ mod tests {
         let all = get_all_notes(&conn).unwrap();
         assert_eq!(all.len(), 3);
         assert!(all.iter().any(|n| n.id == "c"));
+    }
+
+    #[test]
+    fn import_notes_is_atomic_on_failure() {
+        let conn = Connection::open_in_memory().unwrap();
+        // UNIQUE/NOT NULL/CHECK sont absorbés par INSERT OR IGNORE, la clé
+        // étrangère est la seule violation immédiate qui échoue l'INSERT.
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE parents (id TEXT PRIMARY KEY);
+             CREATE TABLE notes (
+                 id TEXT PRIMARY KEY,
+                 title TEXT NOT NULL,
+                 content TEXT NOT NULL,
+                 scope TEXT NOT NULL,
+                 project_id TEXT REFERENCES parents(id),
+                 created_at TEXT NOT NULL,
+                 updated_at TEXT NOT NULL
+             )",
+        )
+        .unwrap();
+
+        let notes = vec![
+            NoteImport {
+                id: "a".into(),
+                title: "One".into(),
+                content: "content".into(),
+                scope: "global".into(),
+                project_id: None,
+            },
+            NoteImport {
+                id: "b".into(),
+                title: "Two".into(),
+                content: "content".into(),
+                scope: "project".into(),
+                project_id: Some("missing".into()),
+            },
+        ];
+        assert!(import_notes(&conn, &notes).is_err());
+        // La ligne valide insérée en premier ne doit pas avoir persisté.
+        assert!(get_all_notes(&conn).unwrap().is_empty());
     }
 }

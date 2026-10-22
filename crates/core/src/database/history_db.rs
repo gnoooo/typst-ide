@@ -81,12 +81,16 @@ pub fn update_history_entry(conn: &Connection, id: &str, name: &str, path: &str)
 /// Inserts exported history entries, skipping any whose id or path already
 /// exists. Returns the number of entries actually inserted.
 pub fn import_history(conn: &Connection, entries: &[HistoryImport]) -> Result<usize> {
+    // Une transaction pour que l'échec d'une ligne annule tout l'import.
+    let tx = conn.unchecked_transaction()?;
     let mut stmt =
-        conn.prepare("INSERT OR IGNORE INTO history (id, name, path) VALUES (?1, ?2, ?3)")?;
+        tx.prepare("INSERT OR IGNORE INTO history (id, name, path) VALUES (?1, ?2, ?3)")?;
     let mut inserted = 0;
     for entry in entries {
         inserted += stmt.execute((&entry.id, &entry.name, &entry.path))?;
     }
+    drop(stmt);
+    tx.commit()?;
     Ok(inserted)
 }
 
@@ -132,5 +136,40 @@ mod tests {
         }];
         assert_eq!(import_history(&conn, &extra).unwrap(), 1);
         assert_eq!(get_history(&conn).unwrap().len(), 3);
+    }
+
+    #[test]
+    fn import_history_is_atomic_on_failure() {
+        let conn = Connection::open_in_memory().unwrap();
+        // UNIQUE/NOT NULL/CHECK sont absorbés par INSERT OR IGNORE, la clé
+        // étrangère est la seule violation immédiate qui échoue l'INSERT.
+        conn.execute_batch(
+            "PRAGMA foreign_keys = ON;
+             CREATE TABLE parents (id TEXT PRIMARY KEY);
+             CREATE TABLE history (
+                 id TEXT PRIMARY KEY NOT NULL,
+                 name TEXT NOT NULL,
+                 path TEXT NOT NULL UNIQUE REFERENCES parents(id),
+                 created_at DEFAULT CURRENT_TIMESTAMP,
+                 updated_at DEFAULT CURRENT_TIMESTAMP
+             )",
+        )
+        .unwrap();
+
+        let entries = vec![
+            HistoryImport {
+                id: "h1".into(),
+                name: "Projet A".into(),
+                path: "/tmp/a".into(),
+            },
+            HistoryImport {
+                id: "h2".into(),
+                name: "Projet B".into(),
+                path: "missing".into(),
+            },
+        ];
+        assert!(import_history(&conn, &entries).is_err());
+        // La ligne valide insérée en premier ne doit pas avoir persisté.
+        assert!(get_history(&conn).unwrap().is_empty());
     }
 }
