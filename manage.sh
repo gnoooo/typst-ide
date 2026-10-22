@@ -72,7 +72,7 @@ SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Helpers
 # ---------------------
 usage() {
-  sed -n '4,38p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '4,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 die() { echo "manage: $*" >&2; exit 1; }
