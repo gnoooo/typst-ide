@@ -710,7 +710,10 @@ cmd_build() {
   if echo " $list " | grep -qw rust; then
     echo
     echo "== Rust (release) =="
-    ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app ) && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
+    local -a rust_target_arg=()
+    [ -n "$target" ] && rust_target_arg=(--target "$target")
+    ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app "${rust_target_arg[@]}" ) \
+      && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
   fi
 
   local -a tauri=()
