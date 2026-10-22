@@ -7,7 +7,8 @@
 #   ./manage.sh info                      Infos du projet (nom, version, cohérence, git…)
 #   ./manage.sh bump <version|type>       Met à jour la version partout (--dry-run dispo)
 #   ./manage.sh check                     Cohérence des versions + cargo fmt/check
-#   ./manage.sh test                      Tests du workspace
+#   ./manage.sh test [cibles]             Tests du workspace
+#                                           cibles : rust | front | all (défaut)
 #   ./manage.sh build [cibles] [opts]     Build frontend + bundles Tauri
 #                                           cibles   : frontend | rust | appimage | deb | rpm | nsis | windows | all (défaut)
 #                                                      windows = installateur NSIS + exe portable
@@ -428,7 +429,21 @@ cmd_check() {
 }
 
 cmd_test() {
-  ( cd "$REPO_ROOT" && cargo test --workspace ) && echo "    tests: ${GREEN}OK (tout passe)${NC}" || die "    les tests ont échoué"
+  local cible="${1:-all}"
+  case "$cible" in
+    rust|all)
+      ( cd "$REPO_ROOT" && cargo test --workspace ) && echo "    tests rust: ${GREEN}OK (tout passe)${NC}" || die "    tests rust ont échoué"
+      ;;
+    front) ;;
+    *) die "cible inconnue: $cible (rust | front | all)" ;;
+  esac
+  case "$cible" in
+    front|all)
+      command -v npm >/dev/null 2>&1 || die "npm introuvable"
+      [ -d "$REPO_ROOT/frontend/node_modules" ] || die "frontend/node_modules absent — lance npm install dans frontend/"
+      ( cd "$REPO_ROOT/frontend" && npm test ) && echo "    tests front: ${GREEN}OK (tout passe)${NC}" || die "    tests front ont échoué"
+      ;;
+  esac
 }
 
 # ---------------------
@@ -1093,7 +1108,7 @@ case "$cmd" in
   info)    cmd_info ;;
   bump)    cmd_bump "$@" ;;
   check)   cmd_check ;;
-  test)    cmd_test ;;
+  test)    cmd_test "$@" ;;
   build)   cmd_build "$@" ;;
   fix-appimage) cmd_fix_appimage "$@" ;;
   flatpak-sources) cmd_flatpak_sources ;;
