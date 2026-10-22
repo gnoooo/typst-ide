@@ -82,7 +82,7 @@ pub fn get_all_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
             updated_at: row.get(6)?,
         })
     })?;
-    Ok(notes.collect::<Result<Vec<_>>>()?)
+    notes.collect::<Result<Vec<_>>>()
 }
 
 pub fn get_global_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
@@ -101,7 +101,7 @@ pub fn get_global_notes(conn: &Connection) -> Result<Vec<Note>, Error> {
             updated_at: row.get(6)?,
         })
     })?;
-    Ok(notes.collect::<Result<Vec<_>>>()?)
+    notes.collect::<Result<Vec<_>>>()
 }
 
 pub fn get_project_notes(conn: &Connection, project_id: &str) -> Result<Vec<Note>, Error> {
@@ -120,7 +120,7 @@ pub fn get_project_notes(conn: &Connection, project_id: &str) -> Result<Vec<Note
             updated_at: row.get(6)?,
         })
     })?;
-    Ok(notes.collect::<Result<Vec<_>>>()?)
+    notes.collect::<Result<Vec<_>>>()
 }
 
 pub fn delete_note(conn: &Connection, note_id: &str) -> Result<()> {
