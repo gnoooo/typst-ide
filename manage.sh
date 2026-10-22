@@ -911,7 +911,7 @@ cmd_clean() {
     if [ -z "$runtime" ]; then
       echo "    ${YELLOW}podman/docker absent : image ignorée${NC}"
     else
-      printf "    %8s  %s\n" "?" "$runtime : typst-ide-build + images orphelines + cache de build"
+      printf "    %8s  %s\n" "?" "$runtime : typst-ide-build + orphelines typst-ide"
     fi
   fi
 
@@ -949,9 +949,9 @@ cmd_clean() {
     runtime="$(container_runtime)" || runtime=""
     if [ -n "$runtime" ]; then
       "$runtime" rmi -f typst-ide-build:ubuntu22.04 >/dev/null 2>&1 || true
-      "$runtime" image prune -f >/dev/null 2>&1 || true
-      "$runtime" builder prune -f >/dev/null 2>&1 || true
-      echo "    ${GREEN}OK${NC} $runtime : image typst-ide-build + orphelines + cache de build"
+      # Filtrée par label : un prune nu effacerait les images/caches des autres projets du daemon.
+      "$runtime" image prune -f --filter label=typst-ide >/dev/null 2>&1 || true
+      echo "    ${GREEN}OK${NC} $runtime : image typst-ide-build + orphelines typst-ide"
     fi
   fi
 
