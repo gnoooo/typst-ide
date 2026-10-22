@@ -253,7 +253,8 @@ pub async fn create_project(
     set_project_root(&app, &project_path);
     let typ_path = project_path.join("main.typ");
     if !typ_path.exists() {
-        std::fs::write(&typ_path, content.as_deref().unwrap_or("")).map_err(|e| e.to_string())?;
+        typst_ide_core::fs::write_atomic(&typ_path, content.as_deref().unwrap_or("").as_bytes())
+            .map_err(|e| e.to_string())?;
     }
     // Add an entry to the history database
     {
@@ -879,7 +880,7 @@ pub async fn save_data_image(
 
         let full_path = images_dir.join(&filename);
         if !full_path.exists() {
-            std::fs::write(&full_path, &bytes).map_err(|e| e.to_string())?;
+            typst_ide_core::fs::write_atomic(&full_path, &bytes).map_err(|e| e.to_string())?;
             return Ok(format!("images/{filename}"));
         }
     }
