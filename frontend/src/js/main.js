@@ -22,9 +22,7 @@ import {
 } from "./toolbar.js";
 import { initExternalPreview as initExternalPreviewMode, setExternalPreview as setExternalPreviewMode, toggleExternalPreview } from "./external-preview.js";
 import { registerShortcuts } from "./shortcuts.js";
-import {
-  unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, scheduleAutosave, notifySaveIndicator, getCurrentProject
-} from "./project.js";
+import { unsavedBtnUpdate, openProjectBtnUpdate, createNewProject, openProject, scheduleAutosave, notifySaveIndicator, getCurrentProject, readDraft } from "./project.js";
 import { openModal, showPrompt } from "./modal.js";
 import { showToast } from "./toast.js";
 import { openNotepad } from "./notepad.js";
@@ -61,6 +59,9 @@ async function main() {
   // ## Monaco editor #############################################
   const container = document.getElementById("typst-editor");
   const editor = await createEditor(container);
+  // Restore the persistent scratch draft (readDraft returns null when none exists): the editor is always project-less at startup
+  const draft = await readDraft();
+  if (draft) editor.setValue(draft);
   window.__typstEditor = editor;
   const { invoke } = window.__TAURI__.core;
   const editorDomNode = editor.getDomNode();

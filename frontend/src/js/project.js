@@ -31,6 +31,15 @@ export function getCurrentProject() {
     return currentProject;
 }
 
+/** Content autosaved while no project was open, or null when there is none. */
+export async function readDraft() {
+    try {
+        return await invoke('read_file', { path: await draftFilePath() });
+    } catch {
+        return null; // read_file rejects while the draft file doesn't exist yet
+    }
+}
+
 // ## History #######################################################
 
 // function addToHistory(project) {
@@ -59,7 +68,6 @@ let _pendingContentGetter = null;
  * @param {(() => string)|string} contentOrGetter - Content getter or content string
  */
 export function scheduleAutosave(contentOrGetter) {
-    if (!currentProject) return;
     pendingSave = true;
     _pendingContentGetter = typeof contentOrGetter === 'function'
         ? contentOrGetter
@@ -89,21 +97,34 @@ export async function flushPendingSave() {
 // webview teardown and may not complete, but it's free to try.
 window.addEventListener('pagehide', () => { flushPendingSave(); });
 
+/**
+ * Path of the persistent scratch draft, written by the autosave while no project is open (restored by readDraft at startup).
+ * app-data is already a whitelisted FS root (allowed_roots), so save_file/read_file accept it.
+ */
+async function draftFilePath() {
+    // No caching: one path call per flush (~800 ms apart) is negligible, and a
+    // failure must not become a poisoned cached promise.
+    const dir = await window.__TAURI__.path.appDataDir();
+    return `${dir}/draft.typ`;
+}
+
 async function flushSave(content) {
     const proj = currentProject;
-    if (!proj || !pendingSave) return;
-    const filePath = `${proj.path}/${proj.typFile}`;
+    if (!pendingSave) return;
+    // Without a project the scratch content goes to {app-data}/draft.typ instead.
+    const filePath = proj ? `${proj.path}/${proj.typFile}` : await draftFilePath();
     try {
         await invoke('save_file', { path: filePath, content });
         // Don't clear a pendingSave scheduled by a newer project while this stale save for the previous one was in flight.
-        if (currentProject === proj) {
+        if (proj ? currentProject === proj : currentProject === null) {
             pendingSave = false;
             notifySaveIndicator(false);
         }
     } catch (err) {
-        showToast('error', t('project.save_error', { error: err }));
+        if (proj) showToast('error', t('project.save_error', { error: err }));
         // Retry on next keystroke via scheduleAutosave (which restarts the debounce).
         // The unsaved indicator stays "unsaved" because pendingSave is still true.
+        // A failed draft save stays silent: the content is still in the editor buffer.
     }
 }
 
@@ -167,6 +188,17 @@ async function loadProject(info, setEditorContent) {
     // Write the previous project's pending autosave first: the editor still
     // holds its content and `flushSave` must capture the old `currentProject`.
     await flushPendingSave();
+    // Previous state was project-less: drop the scratch draft once its content has either moved into the
+    // new project (createNewProject seeds it with the editor content) or been replaced by opening one,
+    // otherwise it would resurrect on the next project-less startup. Awaited right after flushPendingSave(),
+    // so the clear cannot race the flush already completed above.
+    if (!currentProject) {
+        try {
+            await invoke('save_file', { path: await draftFilePath(), content: '' });
+        } catch {
+            /* best-effort: a leftover draft would only resurface as the next startup's restore */
+        }
+    }
     currentProject = { name: info.name, path: info.path, typFile: info.typ_file };
     sessionStorage.removeItem("pdf-export-path");
     // addToHistory(currentProject);
