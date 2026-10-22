@@ -63,8 +63,9 @@ cd "$REPO_ROOT"
 echo "== frontend =="
 (
   cd frontend
+  # npm ci reste indispensable: les node_modules alimentent le beforeBuildCommand
+  # de tauri.conf.json qui lance vite lui-meme (pas de build manuel en double).
   npm ci
-  npm run build
 )
 
 # `all` is resolved by manage.sh, but stay tolerant if called directly.
