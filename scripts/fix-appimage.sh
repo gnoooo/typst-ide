@@ -35,6 +35,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+. "$REPO_ROOT/scripts/version.sh"
 
 APPIMAGE_NAME="typst-ide"
 # Immutable release tag: the URL cannot silently change (an asset re-uploaded
@@ -134,7 +135,7 @@ OUT_DIR="${OUT_DIR:-$DEFAULT_OUT_DIR}"
 if [ -z "$VERSION" ]; then
   TAURI_CONF="$REPO_ROOT/crates/app/tauri.conf.json"
   if [ -f "$TAURI_CONF" ]; then
-    VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURI_CONF" | head -n 1)"
+    VERSION="$(version_from_json "$TAURI_CONF")"
   fi
 fi
 if [ -z "$VERSION" ] && [ -f "$INPUT" ]; then

@@ -93,16 +93,19 @@ require_file() {
 
 # --- Fetch (lecture des versions) ---
 
-app_version()      { sed -n 's/^version = "\([^"]*\)"/\1/p' "$APP_CRATE" | head -n 1; }
+# extraction version mutualisée avec hooks/pre-push, scripts/fix-appimage.sh et scripts/build/in-container.sh : éditer les patterns dans scripts/version.sh
+. "$REPO_ROOT/scripts/version.sh"
+
+app_version()      { version_from_toml "$APP_CRATE"; }
 app_name()         { sed -n 's/^name = "\([^"]*\)"/\1/p' "$APP_CRATE" | head -n 1; }
 product_name()     { sed -n 's/.*"productName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURI_CONF" | head -n 1; }
-tauri_version()    { sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURI_CONF" | head -n 1; }
-pkgbuild_version() { sed -n 's/^pkgver=\(.*\)/\1/p' "$PKGBUILD" | head -n 1; }
-frontend_version() { sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$FRONTEND_PKG" | head -n 1; }
+tauri_version()    { version_from_json "$TAURI_CONF"; }
+pkgbuild_version() { version_from_pkgbuild "$PKGBUILD"; }
+frontend_version() { version_from_json "$FRONTEND_PKG"; }
 
 # version de l'entrée <release> du metainfo Flatpak (première entrée, la plus récente)
 metainfo_version() {
-  sed -n 's/.*<release version="\([^"]*\)".*/\1/p' "$FLATPAK_METAINFO" | head -n 1
+  version_from_metainfo "$FLATPAK_METAINFO"
 }
 
 # version de l'entrée workspace `typst-ide-app` dans Cargo.lock

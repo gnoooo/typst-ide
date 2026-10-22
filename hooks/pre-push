@@ -19,10 +19,11 @@ for f in "$CARGOTOML" "$TAURICONF" "$PKGBUILD"; do
   [ -f "$f" ] || fail "file not found: $f"
 done
 
-cargo_ver="$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$CARGOTOML" | head -n 1)"
-tauri_ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$TAURICONF" | head -n 1)"
-pkgbuild_ver="$(sed -n 's/^pkgver=\(.*\)/\1/p' "$PKGBUILD" | head -n 1)"
-metainfo_ver="$(sed -n 's/.*<release version="\([^"]*\)".*/\1/p' "$METAINFO" 2>/dev/null | head -n 1)"
+. "$REPO_ROOT/scripts/version.sh"
+cargo_ver="$(version_from_toml "$CARGOTOML")"
+tauri_ver="$(version_from_json "$TAURICONF")"
+pkgbuild_ver="$(version_from_pkgbuild "$PKGBUILD")"
+metainfo_ver="$(version_from_metainfo "$METAINFO" 2>/dev/null)"
 
 # Check A: the three version files must agree with each other
 if [ -z "$cargo_ver" ] || [ -z "$tauri_ver" ] || [ -z "$pkgbuild_ver" ]; then

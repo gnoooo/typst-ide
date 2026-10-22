@@ -24,6 +24,7 @@
 set -euo pipefail
 
 REPO_ROOT="/work"
+. "$REPO_ROOT/scripts/version.sh"
 BUNDLES="${BUNDLES:-appimage}"
 TARGET="${TARGET:-}"
 
@@ -144,8 +145,7 @@ fi
 if [ -n "$KINDS" ]; then
   echo
   echo "== publication dans dist/ =="
-  VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-    "$REPO_ROOT/crates/app/tauri.conf.json" | head -n 1)"
+  VERSION="$(version_from_json "$REPO_ROOT/crates/app/tauri.conf.json")"
   PUBLISH_ARGS=(
     --build-root "$CARGO_TARGET_DIR"
     --dist "$DIST_DIR"
