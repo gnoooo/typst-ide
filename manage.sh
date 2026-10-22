@@ -84,7 +84,10 @@ else
 fi
 
 require_file() {
-  [ -f "$1" ] || die "fichier introuvable: $1"
+  local f
+  for f in "$@"; do
+    [ -f "$f" ] || die "fichier introuvable: $f"
+  done
 }
 
 # --- Fetch (lecture des versions) ---
