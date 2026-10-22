@@ -2,10 +2,6 @@ use rusqlite::{Connection, Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-pub struct HistoryDB {
-    pub conn: Connection,
-}
-
 pub fn init_db(path: &str) -> Result<Connection> {
     let conn = Connection::open(path)?;
     conn.execute(

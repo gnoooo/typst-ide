@@ -9,7 +9,7 @@ use typst::syntax::package::PackageSpec;
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst::{Feature, Features, Library, LibraryExt};
+use typst::{Library, LibraryExt};
 use typst_kit::fonts::FontStore;
 
 /// Cached font search result, computed once at first compilation, reused afterwards.
@@ -89,35 +89,6 @@ impl TypstWrapperWorld {
     /// Call this when the project root changes or when files on disk may have changed.
     pub fn reset_files(&mut self) {
         *self.files.lock().unwrap_or_else(|p| p.into_inner()) = HashMap::new();
-    }
-
-    /// Changes the root path and clears the file cache.
-    pub fn set_root(&mut self, root: &str) {
-        self.root = PathBuf::from(root);
-        self.reset_files();
-    }
-
-    /// Creates a world configured for HTML export.
-    /// This enables the `Feature::Html` flag in the standard library,
-    /// which is required to compile to `HtmlDocument` via `typst::compile`.
-    pub fn new_for_html(root: String, source: String) -> Self {
-        let root = PathBuf::from(root);
-        let font_store = get_fonts();
-        let features: Features = [Feature::Html].into_iter().collect();
-        let library = Library::builder().with_features(features).build();
-
-        Self {
-            library: LazyHash::new(library),
-            root,
-            font_store: font_store.clone(),
-            source: Source::detached(source),
-            time: time::OffsetDateTime::now_utc(),
-            cache_directory: std::env::var_os("CACHE_DIRECTORY")
-                .map(|os_path| os_path.into())
-                .unwrap_or(std::env::temp_dir()),
-            http: ureq::Agent::new_with_defaults(),
-            files: Arc::new(Mutex::new(HashMap::new())),
-        }
     }
 }
 

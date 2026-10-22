@@ -43,6 +43,3 @@ export async function webviewZoomReset() {
     await _apply();
 }
 
-export function getWebviewZoomPct() {
-    return Math.round(_factor * 100);
-}

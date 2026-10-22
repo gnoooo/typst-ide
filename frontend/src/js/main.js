@@ -31,7 +31,7 @@ import { openNotepad } from "./notepad.js";
 import { initComments, openCommentBook, insertComment, openKeytagManager } from "./comments/index.js";
 import { openHistory } from "./history.js";
 import { openBibliography } from './bibliography/bibliography.js';
-import { updateBtn, toggleBtnIcon, populateStructureDropdown } from "./structures.js";
+import { updateBtn, populateStructureDropdown } from "./structures.js";
 import { initFileSync } from "./file-sync.js";
 import { exportConfig, importConfig } from "./config.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
@@ -297,7 +297,7 @@ async function main() {
 
   // Structure button...
   updateBtn();
-  // bindMenuAction("structures-btn", () => toggleBtnIcon()); // géré dans toolbar (partie des dropdowns)
+  // structures-btn est géré dans toolbar (partie des dropdowns)
   populateStructureDropdown();
 
   // Zoom input fields

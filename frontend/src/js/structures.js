@@ -674,13 +674,6 @@ export function updateBtn() {
   if (!dropdown) setBtnIcon(false);
 }
 
-export function toggleBtnIcon() {
-  const icon = document.getElementById("structures-btn-icon");
-  if (!icon) return;
-
-  icon.classList.toggle("structures-btn-icon-rotate");
-}
-
 export function setBtnIcon(open) {
   const icon = document.getElementById("structures-btn-icon");
   if (!icon) return;

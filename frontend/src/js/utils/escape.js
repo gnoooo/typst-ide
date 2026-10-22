@@ -16,11 +16,3 @@ export function escapeHtml(text) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
-
-/** Attribute-safe escaper. Double-quote is escaped so it can be used inside
- * `attr="..."`. The single-quote escape is included for completeness. */
-export function escapeAttr(text) {
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;");
-}

@@ -10,10 +10,6 @@ pub fn project_id_from_path(path: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-pub struct NotesDB {
-    pub conn: Connection,
-}
-
 pub fn init_db(path: &str) -> Result<Connection> {
     let conn = Connection::open(path)?;
     conn.execute(

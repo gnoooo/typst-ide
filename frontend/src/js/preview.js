@@ -399,7 +399,6 @@ export function clearPreviewError(preview, frame) {
  * @param {HTMLIFrameElement} frame
  */
 let previewZoom = 100;
-let _lastHtml = '';
 let _lastJumpPos = null;
 /** Active blob URL for the initial iframe load, revoked on first replace */
 let _currentBlobUrl = null;
@@ -661,7 +660,6 @@ export async function renderUpdate(frame, preview, pages, opts = {}) {
         // ## First load ##################################################
         // Assemble full HTML from page array and load via Blob URL.
         const html = _buildPreviewHtml(pages);
-        _lastHtml = html;
         _pageHashes = pages.map(p => p.hash);
         await loadHtml(frame, html);
         if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);

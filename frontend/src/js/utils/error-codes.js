@@ -22,7 +22,3 @@ export function isUserCancelled(err) {
 export function isAlreadyExists(err) {
   return code(err) === "ALREADY_EXISTS";
 }
-
-export function stripErrorCode(err) {
-  return String(err ?? "").replace(/^ERR::[A-Z_]+ \|? ?/, "");
-}

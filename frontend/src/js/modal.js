@@ -24,7 +24,6 @@
  */
 
 import { t } from '../i18n/index.js'
-import { escapeHtml } from './utils/escape.js'
 
 // ## Core ####################################################################
 
