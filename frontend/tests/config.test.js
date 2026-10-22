@@ -4,7 +4,11 @@
  *
  *  localStorage is stubbed (vitest 4 runs in the node environment).
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// project.js grabs `window.__TAURI__.core` at top level (node has no window);
+// config.test.js only exercises pure helpers and never saves a project.
+vi.mock('../src/js/project.js', () => ({ flushPendingSave: async () => {} }));
 import {
   SETTINGS_KEYS,
   buildExportPayload,
