@@ -65,9 +65,14 @@ impl TypstWrapperWorld {
             font_store: font_store.clone(),
             source: Source::detached(source),
             time: time::OffsetDateTime::now_utc(),
+            // Flatpak honors CACHE_DIRECTORY; elsewhere prefer the user's own cache (~/.cache/typst-ide) over world-writable /tmp.
             cache_directory: std::env::var_os("CACHE_DIRECTORY")
-                .map(|os_path| os_path.into())
-                .unwrap_or(std::env::temp_dir()),
+                .map(PathBuf::from)
+                .unwrap_or_else(|| {
+                    dirs::cache_dir()
+                        .map(|dir| dir.join("typst-ide"))
+                        .unwrap_or_else(std::env::temp_dir)
+                }),
             http: ureq::Agent::new_with_defaults(),
             files: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -190,7 +195,7 @@ impl TypstWrapperWorld {
         let package_subdir = format!("{}/{}/{}", package.namespace, package.name, package.version);
         let path = self.cache_directory.join(package_subdir);
 
-        if path.exists() {
+        if is_cached(&path) {
             return Ok(path);
         }
 
@@ -235,11 +240,16 @@ impl TypstWrapperWorld {
             .decode_gzip()
             .map_err(|error| PackageError::MalformedArchive(Some(eco_format!("{error}"))))?;
 
+        // Wipe any stale or half-extracted directory before unpacking.
+        _ = std::fs::remove_dir_all(&path);
+
         let mut archive = tar::Archive::new(raw_archive.as_slice());
         archive.unpack(&path).map_err(|error| {
             _ = std::fs::remove_dir_all(&path);
             PackageError::MalformedArchive(Some(eco_format!("{error}")))
         })?;
+
+        _ = std::fs::write(path.join(".ok"), b"");
 
         Ok(path)
     }
@@ -319,6 +329,12 @@ fn http_successful(status: u16) -> bool {
     status / 100 == 2
 }
 
+/// A package directory is only trusted if it carries the `.ok` marker, which is written after a successful
+/// extraction, pre-existing or half-extracted directories are re-downloaded instead of trusted.
+fn is_cached(path: &Path) -> bool {
+    path.join(".ok").exists()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -383,5 +399,20 @@ mod tests {
             world.file(id).is_err(),
             "a file deleted on disk must not be served from the cache"
         );
+    }
+
+    #[test]
+    fn package_dir_without_ok_marker_is_not_trusted() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("package");
+        std::fs::create_dir_all(&path).unwrap();
+
+        assert!(
+            !is_cached(&path),
+            "a bare directory must not count as a cached package"
+        );
+
+        std::fs::write(path.join(".ok"), b"").unwrap();
+        assert!(is_cached(&path));
     }
 }

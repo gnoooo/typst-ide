@@ -6036,6 +6036,7 @@ name = "typst-as-library"
 version = "0.1.0"
 dependencies = [
  "comemo",
+ "dirs 6.0.0",
  "tar",
  "tempfile",
  "time",
