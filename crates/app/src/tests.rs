@@ -269,6 +269,15 @@ fn assert_within_accepts_paths_inside_the_root() {
         "uncreated leaf under the root should be allowed: {:?}",
         future
     );
+
+    // The returned path must be the full canonical target (ancestors resolved,
+    // leaf kept): callers write to it directly, a dropped leaf would write to
+    // the ancestor instead.
+    let canonical_root = std::fs::canonicalize(&root).unwrap();
+    assert_eq!(
+        future.unwrap(),
+        canonical_root.join("not-yet-created/pasted.png")
+    );
 }
 
 #[test]

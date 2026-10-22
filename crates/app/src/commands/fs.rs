@@ -116,6 +116,9 @@ pub fn assert_within(
     // deepest ancestor that exists and require IT to be inside a root,
     // comparing the raw lexical path could be tricked by a symlink
     // component (e.g. `projet/lien -> /outside`).
+    // The returned path is the canonical ancestor plus the remaining
+    // components, so callers can safely use it as the real write target
+    // (the leaf would otherwise be silently dropped).
     let mut ancestor = path.to_path_buf();
     while !ancestor.exists() && ancestor.pop() {}
     if let Ok(canonical) = std::fs::canonicalize(&ancestor) {
@@ -123,7 +126,10 @@ pub fn assert_within(
             if let Ok(canon_root) = std::fs::canonicalize(root)
                 && canonical.starts_with(&canon_root)
             {
-                return Ok(canonical);
+                let tail = path
+                    .strip_prefix(&ancestor)
+                    .unwrap_or(std::path::Path::new(""));
+                return Ok(canonical.join(tail));
             }
         }
     }
@@ -180,14 +186,25 @@ pub(crate) fn set_project_root<R: tauri::Runtime>(
 }
 
 /// Verifies that `path` is within the Rust-anchored roots (app data/config dirs + current project root).
+/// Returns the canonical path (symlinks resolved) that callers MUST use for the actual I/O,
+/// so a symlink swapped between the check and the write cannot escape the roots.
 /// Shared by every FS-touching command.
 pub(crate) fn check_in_roots<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     path: &str,
-) -> Result<(), String> {
+) -> Result<std::path::PathBuf, String> {
     let roots = allowed_roots(app);
     let root_refs: Vec<&std::path::Path> = roots.iter().map(|r| r.as_path()).collect();
-    assert_within(std::path::Path::new(path), &root_refs).map(|_| ())
+    assert_within(std::path::Path::new(path), &root_refs)
+}
+
+/// Converts a canonicalized path for the core APIs (which take `&str`).
+/// Paths come from JSON strings and canonicalize preserves them, so this
+/// only rejects pathological non-UTF8 filesystem paths.
+pub(crate) fn canonical_str(p: std::path::PathBuf) -> Result<String, String> {
+    p.into_os_string()
+        .into_string()
+        .map_err(|_| "Chemin non UTF-8".to_string())
 }
 
 fn path_components(name: &str) -> impl Iterator<Item = &str> {
@@ -325,14 +342,14 @@ pub async fn open_project(app: tauri::AppHandle, dir_path: String) -> Result<Pro
 
 #[tauri::command]
 pub fn read_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
-    check_in_roots(&app, &path)?;
+    let path = check_in_roots(&app, &path)?;
     std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 /// Writes `content` to the file at `path`, creating intermediate directories if needed
 #[tauri::command]
 pub async fn save_file(app: tauri::AppHandle, path: String, content: String) -> Result<(), String> {
-    check_in_roots(&app, &path)?;
+    let path = check_in_roots(&app, &path)?;
     typst_ide_core::fs::write_atomic(path, content.as_bytes()).map_err(|e| e.to_string())
 }
 
@@ -342,8 +359,8 @@ pub fn rename_file(
     old_path: String,
     new_path: String,
 ) -> Result<(), String> {
-    check_in_roots(&app, &old_path)?;
-    check_in_roots(&app, &new_path)?;
+    let old_path = check_in_roots(&app, &old_path)?;
+    let new_path = check_in_roots(&app, &new_path)?;
     std::fs::rename(&old_path, &new_path).map_err(|e| e.to_string())
 }
 
@@ -361,8 +378,7 @@ pub struct FileEntry {
 /// Returns a flat list; the frontend builds the tree from relative paths.
 #[tauri::command]
 pub fn list_directory(app: tauri::AppHandle, dir_path: String) -> Result<Vec<FileEntry>, String> {
-    let root = std::path::PathBuf::from(&dir_path);
-    check_in_roots(&app, &dir_path)?;
+    let root = check_in_roots(&app, &dir_path)?;
     if !root.is_dir() {
         return Err("Le chemin n'est pas un dossier.".to_string());
     }
@@ -511,15 +527,14 @@ mod tests {
 /// Creates a directory (including parents if needed)
 #[tauri::command]
 pub fn create_dir(app: tauri::AppHandle, dir_path: String) -> Result<(), String> {
-    check_in_roots(&app, &dir_path)?;
-    std::fs::create_dir_all(&dir_path).map_err(|e| e.to_string())
+    let dir_path = check_in_roots(&app, &dir_path)?;
+    std::fs::create_dir_all(dir_path).map_err(|e| e.to_string())
 }
 
 /// Deletes a file or directory (recursively)
 #[tauri::command]
 pub fn delete_file_or_dir(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    let p = std::path::Path::new(&path);
-    check_in_roots(&app, &path)?;
+    let p = check_in_roots(&app, &path)?;
     if p.is_dir() {
         std::fs::remove_dir_all(p).map_err(|e| e.to_string())
     } else {
@@ -531,7 +546,7 @@ pub fn delete_file_or_dir(app: tauri::AppHandle, path: String) -> Result<(), Str
 /// Used to detect external modifications of the file being edited.
 #[tauri::command]
 pub fn file_hash(app: tauri::AppHandle, path: String) -> Result<String, String> {
-    check_in_roots(&app, &path)?;
+    let path = check_in_roots(&app, &path)?;
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
     let hash = bytes.iter().fold(0xcbf29ce484222325_u64, |h, &b| {
         (h ^ b as u64).wrapping_mul(0x100000001b3)
@@ -543,9 +558,8 @@ pub fn file_hash(app: tauri::AppHandle, path: String) -> Result<String, String> 
 #[tauri::command]
 pub fn read_image_as_base64(app: tauri::AppHandle, path: String) -> Result<String, String> {
     use base64::Engine;
-    let p = std::path::Path::new(&path);
-    check_in_roots(&app, &path)?;
-    let bytes = std::fs::read(p).map_err(|e| e.to_string())?;
+    let p = check_in_roots(&app, &path)?;
+    let bytes = std::fs::read(&p).map_err(|e| e.to_string())?;
     // Infer MIME type from extension
     let ext = p
         .extension()
@@ -573,8 +587,7 @@ pub async fn import_file_dialog(
     app: tauri::AppHandle,
     dest_dir: String,
 ) -> Result<Vec<String>, String> {
-    let dest_pb = std::path::PathBuf::from(&dest_dir);
-    check_in_roots(&app, &dest_dir)?;
+    let dest_pb = check_in_roots(&app, &dest_dir)?;
 
     let files = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -609,8 +622,7 @@ pub async fn import_image_dialog(
     app: tauri::AppHandle,
     project_path: String,
 ) -> Result<String, String> {
-    let project_pb = std::path::PathBuf::from(&project_path);
-    check_in_roots(&app, &project_path)?;
+    let project_pb = check_in_roots(&app, &project_path)?;
 
     let file = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -646,7 +658,7 @@ pub async fn import_image_dialog(
     std::fs::copy(&file, &dest_path).map_err(|e| format!("Impossible de copier {name} : {e}"))?;
 
     Ok(dest_path
-        .strip_prefix(std::path::PathBuf::from(&project_path))
+        .strip_prefix(&project_pb)
         .unwrap_or(&dest_path)
         .to_string_lossy()
         .into_owned()
@@ -684,8 +696,7 @@ pub async fn import_folder_dialog(
     app: tauri::AppHandle,
     dest_dir: String,
 ) -> Result<String, String> {
-    let dest_pb = std::path::PathBuf::from(&dest_dir);
-    check_in_roots(&app, &dest_dir)?;
+    let dest_pb = check_in_roots(&app, &dest_dir)?;
 
     let folder = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -729,8 +740,7 @@ pub(crate) fn copy_dir_recursive(
 /// Returns the chosen file name, or an error if cancelled.
 #[tauri::command]
 pub async fn replace_file(app: tauri::AppHandle, path: String) -> Result<String, String> {
-    let dest_pb = std::path::PathBuf::from(&path);
-    check_in_roots(&app, &path)?;
+    let dest_pb = check_in_roots(&app, &path)?;
 
     let src = tauri::async_runtime::spawn_blocking(|| {
         rfd::FileDialog::new()
@@ -754,14 +764,13 @@ pub async fn replace_file(app: tauri::AppHandle, path: String) -> Result<String,
 /// Reveals a file or folder in the OS file manager.
 #[tauri::command]
 pub async fn reveal_in_file_manager(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    check_in_roots(&app, &path)?;
+    let path = check_in_roots(&app, &path)?;
     #[cfg(target_os = "linux")]
     {
-        let p = std::path::PathBuf::from(&path);
-        let target = if p.is_file() {
-            p.parent().unwrap_or(&p).to_path_buf()
+        let target = if path.is_file() {
+            path.parent().unwrap_or(&path).to_path_buf()
         } else {
-            p
+            path.clone()
         };
         if portal::is_sandboxed() {
             // The sandbox path is a document-portal mount that the host can
@@ -784,7 +793,7 @@ pub async fn reveal_in_file_manager(app: tauri::AppHandle, path: String) -> Resu
         tauri::async_runtime::spawn_blocking(move || {
             #[cfg(target_os = "windows")]
             {
-                let dir_arg = format!("/select,{}", path);
+                let dir_arg = format!("/select,{}", path.display());
                 std::process::Command::new("explorer")
                     .arg(&dir_arg)
                     .spawn()
@@ -792,8 +801,7 @@ pub async fn reveal_in_file_manager(app: tauri::AppHandle, path: String) -> Resu
             }
             #[cfg(target_os = "macos")]
             {
-                let p = std::path::PathBuf::from(&path);
-                let res = if p.is_file() {
+                let res = if path.is_file() {
                     std::process::Command::new("open")
                         .arg("-R")
                         .arg(&path)
@@ -834,7 +842,7 @@ pub async fn save_data_image(
     // Validate the project root before doing any work. The path is then
     // constrained to `<project>/images/...` so the scoping is preserved
     // by construction even if `project_path` were a symlink to /etc.
-    check_in_roots(&app, &project_path)?;
+    let project_pb = check_in_roots(&app, &project_path)?;
 
     let remainder = &data_url[PREFIX.len()..];
     let (raw_ext, base64_payload) = remainder
@@ -863,7 +871,7 @@ pub async fn save_data_image(
         .decode(cleaned_b64)
         .map_err(|e| format!("Base64 invalide: {e}"))?;
 
-    let images_dir = std::path::Path::new(&project_path).join("images");
+    let images_dir = project_pb.join("images");
     std::fs::create_dir_all(&images_dir).map_err(|e| e.to_string())?;
 
     let ts = SystemTime::now()
