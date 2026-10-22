@@ -43,31 +43,16 @@ pub fn lang_from_env(val: Option<String>) -> &'static str {
     }
 }
 
-/// Checks whether a font family name is available on the system
-#[tauri::command]
-pub fn font_exists(name: String) -> bool {
-    use fontdb::{Database, Family, Query};
-
-    let mut db = Database::new();
-    load_fonts(&mut db);
-    db.query(&Query {
-        families: &[Family::Name(&name)],
-        ..Default::default()
-    })
-    .is_some()
-}
-
-/// Returns the closest matching font family name for a given input,
-/// using Levenshtein distance. Returns `None` if no close match is found
-/// (edit distance > 5 after normalisation).
-#[tauri::command]
-pub fn suggest_font(name: String) -> Option<String> {
+/// The system font family names, scanned once. `font_exists` and
+/// `suggest_font` share this list: loading the system fonts is expensive
+/// (done again on every `font_exists` call before this cache existed).
+fn system_families() -> &'static Vec<String> {
     use fontdb::Database;
     use std::collections::BTreeSet;
     use std::sync::OnceLock;
 
     static FAMILIES: OnceLock<Vec<String>> = OnceLock::new();
-    let families = FAMILIES.get_or_init(|| {
+    FAMILIES.get_or_init(|| {
         let mut set = BTreeSet::new();
         let mut db = Database::new();
         load_fonts(&mut db);
@@ -77,7 +62,22 @@ pub fn suggest_font(name: String) -> Option<String> {
             }
         }
         set.into_iter().collect()
-    });
+    })
+}
+
+/// Checks whether a font family name is available on the system
+#[tauri::command]
+pub fn font_exists(name: String) -> bool {
+    let name = name.trim().to_lowercase();
+    system_families().iter().any(|f| f.to_lowercase() == name)
+}
+
+/// Returns the closest matching font family name for a given input,
+/// using Levenshtein distance. Returns `None` if no close match is found
+/// (edit distance > 5 after normalisation).
+#[tauri::command]
+pub fn suggest_font(name: String) -> Option<String> {
+    let families = system_families();
 
     let normalise = |s: &str| s.to_lowercase().replace([' ', '-', '_'], "");
 
@@ -92,4 +92,21 @@ pub fn suggest_font(name: String) -> Option<String> {
         .filter(|(_, d)| *d <= 5)
         .min_by_key(|(_, d)| *d)
         .map(|(fam, _)| fam.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{font_exists, system_families};
+
+    /// The scan is shared: any family returned by `system_families` must be
+    /// answered "exists" by `font_exists`, whatever the system fonts are.
+    #[test]
+    fn font_exists_accepts_cached_family_names() {
+        let first = system_families().first().cloned();
+        let Some(name) = first else {
+            return; // a machine with no font at all cannot contradict the cache
+        };
+        assert!(font_exists(name));
+        assert!(!font_exists("\n no-such-font-\u{1F4A9}".to_string()));
+    }
 }
