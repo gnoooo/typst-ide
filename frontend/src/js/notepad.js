@@ -362,7 +362,7 @@ async function editNote(note) {
     });
 }
 
-function viewNote(note) {
+export function viewNote(note) {
     const locale = getLang() === 'fr' ? 'fr-FR' : 'en-US'
     const createdAt = new Date(note.created_at)
     const createdAtDate = createdAt.toLocaleDateString(locale, {

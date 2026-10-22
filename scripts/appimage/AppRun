@@ -9,7 +9,7 @@
 #     instead of the copy bundled inside the AppImage. The bundled WebKitGTK
 #     is built on the release base (Ubuntu 22.04) against that base's
 #     Mesa/GTK; mixing it with a newer host graphics stack breaks EGL/Wayland
-#     (blank preview, broken scrolling — tauri-apps/tauri#15665, #11988) and
+#     (blank preview, broken scrolling, cf. tauri-apps/tauri#15665, #11988) and
 #     forces GDK_BACKEND=x11, which breaks the preview following the cursor
 #     (tauri-apps/tauri#14427). Host WebKitGTK behaves exactly like the .deb.
 #

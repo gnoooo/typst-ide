@@ -85,7 +85,7 @@ async function checkFileSync() {
     }
 
     if (diskHash === _lastSavedHash) {
-        // Only our own pending autosave — not an external change
+        // Only our own pending autosave, not an external change
         setButtonsVisible(false);
         return;
     }

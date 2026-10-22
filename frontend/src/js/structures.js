@@ -43,7 +43,7 @@ export const STRUCT_ELEMENTS = [
               />
             </div>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">2 2</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">2 2</pre>
             </div>
           </div>
 
@@ -69,7 +69,7 @@ export const STRUCT_ELEMENTS = [
               </select>
             </div>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">0pt</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">0pt</pre>
             </div>
           </div>
 
@@ -84,7 +84,7 @@ export const STRUCT_ELEMENTS = [
               <option value="right">right</option>
             </select>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">left</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">left</pre>
             </div>
           </div>
 
@@ -99,7 +99,7 @@ export const STRUCT_ELEMENTS = [
               <option value="bottom">bottom</option>
             </select>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">top</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">top</pre>
             </div>
           </div>
           <p
@@ -108,6 +108,8 @@ export const STRUCT_ELEMENTS = [
           >More information...</p>
         </div>
       `;
+      // The font goes through the DOM style API, never interpolated into the innerHTML string.
+      body.querySelectorAll('pre').forEach(el => { el.style.fontFamily = getCurrentFontFamily(); });
       openModal({
         title: t('structures.insert_table'),
         body: body,
@@ -191,7 +193,7 @@ export const STRUCT_ELEMENTS = [
             />
           </div>
           <div class="flex-1 text-right min-w-0">
-            <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">1 1</pre>
+            <pre class="text-s whitespace-nowrap truncate opacity-50">1 1</pre>
           </div>
         </div>
 
@@ -217,7 +219,7 @@ export const STRUCT_ELEMENTS = [
             </select>
           </div>
           <div class="flex-1 text-right min-w-0">
-            <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">none</pre>
+            <pre class="text-s whitespace-nowrap truncate opacity-50">none</pre>
           </div>
         </div>
 
@@ -232,7 +234,7 @@ export const STRUCT_ELEMENTS = [
             <option value="right">right</option>
           </select>
           <div class="flex-1 text-right min-w-0">
-            <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">left</pre>
+            <pre class="text-s whitespace-nowrap truncate opacity-50">left</pre>
           </div>
         </div>
 
@@ -247,7 +249,7 @@ export const STRUCT_ELEMENTS = [
             <option value="bottom">bottom</option>
           </select>
           <div class="flex-1 text-right min-w-0">
-            <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">top</pre>
+            <pre class="text-s whitespace-nowrap truncate opacity-50">top</pre>
           </div>
         </div>
 
@@ -257,6 +259,7 @@ export const STRUCT_ELEMENTS = [
         >More information...</p>
       </div>
             `;
+      body.querySelectorAll('pre').forEach(el => { el.style.fontFamily = getCurrentFontFamily(); });
       openModal({
         title: t('structures.insert_grid'),
         body: body,
@@ -358,7 +361,7 @@ export const STRUCT_ELEMENTS = [
               </select>
             </div>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">auto auto</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">auto auto</pre>
             </div>
           </div>
 
@@ -384,7 +387,7 @@ export const STRUCT_ELEMENTS = [
               </select>
             </div>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">0pt</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">0pt</pre>
             </div>
           </div>
 
@@ -414,7 +417,7 @@ export const STRUCT_ELEMENTS = [
               class="w-8 h-8 text-base mb-2"
             />
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">1pt + black</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">1pt + black</pre>
             </div>
           </div>
 
@@ -439,7 +442,7 @@ export const STRUCT_ELEMENTS = [
               <option value="%">%</option>
             </select>
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">0pt</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">0pt</pre>
             </div>
           </div>
 
@@ -454,7 +457,7 @@ export const STRUCT_ELEMENTS = [
               style="opacity: 0.5;transition:0.2s;"
             />
             <div class="flex-1 text-right min-w-0">
-              <pre class="text-s whitespace-nowrap truncate opacity-50" style="font-family: ${getCurrentFontFamily()};">none</pre>
+              <pre class="text-s whitespace-nowrap truncate opacity-50">none</pre>
             </div>
           </div>
 
@@ -464,6 +467,7 @@ export const STRUCT_ELEMENTS = [
           >More information...</p>
         </div>
       `;
+      body.querySelectorAll('pre').forEach(el => { el.style.fontFamily = getCurrentFontFamily(); });
       const color_checkbox = body.querySelector('#structures-rect-checkbox-fill');
       const color_input = body.querySelector('#structures-rect-input-fillcolor');
       color_checkbox.addEventListener('change', () => {

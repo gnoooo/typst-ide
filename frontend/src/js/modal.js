@@ -101,8 +101,8 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
     });
     modal.appendChild(header);
 
-    // Body — `string` bodies are treated as plain text (auto-escaped,
-    // never interpreted as HTML). Use an HTMLElement to pass pre-built DOM.
+    // Body : `string` bodies are treated as plain text (auto-escaped, never interpreted as HTML).
+    // Use an HTMLElement to pass pre-built DOM.
     const bodyEl = document.createElement('div');
     bodyEl.className = 'ide-modal-body';
     if (typeof body === 'string') {

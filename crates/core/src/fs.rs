@@ -1,5 +1,4 @@
 /// Crash-safe file writing: never truncates an existing file in place.
-
 use std::{
     fs::File,
     io::{self, Write},

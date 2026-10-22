@@ -87,7 +87,7 @@ pub(crate) fn ensure_project_dir_allowed<R: tauri::Runtime>(
 /// Symlinks pointing outside the roots are rejected because `canonicalize`
 /// resolves them. Canonicalize failures (path does not exist yet) are
 /// tolerated only if the deepest *existing* ancestor resolves inside the
-/// roots — this defeats `projet/lien -> /etc` followed by a write to
+/// roots, this defeats `projet/lien -> /etc` followed by a write to
 /// `lien/x.txt` (the leaf doesn't exist, so a naive lexical prefix check
 /// would happily let the write through and create `/etc/x.txt`).
 pub fn assert_within(

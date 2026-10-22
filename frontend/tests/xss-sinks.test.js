@@ -2,131 +2,192 @@
  * tests/xss-sinks.test.js
  *  Adversarial inputs against the XSS sinks identified by the audit.
  *
- *  Each test builds the same DOM the app would, with payloads that
- *  previously executed as HTML. They MUST be rendered as inert text
- *  (or escaped attribute values). A handler or <script> tag surviving the
- *  build means an XSS regression.
+ *  These tests drive the REAL builders (openSources, openHistory,
+ *  viewHistoryEntry, viewNote, the STRUCT_ELEMENTS modal builders, openModal,
+ *  isValidFontFamily) over hostile data. That data MUST come out as inert
+ *  text (textContent / input.value / CSS style property). A surviving
+ *  `<script>`/`<img>` element or inline event attribute means an XSS
+ *  regression.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
+
+// editor.js pulls `monaco-editor` and top-level `localStorage`, unloadable
+// under node the whole module is mocked. A controlled getCurrentFontFamily()
+// doubles as the injection vector for the font-family interpolations
+// (structures.js) and the style.cssText sinks (sources/history/notepad).
+const malice = vi.hoisted(() => ({ font: '"><img src=x onerror=alert(1)><' }));
+vi.mock('../src/js/editor.js', () => ({
+  getEditor: () => null,
+  getCurrentFontFamily: () => malice.font,
+}));
 
 function setupDom() {
   const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
-  // jsdom's window is auto-set as global properties; nothing else to do.
-  return dom.window.document;
+  globalThis.window = dom.window;
+  globalThis.document = dom.window.document;
+  globalThis.HTMLElement = dom.window.HTMLElement;
+  globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 0);
+  globalThis.cancelAnimationFrame = (id) => clearTimeout(id);
+  const invoke = vi.fn(async () => null);
+  // The app modules destructure Tauri's core at module top-level.
+  dom.window.__TAURI__ = { core: { invoke } };
+  return { dom, doc: dom.window.document, invoke };
 }
 
-describe('XSS: history.js modal title and content', () => {
-  it('renders the history preview content as plain text', () => {
-    // We exercise the same code path the app does: openModal with a title
-    // and a body constructed with textContent.
-    const win = setupDom();
-    const title = 'bad" onmouseover=alert(1) "';
-    const content = '<script>alert(1)</script>';
-    const body = win.createElement('div');
-    body.textContent = content;
-    const titleEl = win.createElement('h2');
-    titleEl.textContent = title;
-    body.prepend(titleEl);
+// An executable element or inline handler surviving any builder means XSS.
+function assertNoExecutableMarkup() {
+  const doc = globalThis.document;
+  expect(doc.querySelector('script')).toBeNull();
+  expect(doc.querySelector('img:not(#structures-figure-preview-img)')).toBeNull();
+  expect(doc.querySelector('[onerror], [onmouseover], [onload]')).toBeNull();
+}
 
-    win.body.appendChild(body);
-    expect(win.body.innerHTML).not.toContain('<script>');
-    // The malicious attribute inside `title` is encoded as text by the parser.
-    expect(win.body.querySelector('h2').textContent).toBe(title);
-    expect(win.body.querySelector('h2').getAttribute('onmouseover')).toBeNull();
+const type = (el, dom, value) => { el.value = value; el.dispatchEvent(new dom.window.Event('input', { bubbles: true })); };
+const click = (el, dom) => el.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+
+// Modules freeze `window.__TAURI__.core` at first import: rebuild them for
+// every test so each one binds its own JSDOM window/invoke stub.
+afterEach(() => vi.resetModules());
+
+describe('XSS: bibliography source list (sources.js, real code)', () => {
+  const entry = {
+    cite_key: '"><img src=x onerror=alert(1)><',
+    entry_type: '@misc"<script>',
+    data: {
+      title: 'She said "hi"',
+      author: '<svg onload=alert(2)>',
+      field_with_quote: 'value"with"quotes',
+    },
+  };
+
+  it('leaves hostile .bib values inert (rendered via openSources)', async () => {
+    const { dom, doc, invoke } = setupDom();
+    invoke.mockImplementation(async (cmd) => (cmd === 'parse_bib_file' ? [entry] : null));
+    const { openSources } = await import('../src/js/bibliography/sources.js');
+    await openSources('test.bib');
+
+    assertNoExecutableMarkup();
+    // user data round-trips through the safe `.value` / `.textContent` sinks
+    expect(doc.querySelector('.cite-key-input').value).toBe(entry.cite_key);
+    expect(doc.querySelector('.entry-type-input').value).toBe(entry.entry_type);
+    expect(doc.querySelector('input[data-key="author"]').value).toBe('<svg onload=alert(2)>');
+    expect(doc.querySelector('input[data-key="field_with_quote"]').value).toBe('value"with"quotes');
+    // field keys render as text, never as markup
+    expect(doc.querySelector('#sources-list-container').textContent).toContain('title :');
+  });
+
+  it('search filter and empty state stay inert', async () => {
+    const { dom, doc, invoke } = setupDom();
+    invoke.mockImplementation(async (cmd) => (cmd === 'parse_bib_file' ? [entry] : null));
+    const { openSources } = await import('../src/js/bibliography/sources.js');
+    await openSources('test.bib');
+
+    const search = doc.querySelector('input[placeholder="source.search"]');
+    type(search, dom, 'she said');
+    assertNoExecutableMarkup();
+    expect(doc.querySelector('.cite-key-input').value).toBe(entry.cite_key);
+
+    type(search, dom, 'zzz-no-match');
+    expect(doc.querySelector('.cite-key-input')).toBeNull(); // empty-state path
+    assertNoExecutableMarkup();
   });
 });
 
-describe('XSS: bibliography sources builder (`.bib` data)', () => {
-  it('keeps cite_key / value / entry_type out of the DOM as HTML', () => {
-    const doc = setupDom();
-    const entry = {
-      cite_key: '"><img src=x onerror=alert(1)><',
-      entry_type: '@misc"<script>',
-      data: {
-        title: 'She said "hi"',
-        author: '<svg onload=alert(2)>',
-        field_with_quote: 'value"with"quotes',
-      },
-    };
-    // Reconstruct the way `rebuildSourcesList` now does it: createElement +
-    // textContent + dataset for keys; values set on input.value or
-    // option.textContent.
-    const entryEl = doc.createElement('div');
-    for (const [labelKey, value, extraClass] of [
-      ['cite_key', entry.cite_key,    'cite-key-input'],
-      ['type',     entry.entry_type, 'entry-type-input'],
-    ]) {
-      const input = doc.createElement('input');
-      input.className = `flex-1 ${extraClass}`;
-      input.value = String(value ?? '');
-      entryEl.appendChild(input);
-    }
-    for (const [k, v] of Object.entries(entry.data)) {
-      const input = doc.createElement('input');
-      input.value = String(v ?? '');
-      input.dataset.key = String(k ?? '');
-      entryEl.appendChild(input);
-    }
-    // Inject into the DOM and inspect.
-    doc.body.appendChild(entryEl);
-    const html = doc.body.innerHTML;
-    expect(html).not.toContain('<script>');
-    expect(html).not.toContain('onerror=');
-    expect(html).not.toContain('<svg');
-    // textContent round-trips:
-    const inputs = entryEl.querySelectorAll('input');
-    expect(inputs[0].value).toBe(entry.cite_key);
-    expect(inputs[1].value).toBe(entry.entry_type);
-    // data-key still set on inputs
-    const dataInputs = [...inputs].slice(2);
-    for (const inp of dataInputs) {
-      expect(typeof inp.dataset.key).toBe('string');
-    }
+describe('XSS: history builder (history.js, real code)', () => {
+  const entry = {
+    id: 'abc',
+    name: '<img src=x onerror=alert(1)>',
+    path: '"><script>alert(1)</script>',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-02T00:00:00Z',
+  };
+
+  it('escapes name and path in the list (built via openHistory)', async () => {
+    const { dom, doc, invoke } = setupDom();
+    invoke.mockImplementation(async (cmd) => (cmd === 'get_history' ? [entry] : null));
+    const { openHistory } = await import('../src/js/history.js');
+    await openHistory();
+
+    assertNoExecutableMarkup();
+    expect(doc.querySelector('.history-entry-btn-title').textContent).toBe(entry.name);
+    expect(doc.querySelector('.history-entry-btn-content').textContent).toBe(entry.path);
+
+    const search = doc.querySelector('input[placeholder="history.search"]');
+    type(search, dom, 'onerror');
+    expect(doc.querySelector('.history-entry-btn-title').textContent).toBe(entry.name);
+    type(search, dom, 'zzz-no-match');
+    expect(doc.querySelector('.history-entry')).toBeNull();
+    assertNoExecutableMarkup();
+  });
+
+  it('preview modal renders the project content as text (viewHistoryEntry)', async () => {
+    const { dom, doc, invoke } = setupDom();
+    const readFile = { content: '</textarea><script>alert(1)</script>' };
+    invoke.mockImplementation(async (cmd) => {
+      if (cmd === 'get_history') return [entry];
+      if (cmd === 'open_project') return readFile;
+      return null;
+    });
+    const { openHistory } = await import('../src/js/history.js');
+    await openHistory();
+
+    click(doc.querySelector('.view-history-entry-btn'), dom);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assertNoExecutableMarkup();
+    const preview = doc.querySelector('#note-preview-content');
+    expect(preview.textContent).toBe(readFile.content);
+    // the preview header is a static label; the hostile name/path never
+    // surface as markup (asserted above)
+    const titles = doc.querySelectorAll('.ide-modal-header h2');
+    expect(titles[titles.length - 1].textContent).toBe('history.preview_title');
   });
 });
 
-describe('XSS: history entries list builder', () => {
-  it('escapes name and path in entry list', () => {
-    const doc = setupDom();
-    const entry = {
-      id: 'abc',
-      name: '<img src=x onerror=alert(1)>',
-      path: '"><script>alert(1)</script>',
-    };
-    // Mirror the new createElement-based builder in history.js.
-    const entryEl = doc.createElement('div');
-    entryEl.className = 'history-entry';
-    const titleDiv = doc.createElement('div');
-    titleDiv.className = 'history-entry-btn-title';
-    titleDiv.textContent = String(entry.name ?? '');
-    entryEl.appendChild(titleDiv);
-    const pathDiv = doc.createElement('div');
-    pathDiv.className = 'history-entry-btn-content';
-    pathDiv.textContent = String(entry.path ?? '');
-    entryEl.appendChild(pathDiv);
-    doc.body.appendChild(entryEl);
+describe('XSS: notepad viewNote preview (notepad.js, real code)', () => {
+  it('renders note title and content as plain text', async () => {
+    const { dom, doc } = setupDom();
+    const { viewNote } = await import('../src/js/notepad.js');
+    await viewNote({
+      id: 'n1',
+      title: '<b>title</b>',
+      content: '</textarea><script>alert(1)</script>',
+      scope: 'global',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    });
 
-    const html = doc.body.innerHTML;
-    expect(html).not.toContain('<script>');
-    expect(html).not.toContain('<img');
-    // textContent gives back the original:
-    expect(titleDiv.textContent).toBe(entry.name);
-    expect(pathDiv.textContent).toBe(entry.path);
+    assertNoExecutableMarkup();
+    expect(doc.querySelector('#note-preview-content').textContent)
+      .toBe('</textarea><script>alert(1)</script>');
+    // the hostile title never becomes HTML: openModal renders titles as text
+    expect(doc.querySelector('.ide-modal-header h2').textContent).toBe('<b>title</b>');
+    expect(doc.querySelector('b')).toBeNull();
   });
 });
 
-describe('XSS: notepad view/edit builder', () => {
-  it('escapes note content in viewNote preview', () => {
-    const doc = setupDom();
-    const note = { title: '<b>title</b>', content: '</textarea><script>alert(1)</script>' };
-    // Mirror viewNote's preview body.
-    const contentDiv = doc.createElement('div');
-    contentDiv.id = 'note-preview-content';
-    contentDiv.textContent = String(note.content ?? '');
-    doc.body.appendChild(contentDiv);
-    expect(doc.body.innerHTML).not.toContain('<script>');
-    expect(contentDiv.textContent).toBe(note.content);
+describe('XSS: STRUCT_ELEMENTS font-family interpolation (structures.js)', () => {
+  it('builds every structure modal without executing the mocked font value', async () => {
+    const { dom, doc } = setupDom();
+    const { STRUCT_ELEMENTS } = await import('../src/js/structures.js');
+    const { closeTopModal } = await import('../src/js/modal.js');
+
+    const expectedPres = { table: 4, grid: 4, rect: 5, figure: 0 };
+    for (const item of STRUCT_ELEMENTS) {
+      item.openModal();
+      // the overlay appended last belongs to this call
+      const overlay = doc.body.lastElementChild;
+      expect(overlay.className).toBe('ide-modal-overlay');
+      assertNoExecutableMarkup();
+      // the templated <pre> blocks must all be present (font loop intact)
+      const pres = overlay.querySelectorAll('pre');
+      expect(pres.length).toBe(expectedPres[item.id]);
+      if (item.id === 'table') expect(pres[0].textContent).toBe('2 2');
+      if (item.id === 'grid') expect(pres[0].textContent).toBe('1 1');
+      if (item.id === 'rect') expect(pres[0].textContent).toBe('auto auto');
+      closeTopModal();
+    }
   });
 });
 
