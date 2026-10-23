@@ -90,7 +90,7 @@ describe('typst syntax grammar', () => {
         const { typstLanguage } = await loadGrammar();
         const lexer = compile('typst', toMonarchJson(typstLanguage));
         expect(Object.keys(lexer.tokenizer).sort()).toEqual([
-            'root', 'content', 'codeEOL', 'code', 'group', 'strong', 'emphasis',
+            'root', 'content', 'codeEOL', 'code', 'group',
             'math', 'rawInline', 'rawBlock', 'string', 'blockComment',
         ].sort());
     });
@@ -245,7 +245,7 @@ describe('typst syntax grammar', () => {
     });
 
     // Regression: after the group close of #ref(<fig2>) we land back in
-    // codeEOL on a bare `)`, which must end the #expr and resume markup —
+    // codeEOL on a bare `)`, which must end the #expr and resume markup -
     // previously the rest of the line stayed code-colored.
     it('resumes markup after a bare ) and colors <fig2> as a label', async () => {
         const tokens = await tokenize("(#ref(<fig2>)). Il y en a six parce que l'ADN est double brin.\n");
@@ -303,6 +303,57 @@ describe('typst syntax grammar', () => {
             ['operator', '=>'],
             ['source', ' '],
             ['variable', 'x'],
+        ]);
+    });
+
+    it('colors same-line else as markup and line-start else as keyword', async () => {
+        const tokens = await tokenize('#if x [y] else [z]\nelse [w]\n');
+        expect(tokens).toEqual([
+            ['keyword', '#if'],
+            ['source', ' '],
+            ['variable', 'x'],
+            ['source', ' '],
+            ['bracket', '['],
+            ['source', 'y'],
+            ['bracket', ']'],
+            ['source', ' else [z]'],
+            ['keyword', 'else'],
+            ['source', ' [w]'],
+        ]);
+    });
+
+    it('colors mid-line *strong* (boundary char eaten into the token)', async () => {
+        const tokens = await tokenize('something *bold* here_and_there\n');
+        expect(tokens).toEqual([
+            ['source', 'something'],
+            ['strong', ' *bold*'],
+            ['source', ' here_and_there'],
+        ]);
+    });
+
+    it('colors inline raw and keeps it open across lines', async () => {
+        const tokens = await tokenize('one `x` two\nunclosed `still\nraw`\nplain\n');
+        expect(tokens).toEqual([
+            ['source', 'one '],
+            ['raw', '`x`'],
+            ['source', ' two'],
+            ['source', 'unclosed '],
+            ['raw', '`still'],
+            ['raw', 'raw`'],
+            ['source', 'plain'],
+        ]);
+    });
+
+    it('colors labels with dots and colons, inline and in code', async () => {
+        const tokens = await tokenize('see <Fig.1:a-b_2>\nand #ref(<fig:base>)\n');
+        expect(tokens).toEqual([
+            ['source', 'see '],
+            ['label', '<Fig.1:a-b_2>'],
+            ['source', 'and '],
+            ['function', '#ref'],
+            ['bracket', '('],
+            ['label', '<fig:base>'],
+            ['bracket', ')'],
         ]);
     });
 });

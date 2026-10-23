@@ -13,29 +13,38 @@
  * - codeEOL  : code after a `#expr/#stmt`, ends at newline, `;`, `]` or a bare `)`
  * - code     : code inside `{ ... }` (nestable), newlines are transparent
  * - group    : code inside `(...)` (nestable), newlines are transparent
- * - strong   : content of *bold*; emph _italic_ mirrors it for `_`
  * - math     : content of $...$, uniform, may span lines
  * - rawBlock : raw text fenced with 3+ backticks (may span lines)
  * - rawInline: raw text after a single ` until the next `
  * - string   : "..." strings inside code (may span lines)
  * - blockComment : content of \/* ... *\/ (may span lines)
  *
+ * Monarch matches every rule on line.slice(cursor): rules cannot see text
+ * left of the cursor, so lookbehind cannot be used anywhere. Constructs
+ * that need left context use lookahead (lookahead is safe) or eat the
+ * boundary character into the token (strong/emphasis).
+ *
  * Order matters: the first rule that matches wins, like in the
  * TextMate grammar. Content blocks [...] exist only in code: `[` in markup
  * is a plain character. Global flag `unicode: true` adds `u` so \p{L}/\p{N}
- * classes match the full-range identifiers (first_line_indent, π, CJK).
+ * classes match the full-range identifiers (first_line_indent, pi, CJK).
  *
  * Assumed (documented) simplifications:
  * - `#let x = [a] + [b]` on ONE line: code highlighting stops after the
  *   first `]` (content pops straight to markup). Multi-line content blocks
- *   and `#(...)`/`{...}` scalene are handled exactly.
+ *   and `#(...)`/`{...}` scales are handled exactly.
+ * - strong/emphasis spans are single-line (`*bold*`, `_italic_`); the
+ *   word-boundary conditions use the eaten-boundary trick (as the previous
+ *   grammar did); `x*y a*b` without spaces stays uncolored.
  * - A raw-fence opener of any length >= 3 backticks closes on the first
  *   3+-backtick run (TextMate requires the same count).
  * - `#` inside math keeps math color; embedded code in math is not styled
  *   beyond the uniform math token (as in the official grammar).
+ * - `else` right after a `}`/`]` block on the SAME line stays markup: it
+ *   would need a lookbehind. A line-STARTING `else` is keyword-colored.
  *
  * Two tables to edit:
- * 1. RULES  : "when the text contains X, token is Y" — [regex, token] or
+ * 1. RULES  : "when the text contains X, token is Y" - [regex, token] or
  *    [regex, token, state-name]: the action `next` pushes the state.
  * 2. COLORS : "token Y has this color in light/dark theme"; a token without
  *    an entry keeps Monaco's default theme color.
@@ -45,11 +54,15 @@ import * as monaco from 'monaco-editor';
 
 // ## Markup rules (document body and content blocks) #######################
 
-const MARKUP_RULES = [
-    // Comments (before links so https://... stays out; the lookbehind makes
-    // the line-comment rule unable to match at the // of a URL)
+// Comments for every mode (markup, code, math); the lookbehind keeps the
+// line-comment rule away from the // of a URL
+const COMMENT_RULES = [
     [/\/\*/, 'comment', 'blockComment'],
     [/(?<!:)\/\/[^\n]*/, 'comment'],
+];
+
+const MARKUP_RULES = [
+    ...COMMENT_RULES,
 
     // Escape sequences: any of \/[]{}#*_=~`$-. or \u{hex}
     [/\\(?:[\\\/\[\]\{\}#*_=~`$.\-]|u\{[0-9a-zA-Z]*\}?)/, 'escape'],
@@ -65,15 +78,14 @@ const MARKUP_RULES = [
     // Symbol shorthands :alpha:
     [/:(?:[a-zA-Z0-9]+:)+/, 'symbol'],
 
-    // Strong *...* and emphasis _..._ open on word boundaries only: at the
-    // line start or after a non-word character, so first_line_indent or
-    // a*b*c in plain text stay plain. The delimiters keep highlighting in
-    // their own states (see `strong`/`emphasis` below), which allows spans
-    // over several lines like the official grammar.
-    [/^\*/, 'strong', 'strong'],
-    [/(?<=\W|_)\*/, 'strong', 'strong'],
-    [/^_/, 'emphasis', 'emphasis'],
-    [/(?<=\W|_)_/, 'emphasis', 'emphasis'],
+    // Strong *bold* and emphasis _italic_, matched as ONE token. The closer
+    // needs a word boundary to its right (lookahead = safe); the opening
+    // boundary char (space etc.) is eaten into the token because Monarch
+    // cannot look behind the cursor. `{1,2}` allows *really bold*.
+    [/^\*{1,2}[^*\n]+\*{1,2}(?=[\W_]|$)/, 'strong'],
+    [/[\W_]\*{1,2}[^*\n]+\*{1,2}(?=[\W_]|$)/, 'strong'],
+    [/^_{1,2}[^_\n]+_{1,2}(?=[\W_]|$)/, 'emphasis'],
+    [/[\W_]_{1,2}[^_\n]+_{1,2}(?=[\W_]|$)/, 'emphasis'],
 
     // Links (before comments in the original order... kept here for parity)
     [/https?:\/\/[0-9a-zA-Z~\/%#&=',;.+\?]*/, 'link'],
@@ -94,11 +106,13 @@ const MARKUP_RULES = [
     [/^\s*\/\s+[^:\n]*:/, 'punctuation'],
 
     // Labels <name> and references @name (markup only, Unicode identifiers)
-    [/<[\p{L}_][\p{L}\p{N}_-]*>/, 'label'],
+    [/<[\p{L}_][\p{L}\p{N}.:\-_]*>/, 'label'],
     [/@[\p{L}_][\p{L}\p{N}_-]*/, 'reference'],
 
-    // "else" replayed without # right after a }/]-block
-    [/(?<=(?:\}|\])\s*)else\b/, 'keyword'],
+    // "else" after a }/]-block is only spottable at the line start
+    // (Monarch cannot look behind the cursor); on the same line as the
+    // block it stays plain markup - documented simplification
+    [/^\s*else\b/, 'keyword'],
 
     // Statements in code mode after # (ended by ; or newline)
     [/#(?:let|set|show|context|as|in|if|for|while|break|continue|import|include|export|return)\b/, 'keyword', 'codeEOL'],
@@ -115,9 +129,7 @@ const MARKUP_RULES = [
 // them legal there, per the official parser).
 
 const CODE_RULES = [
-    // Comments
-    [/\/\*/, 'comment', 'blockComment'],
-    [/\/\/[^\n]*/, 'comment'],
+    ...COMMENT_RULES,
 
     // Strings "..." (may span lines), math $...$
     [/"/, 'string', 'string'],
@@ -129,15 +141,15 @@ const CODE_RULES = [
     [/\[/, 'bracket', 'content'],
 
     // Labels <name> survive in embedded code, like the official grammar
-    [/<[\p{L}_][\p{L}\p{N}_-]*>/, 'label'],
+    [/<[\p{L}_][\p{L}\p{N}.:\-_]*>/, 'label'],
 
-    // Operators, official order (longest first); a bare - keeps identifiers
-    // with dashes intact: x-1 is one identifier, 2-3 is subtraction
+    // Operators, official order (longest first); a bare - is the
+    // subtraction operator (identifier-with-dash context can't be checked:
+    // lookbehind-free, so `x-1` colors the dash as an operator, cosmetic)
     [/=>|\.\./, 'operator'],
     [/==|!=|<=|<|>=|>/, 'operator'],
     [/\+=|-=|\*=|\/=|=/, 'operator'],
-    [/\+|\*|\//, 'operator'],
-    [/(?<![\p{L}_][\p{L}\p{N}_-]*)-(?![\p{L}\p{N}_-]*[\p{L}_])/, 'operator'],
+    [/\+|\*|\/|-/, 'operator'],
 
     // Word operators and keywords
     [/\b(?:and|or|not)\b/, 'operator'],
@@ -150,8 +162,6 @@ const CODE_RULES = [
 
     // Function name before a call ([ or ( follows)
     [/\b(?:[\p{L}_][\p{L}\p{N}_-]*)!?(?=\[|\()/, 'function'],
-    // rewrite target after `show`: show heading: ...
-    [/(?<=\bshow\s*)[\p{L}_][\p{L}\p{N}_-]*(?=\s*[:.])/, 'variable'],
     // named argument / dict key before the colon (`rows`)
     [/\b(?:[\p{L}_][\p{L}\p{N}_-])+\s*(?=:)/, 'variable'],
     // generic identifier
@@ -198,35 +208,12 @@ const tokenizer = {
         ...CODE_RULES,
     ],
 
-    // Strong/Ehm after the opening delimiter; closes on the same word-
-    // boundary conditions, at the end of the line or before a `]`
-    strong: [
-        [/\*(?=\W|_|\n|$)/, 'strong', '@pop'],
-        [/(?<=\W|_)\*/, 'strong', '@pop'],
-        [/^\*/, 'strong', '@pop'],
-        [/(?=\])/, '', '@pop'],
-        [/\*/, 'strong'],
-        [/[^*\n]+/, 'strong'],
-        [/\n/, 'strong', '@pop'],
-    ],
-
-    emphasis: [
-        [/_(?=\W|_|\n|$)/, 'emphasis', '@pop'],
-        [/(?<=\W|_)_/, 'emphasis', '@pop'],
-        [/^_/, 'emphasis', '@pop'],
-        [/(?=\])/, '', '@pop'],
-        [/_/, 'emphasis'],
-        [/[^_\n]+/, 'emphasis'],
-        [/\n/, 'emphasis', '@pop'],
-    ],
-
     // Math content: monochrome, may span lines; comments visible (official
     // lexer allows them in all modes)
     math: [
         [/\\\$/, 'math'],
         [/\$/, 'math', '@pop'],
-        [/\/\*/, 'comment', 'blockComment'],
-        [/\/\/[^\n]*/, 'comment'],
+        ...COMMENT_RULES,
         [/[^$\\\n]+/, 'math'],
         [/\\/, 'math'],
         [/\n/, 'math'],
