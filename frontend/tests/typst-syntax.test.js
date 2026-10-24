@@ -3,9 +3,9 @@
 // Runs in node: the grammar module is loaded without its `monaco-editor`
 // import line, and the real Monarch tokenizer is built on top of the same
 // monaco-editor sources as in the app, with the few services it needs stubbed.
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -16,13 +16,25 @@ const { MonarchTokenizer } = require('../node_modules/monaco-editor/esm/vs/edito
 const { compile } = require('../node_modules/monaco-editor/esm/vs/editor/standalone/common/monarch/monarchCompile.js');
 
 // Load the grammar with its monaco import stripped (browser-only in node).
+// The temp module is built once and reused for every tokenize() call (a fresh
+// mkdtemp per call leaked ~20 dirs per run); afterAll deletes the one we make.
+let grammarDir = null;
+let grammarModule = null;
 async function loadGrammar() {
-    const path = new URL('../src/js/typst-syntax.js', import.meta.url);
-    const source = readFileSync(path, 'utf8').replace(/^import \* as monaco.*\n/m, '');
-    const file = join(mkdtempSync(join(tmpdir(), 'typst-grammar-')), 'typst-syntax.mjs');
-    writeFileSync(file, source);
-    return import(pathToFileURL(file).href);
+    if (!grammarModule) {
+        const path = new URL('../src/js/typst-syntax.js', import.meta.url);
+        const source = readFileSync(path, 'utf8').replace(/^import \* as monaco.*\n/m, '');
+        grammarDir = mkdtempSync(join(tmpdir(), 'typst-grammar-'));
+        const file = join(grammarDir, 'typst-syntax.mjs');
+        writeFileSync(file, source);
+        grammarModule = import(pathToFileURL(file).href);
+    }
+    return grammarModule;
 }
+
+afterAll(() => {
+    if (grammarDir) rmSync(grammarDir, { recursive: true, force: true });
+});
 
 function toMonarchJson(language) {
     return {
@@ -353,6 +365,59 @@ describe('typst syntax grammar', () => {
             ['function', '#ref'],
             ['bracket', '('],
             ['label', '<fig:base>'],
+            ['bracket', ')'],
+        ]);
+    });
+
+    it('colors long references with dots and colons', async () => {
+        const tokens = await tokenize('see @Fig.1:a-b now\n');
+        expect(tokens).toEqual([
+            ['source', 'see '],
+            ['reference', '@Fig.1:a-b'],
+            ['source', ' now'],
+        ]);
+    });
+
+    it('colors comments inside math (typst has comments in every mode)', async () => {
+        const tokens = await tokenize('math $a b // c $\nmore\n');
+        expect(tokens).toEqual([
+            ['source', 'math '],
+            ['math', '$a b '],
+            ['comment', '// c $'],
+            ['variable', 'more'],
+        ]);
+    });
+
+    it('colors strings inside math (typst colors them as strings there too)', async () => {
+        const tokens = await tokenize('math $a "hi" b$');
+        expect(tokens).toEqual([
+            ['source', 'math '],
+            ['math', '$a '],
+            ['string', '"hi"'],
+            ['math', ' b$'],
+        ]);
+    });
+
+    it('colors multi-letter math words, single letters stay uniform', async () => {
+        const tokens = await tokenize('math $lim f(x) x$');
+        expect(tokens).toEqual([
+            ['source', 'math '],
+            ['math', '$'],
+            ['variable', 'lim'],
+            ['math', ' f(x) x$'],
+        ]);
+    });
+
+    it('colors unclosed labels as errors, like the typst lexer', async () => {
+        const tokens = await tokenize('see <fig now\nand #ref(<fig:base)\n');
+        expect(tokens).toEqual([
+            ['source', 'see '],
+            ['error', '<fig'],
+            ['source', ' now'],
+            ['source', 'and '],
+            ['function', '#ref'],
+            ['bracket', '('],
+            ['error', '<fig:base'],
             ['bracket', ')'],
         ]);
     });
