@@ -1,0 +1,39 @@
+/* #################################################################
+   4. Navbar
+   ################################################################# */
+.navbar {
+    display: flex;
+    align-items: center;
+    background: var(--bg-navbar);
+    height: 35px;
+    flex-shrink: 0;
+    padding: 0 8px;
+    gap: 4px;
+    user-select: none;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-navbar);
+    padding: 0 8px;
+    white-space: nowrap;
+}
+
+#title-typst {
+    font-family: var(--font-brand-serif);
+    font-weight: bold;
+    font-size: 18px;
+}
+
+#title-ide {
+    font-family: var(--font-brand-mono);
+    font-size: 14px;
+}
+
+.navbar-menu {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 2px;
+}

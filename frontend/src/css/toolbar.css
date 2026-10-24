@@ -1,0 +1,241 @@
+/* #################################################################
+   6. Tool Buttons
+   ################################################################# */
+.tool-btn {
+    font-family: "Inter";
+    background: var(--btn-tool);
+    border: 1px solid var(--border);
+    color: var(--btn-tool-text);
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    transition-duration: var(--transition-med);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.tool-btn:focus,
+.tool-btn:hover {
+    background: var(--btn-tool-hover);
+}
+
+.tool-btn:active {
+    transform: scale(0.97);
+}
+
+.tool-btn.active {
+    background: var(--btn-tool-hover);
+    box-shadow: inset 0 0 0 2px var(--color-link);
+}
+
+.tool-btn.active:hover {
+    background: var(--btn-tool-hover);
+    box-shadow: inset 0 0 0 2px var(--color-link);
+}
+
+.btn-group .tool-btn {
+    border: none;
+    border-radius: 0;
+}
+
+/*  External file change indicator  */
+#file-sync-group[hidden] {
+    display: none;
+}
+
+#file-sync-group {
+    display: flex;
+    align-items: stretch;
+}
+
+#file-sync-group .file-sync-btn {
+    color: var(--info-text);
+    padding: 2px 8px 0 8px;
+}
+
+#file-sync-group .file-sync-btn:hover {
+    background: var(--btn-tool-hover);
+}
+
+#file-sync-group .material-symbols-outlined {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+#file-sync-save-btn {
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+#file-sync-reload-btn {
+    border: 1px solid var(--border);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/*  Unsaved indicator  */
+@keyframes unsavedBlink {
+    0%,
+    100% {
+        background-color: transparent;
+        color: var(--text-unsaved-blink);
+    }
+    50% {
+        background-color: var(--bg-unsaved-blink);
+        border-color: var(--text-unsaved-blink);
+        color: var(--text-unsaved-blink);
+    }
+}
+
+._unsaved-blinking {
+    animation: unsavedBlink 2s infinite;
+}
+._unsaved-blinking:hover {
+    animation-play-state: paused;
+}
+._unsaved-btn-none {
+    display: none;
+}
+
+#unsaved-btn {
+    padding: 2px 6px 0 6px;
+}
+#unsaved-icon {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+/*  Open project indicator  */
+@keyframes openProjectBlink {
+    0%,
+    100% {
+        background-color: transparent;
+        color: var(--text-open-project-blink);
+    }
+    50% {
+        background-color: var(--bg-open-project-blink);
+        border-color: var(--text-open-project-blink);
+        color: var(--text-open-project-blink);
+    }
+}
+
+._open-project-blinking {
+    animation: openProjectBlink 2s infinite;
+}
+._open-project-blinking:hover {
+    animation-play-state: paused;
+}
+._open-project-btn-none {
+    display: none;
+}
+
+#open-project-btn {
+    padding: 2px 6px 0 6px;
+}
+#open-project-icon {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+#notepad-btn {
+    padding: 2px 6px 0 6px;
+}
+#notepad-icon {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+#comment-book-btn {
+    padding: 2px 6px 0 6px;
+}
+#comment-book-icon {
+    font-size: 19px;
+    text-align: center;
+    margin: 0 auto;
+}
+
+/*  Bold / Italic / Underline group  */
+#bold-btn {
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+    border-left: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+#italic-btn {
+    font-style: italic;
+    font-size: 15px;
+    border: 1px solid var(--border);
+}
+
+#underline-btn {
+    text-decoration: underline;
+    font-size: 15px;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    border-right: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+#structures-btn {
+    font-size: 15px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--btn-tool);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 6px;
+}
+#structures-btn-icon {
+    font-size: 18px;
+    margin-right: -6px;
+    transition: 0.2s;
+}
+.structures-btn-icon-rotate {
+    transform: rotate(90deg);
+}
+.menu-item .dropdown .structures-dropdown-item button {
+    font-weight: 600;
+    background: var(--bg-hover-soft);
+    margin: 3px 6px;
+    border-radius: 4px;
+}
+.menu-item .dropdown .structures-dropdown-item button:hover {
+    background: var(--bg-hover-strong);
+}
+.structures-dropdown-item button {
+    transition: 0.2s
+}
+.structures-input-label {
+    font-size: 1.05em;
+    font-weight: 500;
+}
+#structures-grid-modal div input {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding-inline: 4px;
+}
+
+/* Bouton compact aligné sur la hauteur des inputs des modales structures (h-8 = 32px) */
+.structures-inline-btn {
+    height: 32px;
+    min-height: 32px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}

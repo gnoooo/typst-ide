@@ -1,0 +1,39 @@
+/* #################################################################
+   3. App Layout
+   ################################################################# */
+.app-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 0 8px;
+}
+
+.toolbar-row {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* Fix the 3 zones of the toolbar explicitly so they never reflow:
+   the right action buttons stay pinned to the right edge even when the
+   center zoom panel is hidden (external preview mode). */
+div.toolbar-row > span {
+    grid-column: 1;
+    min-width: 0;
+}
+
+#preview-zoom-panel {
+    grid-column: 2;
+    justify-self: center;
+}
+
+#preview-manage-btn {
+    grid-column: 3;
+    justify-self: end;
+}
+
+div.toolbar-row > span,
+div.toolbar-row > #preview-manage-btn{
+  gap: 3px;
+}

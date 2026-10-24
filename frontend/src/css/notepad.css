@@ -1,0 +1,88 @@
+/* #################################################################
+   8. Notepad Cards
+   ################################################################# */
+.note-btn {
+    border-radius: var(--radius-sm);
+    background-color: var(--btn-tool);
+    border: 1.6px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+    padding: 2px 6px;
+    transition: var(--transition-med);
+}
+
+.note-btn:hover {
+    background: var(--btn-tool-hover);
+}
+
+.note-btn-title {
+    font-size: 16px;
+    font-weight: bold;
+    text-align: start;
+}
+
+.note-btn-content {
+    font-size: 12px;
+    text-align: start;
+    margin-top: 2px;
+    margin-left: 8px;
+    white-space: pre-wrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Shared note-action button base */
+.delete-note-btn,
+.edit-note-btn,
+.view-note-btn {
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-med);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.delete-note-btn {
+    color: var(--error-text);
+}
+.edit-note-btn {
+    color: var(--warning-text);
+}
+.view-note-btn {
+    color: var(--info-text);
+}
+
+.delete-note-btn:hover {
+    background-color: var(--error-text);
+    color: var(--btn-contrast-text);
+}
+.edit-note-btn:hover {
+    background-color: var(--warning-text);
+    color: var(--btn-contrast-text);
+}
+.view-note-btn:hover {
+    background-color: var(--info-text);
+    color: var(--btn-contrast-text);
+}
+
+.delete-note-icon,
+.edit-note-icon,
+.view-note-icon {
+    font-size: 20px;
+}
+
+#note-preview-content {
+    background-color: var(--btn-tool-hover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    margin-top: 8px;
+    padding: 8px 16px;
+    white-space: pre-wrap;
+    font-size: 13px;
+}

@@ -1,0 +1,61 @@
+/*  Zoom panel  */
+#preview-zoom-panel {
+    font-weight: 500;
+    background: var(--btn-tool);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+    display: flex;
+    align-items: stretch;
+}
+
+#zoom-preview-out-btn,
+#zoom-preview-in-btn {
+    font-size: 16px;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+#zoom-preview-out-btn {
+    border-right: 1px solid var(--border);
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+#zoom-preview-in-btn {
+    border-left: 1px solid var(--border);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+#zoom-preview-input {
+    text-align: center;
+    border: none;
+}
+
+#zoom-display {
+    padding: 0 0.8vw;
+}
+
+/* Hide number spinners */
+#zoom-preview-input::-webkit-outer-spin-button,
+#zoom-preview-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+#zoom-preview-input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+/*  Theme toggle  */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.theme-toggle input {
+    display: none;
+}

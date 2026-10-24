@@ -1,0 +1,189 @@
+/* #################################################################
+   5. Dropdown Menus
+   ################################################################# */
+.menu-item {
+    position: relative;
+}
+
+.menu-trigger {
+    background: none;
+    border: none;
+    color: var(--text-navbar);
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 13px;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
+.menu-trigger:hover,
+.menu-item.open > .menu-trigger {
+    background: var(--bg-hover);
+}
+
+.dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 2px);
+    left: 0;
+    background: var(--bg-dropdown);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    /* Large enough for label + shortcut kbd clusters (e.g. ctrl alt M). */
+    min-width: 300px;
+    max-width: calc(100vw - 24px);
+    z-index: 1000;
+    list-style: none;
+    padding: 4px 0;
+}
+
+.menu-item.open .dropdown {
+    display: block;
+}
+
+.dropdown li {
+    display: flex;
+}
+
+.dropdown li button,
+.dropdown li label.menu-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text);
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+    gap: 16px;
+    /* Labels + kbd clusters must never wrap. */
+    white-space: nowrap;
+}
+
+.dropdown li button:hover,
+.dropdown li label.menu-label:hover {
+    background: var(--accent-hover);
+    transition-duration: var(--transition-med);
+}
+
+.dropdown kbd {
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+    margin-left: auto;
+    padding: 0 2px;
+    box-shadow: var(--shadow-kbd);
+}
+
+.dropdown .separator {
+    /* The li would otherwise inherit `display: flex` from `.dropdown li`.
+       A 2px-tall box with a centred 1px line keeps the separator visible even
+       at fractional zoom factors (Tauri webview zoom) where a plain 1px
+       element can fall onto a half-pixel boundary and be dropped. */
+    display: block;
+    height: 2px;
+    background: linear-gradient(
+        transparent 0 0.5px,
+        var(--border) 0.5px 1.5px,
+        transparent 1.5px
+    );
+    margin: 4px 0;
+    pointer-events: none;
+}
+
+.dropdown .menu-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    width: 100%;
+    transition-duration: var(--transition-med);
+}
+
+.dropdown .menu-checkbox:hover {
+    background: var(--accent);
+}
+
+.dropdown .menu-checkbox .checkbox-box {
+    position: relative;
+    display: flex;
+    flex-shrink: 0;
+}
+
+.dropdown .menu-checkbox input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dropdown .menu-checkbox input[type="checkbox"]:hover {
+    border-color: var(--text-muted);
+}
+
+.dropdown .menu-checkbox input[type="checkbox"]:checked {
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.dropdown .menu-checkbox .checkbox-check {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--text-navbar);
+    pointer-events: none;
+}
+
+.dropdown .menu-checkbox input[type="checkbox"]:checked + .checkbox-check {
+    display: flex;
+}
+
+/* Error badge on the "Console" menu item */
+.console-label-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.console-error-badge {
+    color: var(--error-text);
+    font-size: 8px;
+    line-height: 1;
+}
+
+/* Submenu (flyout) */
+.dropdown .submenu {
+    position: relative;
+}
+
+.dropdown .submenu .dropdown {
+    display: none;
+    position: absolute;
+    top: -5px;
+    left: 100%;
+    min-width: 160px;
+    margin-left: -1px;
+}
+
+.dropdown .submenu:hover .dropdown,
+.dropdown .submenu:focus-within .dropdown {
+    display: block;
+}
