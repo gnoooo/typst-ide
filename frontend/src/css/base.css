@@ -11,17 +11,17 @@
 
 @font-face {
     font-family: "Inter";
-    src: url("../fonts/InterVariable.ttf") format("truetype");
+    src: url("./fonts/InterVariable.ttf") format("truetype");
 }
 @font-face {
     font-family: "Libertinus Serif Bold";
-    src: url("../fonts/LibertinusSerif-Bold.ttf") format("truetype");
+    src: url("./fonts/LibertinusSerif-Bold.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
 }
 @font-face {
     font-family: "Liberation Mono Bold";
-    src: url("../fonts/LiberationMono-Bold.ttf") format("truetype");
+    src: url("./fonts/LiberationMono-Bold.ttf") format("truetype");
     font-weight: normal;
     font-style: normal;
 }
