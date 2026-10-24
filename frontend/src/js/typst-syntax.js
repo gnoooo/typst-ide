@@ -13,7 +13,7 @@
  * - codeEOL  : code after a `#expr/#stmt`, ends at newline, `;`, `]` or a bare `)`
  * - code     : code inside `{ ... }` (nestable), newlines are transparent
  * - group    : code inside `(...)` (nestable), newlines are transparent
- * - math     : content of $...$, uniform, may span lines
+ * - math     : content of $...$; strings/words/comments styled, may span lines
  * - rawBlock : raw text fenced with 3+ backticks (may span lines)
  * - rawInline: raw text after a single ` until the next `
  * - string   : "..." strings inside code (may span lines)
@@ -38,8 +38,10 @@
  *   grammar did); `x*y a*b` without spaces stays uncolored.
  * - A raw-fence opener of any length >= 3 backticks closes on the first
  *   3+-backtick run (TextMate requires the same count).
- * - `#` inside math keeps math color; embedded code in math is not styled
- *   beyond the uniform math token (as in the official grammar).
+ * - `#` inside math keeps math color (the real lexer would enter code
+ *   there); strings, multi-char words and comments ARE styled inside math
+ *   (grounded in the math dispatch of the official lexer: MathIdent for
+ *   2+ char identifiers, MathLetter for single letters, `"` => string).
  * - `else` right after a `}`/`]` block on the SAME line stays markup: it
  *   would need a lookbehind. A line-STARTING `else` is keyword-colored.
  *
@@ -54,11 +56,12 @@ import * as monaco from 'monaco-editor';
 
 // ## Markup rules (document body and content blocks) #######################
 
-// Comments for every mode (markup, code, math); the lookbehind keeps the
-// line-comment rule away from the // of a URL
+// Comments for every mode (markup, code, math). No URL guard on the
+// line-comment rule: the link rule matches at the `h` first, and the real
+// lexer has no special check either (so file:// is a comment there too)
 const COMMENT_RULES = [
     [/\/\*/, 'comment', 'blockComment'],
-    [/(?<!:)\/\/[^\n]*/, 'comment'],
+    [/\/\/[^\n]*/, 'comment'],
 ];
 
 const MARKUP_RULES = [
@@ -105,9 +108,13 @@ const MARKUP_RULES = [
     [/^\s*(?:[0-9]*\.|\+)\s+/, 'punctuation'],
     [/^\s*\/\s+[^:\n]*:/, 'punctuation'],
 
-    // Labels <name> and references @name (markup only, Unicode identifiers)
-    [/<[\p{L}_][\p{L}\p{N}.:\-_]*>/, 'label'],
-    [/@[\p{L}_][\p{L}\p{N}_-]*/, 'reference'],
+    // Labels <name> and references @name (markup only, Unicode identifiers;
+    // a label may START with any id-continue char, digit/dash included; the
+    // real ref end-uneats trailing ./:, an approximation keeps them here)
+    [/<[\p{L}\p{N}_\-][\p{L}\p{N}.:\-_]*>/, 'label'],
+    // unclosed label: error, like the real lexer
+    [/<[\p{L}\p{N}_\-][\p{L}\p{N}.:\-_]*/, 'error'],
+    [/@[\p{L}\p{N}_\-][\p{L}\p{N}.:\-_]*/, 'reference'],
 
     // "else" after a }/]-block is only spottable at the line start
     // (Monarch cannot look behind the cursor); on the same line as the
@@ -141,7 +148,9 @@ const CODE_RULES = [
     [/\[/, 'bracket', 'content'],
 
     // Labels <name> survive in embedded code, like the official grammar
-    [/<[\p{L}_][\p{L}\p{N}.:\-_]*>/, 'label'],
+    [/<[\p{L}\p{N}_\-][\p{L}\p{N}.:\-_]*>/, 'label'],
+    // unclosed label (no > later on the line): error, like the real lexer
+    [/<[\p{L}\p{N}_\-][\p{L}\p{N}.:\-_]*/, 'error'],
 
     // Operators, official order (longest first); a bare - is the
     // subtraction operator (identifier-with-dash context can't be checked:
@@ -208,13 +217,19 @@ const tokenizer = {
         ...CODE_RULES,
     ],
 
-    // Math content: monochrome, may span lines; comments visible (official
-    // lexer allows them in all modes)
+    // Math content, may span lines. Comments visible (official lexer allows
+    // them in all modes, the fast-run excludes / and " so they match);
+    // strings and words styled like the official math dispatch: 2+ char
+    // identifiers (MathIdent) get the variable color, single letters
+    // (MathLetter) keep the math color
     math: [
         [/\\\$/, 'math'],
         [/\$/, 'math', '@pop'],
         ...COMMENT_RULES,
-        [/[^$\\\n]+/, 'math'],
+        [/"/, 'string', 'string'],
+        [/[\p{L}][\p{L}\p{N}]+/, 'variable'],
+        [/[\p{L}]/, 'math'],
+        [/[^$\\\n\/"\p{L}]+/, 'math'],
         [/\\/, 'math'],
         [/\n/, 'math'],
     ],
@@ -281,6 +296,7 @@ const COLORS = {
     operator:     { light: '#7a3e9d', dark: '#d4d4d4' },
     constant:     { light: '#986801', dark: '#d19a66' },
     number:       { light: '#986801', dark: '#d19a66' },
+    error:        { light: '#d32f2f', dark: '#F07178' },
 };
 
 // ## Registration #########################################################

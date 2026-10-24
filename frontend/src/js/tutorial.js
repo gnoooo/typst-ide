@@ -107,7 +107,7 @@ async function showStep(index) {
     source,
   );
   document.querySelector(".tut-content")?.scrollTo({ top: 0 });
-  document.title = `${t("tutorial.title")} — ${String(step.num ?? _index + 1).padStart(2, "0")} ${step.label}`;
+  document.title = `${t("tutorial.title")} : ${String(step.num ?? _index + 1).padStart(2, "0")} ${step.label}`;
   renderSidebar();
   updateNav();
   window.location.hash = `${STEP_HASH_PREFIX}${_index + 1}`;

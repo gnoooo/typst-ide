@@ -321,7 +321,7 @@ fn assert_within_rejects_symlinks_escaping_the_root() {
     );
 
     // Non-existent leaf deeper than the symlink: the deepest existing
-    // ancestor is the symlink, resolving /outside — reject the write.
+    // ancestor is the symlink, resolving /outside, reject the write.
     let future = crate::commands::fs::assert_within(&link.join("not-there.txt"), &roots);
     assert!(
         future.is_err(),

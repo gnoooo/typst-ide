@@ -443,7 +443,7 @@ cmd_test() {
   case "$cible" in
     front|all)
       command -v npm >/dev/null 2>&1 || die "npm introuvable"
-      [ -d "$REPO_ROOT/frontend/node_modules" ] || die "frontend/node_modules absent — lance npm install dans frontend/"
+      [ -d "$REPO_ROOT/frontend/node_modules" ] || die "frontend/node_modules absent -> lance npm install dans frontend/"
       ( cd "$REPO_ROOT/frontend" && npm test ) && echo "    tests front: ${GREEN}OK (tout passe)${NC}" || die "    tests front ont échoué"
       ;;
   esac
