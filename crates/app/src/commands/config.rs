@@ -24,6 +24,7 @@ use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
 use base64::Engine as _;
+use tauri::Manager;
 
 use super::templates::{templates_root, validate_template_name};
 use crate::state::{HistoryDbState, NotesDbState};
@@ -99,6 +100,52 @@ pub async fn import_config() -> Result<Option<String>, String> {
 
     let content = std::fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))?;
     Ok(Some(content))
+}
+
+/// Reads the optional user color scheme (`theme.json` in the app config
+/// directory, e.g. `~/.config/com.typst.ide/theme.json`).
+/// Returns `Ok(None)` when the file does not exist; content validation is done
+/// by the frontend.
+#[tauri::command]
+pub fn load_color_scheme(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    const MAX_THEME_BYTES: u64 = 1024 * 1024;
+
+    let path = app
+        .path()
+        .app_config_dir()
+        .map_err(|e| e.to_string())?
+        .join("theme.json");
+
+    let meta = match std::fs::metadata(&path) {
+        Ok(meta) => meta,
+        // Pas de fichier utilisateur : on laisse le thème par défaut au frontend.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    };
+
+    if meta.len() > MAX_THEME_BYTES {
+        return Err(format!(
+            "Le schéma de couleurs est trop volumineux ({} octets, maximum {MAX_THEME_BYTES}) : {}",
+            meta.len(),
+            path.display()
+        ));
+    }
+
+    std::fs::read_to_string(&path)
+        .map(Some)
+        .map_err(|e| format!("{}: {e}", path.display()))
+}
+
+/// Writes the generated default color scheme to `theme.json`. Called at every
+/// launch so the file always mirrors the built-in palette; it is a reference
+/// for users, not a setting.
+#[tauri::command]
+pub fn save_color_scheme(app: tauri::AppHandle, payload: String) -> Result<(), String> {
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+
+    let path = dir.join("theme.json");
+    std::fs::write(&path, payload).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Collects everything the export file will contain: notes, history entries

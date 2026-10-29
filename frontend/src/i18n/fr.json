@@ -36,6 +36,7 @@
   "menu.tutorial": "Ouvrir le tutoriel",
   "menu.export_config": "Exporter la configuration",
   "menu.import_config": "Importer la configuration",
+  "menu.reload_theme": "Recharger le thème",
   "menu.docs_typst": "Documentation Typst",
   "menu.official_repo": "Repo officiel de Typst IDE",
   "menu.language": "Langue",
@@ -405,6 +406,11 @@
 
   "lang.french": "Français",
   "lang.english": "English",
+
+  "theme.reloaded": "Thème rechargé.",
+  "theme.reloaded_name": "Thème « {name} » rechargé.",
+  "theme.error": "Erreur de thème : {error}",
+  "theme.invalid_scheme": "Fichier de thème invalide : seules des couleurs des variables existantes sont acceptées.",
 
   "tutorial.title": "Tutoriel",
   "tutorial.steps": "Étapes",

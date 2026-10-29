@@ -143,6 +143,23 @@ Typst IDE recognizes special comments (**markers**) like `// TODO: fix this` or 
 Marker lines are highlighted in the editor (with the tag in bold), a colored dot appears in the gutter and a stripe in the scrollbar. The **marker book** (toolbar button or `Ctrl + Alt + M`) lists all markers of the current document: search, filter, click to jump to the line, and `Ctrl + Shift + M` inserts a marker at the cursor. Only real comments are detected, so `//` inside strings or URLs never triggers a marker.
 
 
+## Color scheme (`theme.json`)
+
+The app ships with a single built-in theme (light and dark palettes, defined in `frontend/src/css/tokens.css`). At every launch the main window writes a snapshot of it to `~/.config/com.typst.ide/theme.json`:
+
+```json
+{
+  "format": "typst-ide-color-scheme",
+  "formatVersion": 1,
+  "name": "Default",
+  "light": { "--bg": "#fdfdfd", "--text": "#202020" },
+  "dark": { "--bg": "#1b1b1b", "--text": "#eeeeee" }
+}
+```
+
+This file is a **reference, not a setting**: it mirrors the palette the app is actually using and is overwritten at every start, so editing it in place has no lasting effect. Only **color values** for variables that already exist in the built-in theme are meaningful (anything else, including `url(...)`, is ignored). Menu **Help > Reload theme** (Aide > Recharger le thème) re-reads it without restarting the app.
+
+
 # Philosophy
 In the next paragraphs, I will refer to the official online Typst platform as "**Typst.app**".
 

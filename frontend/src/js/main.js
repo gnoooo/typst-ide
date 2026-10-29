@@ -32,6 +32,7 @@ import { openBibliography } from './bibliography/bibliography.js';
 import { updateBtn, populateStructureDropdown } from "./structures.js";
 import { initFileSync } from "./file-sync.js";
 import { exportConfig, importConfig } from "./config.js";
+import { initColorScheme, reloadColorScheme } from "./color-scheme.js";
 import { readImage } from "@tauri-apps/plugin-clipboard-manager";
 import { t, initI18n, setLang } from '../i18n/index.js'
 
@@ -138,6 +139,7 @@ async function main() {
   );
 
   initTheme((theme) => setEditorTheme(theme));
+  await initColorScheme({ writeDefault: true });
 
   // ## Comment feature (keytags) #####################################
   initComments(editor);
@@ -282,6 +284,14 @@ async function main() {
   // Config export/import (Aide menu)
   bindMenuAction("export-config-btn", () => exportConfig());
   bindMenuAction("import-config-btn", () => importConfig());
+  bindMenuAction("reload-theme-btn", async () => {
+    const scheme = await reloadColorScheme();
+    if (scheme) {
+      showToast('success', scheme.name
+        ? t('theme.reloaded_name', { name: scheme.name })
+        : t('theme.reloaded'));
+    }
+  });
 
   // External links (data-tauri-open-url attribute on the button)
   bindOpenUrl("menu-docs-typst");

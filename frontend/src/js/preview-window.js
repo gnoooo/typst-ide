@@ -15,6 +15,7 @@ import "../style.css";
 
 import { initI18n } from "../i18n/index.js";
 import { initWebviewZoom } from "./webview-zoom.js";
+import { initColorScheme, applyColorScheme, currentScheme } from "./color-scheme.js";
 import {
   renderUpdate,
   showPreviewError,
@@ -35,11 +36,13 @@ async function main() {
     const { theme } = event.payload ?? {};
     if (theme) {
       document.documentElement.setAttribute("data-theme", theme);
+      applyColorScheme(currentScheme);
       localStorage.setItem("theme", theme);
     }
   });
 
   await initI18n();
+  await initColorScheme();
 
   // Apply the same persisted webview zoom as the main window so the toolbar
   // buttons have the exact same size on screen.

@@ -36,6 +36,7 @@
   "menu.tutorial": "Open tutorial",
   "menu.export_config": "Export configuration",
   "menu.import_config": "Import configuration",
+  "menu.reload_theme": "Reload theme",
   "menu.docs_typst": "Typst documentation",
   "menu.official_repo": "Official Typst IDE repo",
   "menu.language": "Language",
@@ -404,6 +405,11 @@
 
   "lang.french": "Français",
   "lang.english": "English",
+
+  "theme.reloaded": "Theme reloaded.",
+  "theme.reloaded_name": "Theme \"{name}\" reloaded.",
+  "theme.error": "Theme error: {error}",
+  "theme.invalid_scheme": "Invalid theme file: only colors for existing variables are accepted.",
 
   "tutorial.title": "Tutorial",
   "tutorial.steps": "Steps",

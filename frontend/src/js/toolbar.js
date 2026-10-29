@@ -10,6 +10,7 @@
 
 import { showToast } from './toast.js';
 import { setBtnIcon } from './structures.js';
+import { applyColorScheme, currentScheme } from './color-scheme.js';
 
 // ## Dropdown behaviour ############################################
 
@@ -83,6 +84,7 @@ export function initTheme(onThemeChange) {
 
 function applyTheme(theme, toggle, cb) {
     document.documentElement.setAttribute('data-theme', theme);
+    applyColorScheme(currentScheme);
     toggle.checked = theme === 'dark';
     if (window.__TAURI__?.event) {
         window.__TAURI__.event.emit('theme:changed', { theme });

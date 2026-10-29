@@ -12,6 +12,7 @@ import "../style.css";
 import { marked } from "marked";
 import { initI18n, t, getLang, setLang, applyI18n } from "../i18n/index.js";
 import { highlightTypst, escapeHtml } from "./tutorial-highlight.js";
+import { initColorScheme } from "./color-scheme.js";
 
 const STEPS_FR = import.meta.glob("../tutorial/fr/*.md", {
   query: "?raw",
@@ -184,6 +185,7 @@ function bindChrome() {
 async function init() {
   await initI18n();
   applyTheme();
+  await initColorScheme();
   _steps = listSteps(getLang());
   bindChrome();
   showStep(initialIndex());

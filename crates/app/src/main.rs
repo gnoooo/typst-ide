@@ -181,6 +181,8 @@ fn main() {
             config::import_notes_data,
             config::import_history_data,
             config::import_templates_data,
+            config::load_color_scheme,
+            config::save_color_scheme,
             preview_window::ensure_preview_window,
             preview_window::close_preview_window,
             preview_window::preview_window_status
