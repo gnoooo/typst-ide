@@ -47,6 +47,15 @@ Les items sont groupés par priorité.
 ## Flathub
 
 - [ ] Brand color : https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/quality-guidelines#brand-colors
+  - Constat octobre 2026 : la page Flathub "Details" indique **1 vérification en échec**, "Has primary brand colors". Non bloquant pour publier -> à regrouper avec la prochaine release fonctionnelle avec les fixes
+  - Ajouter dans `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` après `<developer>` :
+    ```xml
+    <branding>
+      <color type="primary" scheme_preference="light">#239DAD</color>
+      <color type="primary" scheme_preference="dark">#17646F</color>
+    </branding>
+    ```
+- [ ] Ajouter les notes de version dans `<release>`
 - [ ] Plus simplement régler les problèmes pour avoir une belle page : https://flathub.org/fr/apps/io.github.gnoooo.typst-ide
 
 ## Divers
