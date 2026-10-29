@@ -51,8 +51,8 @@ Les items sont groupés par priorité.
   - Ajouter dans `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` après `<developer>` :
     ```xml
     <branding>
-      <color type="primary" scheme_preference="light">#239DAD</color>
-      <color type="primary" scheme_preference="dark">#17646F</color>
+      <color type="primary" scheme_preference="light">#8FE0EA</color>
+      <color type="primary" scheme_preference="dark">#1D7F8C</color>
     </branding>
     ```
 - [ ] Ajouter les notes de version dans `<release>`
