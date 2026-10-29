@@ -44,6 +44,11 @@ Les items sont groupés par priorité.
 - [x] Importation de configuration
 - [X] Mode sombre
 
+## Flathub
+
+- [ ] Brand color : https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/quality-guidelines#brand-colors
+- [ ] Plus simplement régler les problèmes pour avoir une belle page : https://flathub.org/fr/apps/io.github.gnoooo.typst-ide
+
 ## Divers
 
 - [ ] Build macOS
