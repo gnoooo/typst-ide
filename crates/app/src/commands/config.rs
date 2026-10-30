@@ -145,7 +145,10 @@ pub fn save_color_scheme(app: tauri::AppHandle, payload: String) -> Result<(), S
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
 
     let path = dir.join("theme.json");
-    std::fs::write(&path, payload).map_err(|e| format!("{}: {e}", path.display()))
+    let tmp = dir.join("theme.json.tmp");
+    std::fs::write(&tmp, payload).map_err(|e| format!("{}: {e}", tmp.display()))?;
+    // Rename is atomic on the same filesystem: a concurrent reader never sees a truncated file.
+    std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 /// Collects everything the export file will contain: notes, history entries

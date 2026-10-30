@@ -151,7 +151,6 @@ The app ships with a single built-in theme (light and dark palettes, defined in 
 {
   "format": "typst-ide-color-scheme",
   "formatVersion": 1,
-  "name": "Default",
   "light": { "--bg": "#fdfdfd", "--text": "#202020" },
   "dark": { "--bg": "#1b1b1b", "--text": "#eeeeee" }
 }

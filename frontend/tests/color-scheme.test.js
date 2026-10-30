@@ -150,13 +150,24 @@ describe('initColorScheme', () => {
     await initColorScheme({ writeDefault: true });
 
     const doc = JSON.parse(saved);
-    expect(doc.name).toBe('Default');
+    expect(doc.name).toBeUndefined();
     expect(doc.light['--bg']).toBe('#ffffff');
     expect(doc.dark['--bg']).toBe('#000000');
     expect(doc.light['--font-code']).toBeUndefined();
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     expect(root.style.getPropertyValue('--bg')).toBe('#000000');
 
+    delete globalThis.window.__TAURI__;
+  });
+
+  it('leaves no data-theme behind when the document had none', async () => {
+    document.documentElement.removeAttribute('data-theme');
+    globalThis.getComputedStyle = () => fakeComputed(document.documentElement.getAttribute('data-theme'));
+    globalThis.window.__TAURI__ = { core: { invoke: async () => undefined } };
+
+    await initColorScheme({ writeDefault: true });
+
+    expect(document.documentElement.getAttribute('data-theme')).toBeNull();
     delete globalThis.window.__TAURI__;
   });
 });

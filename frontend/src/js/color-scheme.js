@@ -1,9 +1,10 @@
 /**
- * User color scheme
+ * Color scheme
  *
- * Loads optional color overrides from ~/.config/com.typst.ide/theme.json
- * (read by the Rust `load_color_scheme` command) and applies them as inline
- * custom properties on <html>, on top of the built-in palettes in tokens.css.
+ * At every launch the main window snapshots the palette the app is actually
+ * showing (light and dark, colors only) into ~/.config/com.typst.ide/theme.json
+ * and applies it as inline custom properties on <html>. The other windows read
+ * that file at startup, and the Help menu re-reads it on demand.
  *
  * Only existing theme variables are accepted, and only color values, so the
  * file can recolor the UI but never inject arbitrary CSS (e.g. url(...)).
@@ -25,10 +26,15 @@ let _allowedKeys = null;
 
 // ## Helpers ######################################################
 
-/**
- * The custom properties declared by the built-in theme, read once from the
- * computed style (no second hardcoded list to keep in sync with tokens.css).
- */
+/** Walk the custom properties of the root element (empty on Chromium). */
+function forEachCustomProperty(fn) {
+    const style = getComputedStyle(document.documentElement);
+    for (let i = 0; i < style.length; i++) {
+        const prop = style[i];
+        if (prop.startsWith('--')) fn(prop, style.getPropertyValue(prop));
+    }
+}
+
 function collectFromRules(rules, out) {
     for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
@@ -40,14 +46,14 @@ function collectFromRules(rules, out) {
     }
 }
 
+/**
+ * The custom properties declared by the built-in theme, read once (no second
+ * hardcoded list to keep in sync with tokens.css).
+ */
 function getAllowedKeys() {
     if (!_allowedKeys) {
         _allowedKeys = new Set();
-        const style = getComputedStyle(document.documentElement);
-        for (let i = 0; i < style.length; i++) {
-            const prop = style[i];
-            if (prop.startsWith('--')) _allowedKeys.add(prop);
-        }
+        forEachCustomProperty((prop) => _allowedKeys.add(prop));
         // Chromium does not list custom properties on computed styles: fall
         // back to the declarations of the loaded stylesheets.
         if (_allowedKeys.size === 0) {
@@ -83,13 +89,10 @@ function pickColors(section, allowed) {
 /** Read the color-valued custom properties of the theme currently applied. */
 function readPalette() {
     const colors = {};
-    const style = getComputedStyle(document.documentElement);
-    for (let i = 0; i < style.length; i++) {
-        const key = style[i];
-        if (!key.startsWith('--')) continue;
-        const value = style.getPropertyValue(key).trim();
-        if (isColor(value)) colors[key] = value;
-    }
+    forEachCustomProperty((key, value) => {
+        const trimmed = value.trim();
+        if (isColor(trimmed)) colors[key] = trimmed;
+    });
     return colors;
 }
 
@@ -102,7 +105,7 @@ function readPalette() {
 function dumpColorScheme() {
     const root = document.documentElement;
     const previous = root.getAttribute('data-theme');
-    const scheme = { format: FORMAT_ID, formatVersion: FORMAT_VERSION, name: 'Default' };
+    const scheme = { format: FORMAT_ID, formatVersion: FORMAT_VERSION };
     for (const theme of ['light', 'dark']) {
         root.setAttribute('data-theme', theme);
         scheme[theme] = readPalette();
@@ -200,6 +203,9 @@ export async function initColorScheme({ writeDefault = false } = {}) {
             currentScheme = parseColorScheme(payload, getAllowedKeys());
             applyColorScheme(currentScheme);
             return;
+        }
+        if (writeDefault) {
+            console.warn('[theme] cannot read custom properties from computed styles: theme.json not written');
         }
         await reloadColorScheme();
     } catch (_) {
