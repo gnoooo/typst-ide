@@ -75,8 +75,8 @@ Elle n'est pas directement conforme (et casse sur les systèmes récents), donc 
    sinon (hôte sans WebKit, CI Ubuntu nue). `TYPST_IDE_PREFER_SYSTEM_WEBKIT=0`
    force le mode embarqué.
 
-3. **AppStream** : `usr/share/metainfo/com.typst.ide.appdata.xml` (avec la version injectée), 
-   et le fichier `.desktop` est renommé `com.typst.ide.desktop` pour que l'identifiant corresponde.
+3. **AppStream** : `usr/share/metainfo/io.github.gnoooo.typst-ide.appdata.xml` (avec la version injectée), 
+   et le fichier `.desktop` est renommé `io.github.gnoooo.typst-ide.desktop` pour que l'identifiant corresponde.
 
 4. **Repack officiel** avec `appimagetool`, en embarquant les informations de
    mise à jour `gh-releases-zsync` et en générant le `.zsync` (AppImageUpdate).

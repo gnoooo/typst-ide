@@ -167,7 +167,7 @@ Les dialogues natifs de l'application utilisent `rfd`, dont le backend Linux est
 
 1. **Choisir un dossier/fichier** (`open_folder_dialog`, `pick_files`, dialogues d'import/export) appelle `org.freedesktop.portal.FileChooser`. Le portail renvoie des montages « document portal » (`/run/user/<uid>/doc/...`) : l'utilisateur accorde précisément ces chemins au moment du choix, et uniquement eux.
 2. **Créer/ouvrir un projet** : `create_project` et `open_project` reçoivent ces chemins accordés. Le backend ne les accepte que s'ils ont été choisis via un dialogue (registre `GRANTED_PATHS` dans `commands/fs.rs`) ou, hors sandbox, s'ils sont dans `$HOME` (pour l'historique après redémarrage).
-3. **Réouverture depuis l'historique** : l'historique (SQLite) vit dans le dossier de données de l'app (`~/.var/app/io.github.gnoooo.typst-ide/data/history.db` sous sandbox, via `app_data_dir`) et stocke le chemin retourné par le portail. Si l'autorisation a été révoquée ou le dossier déplacé, l'ouverture échoue et l'interface propose de re-sélectionner le dossier (et met l'entrée à jour).
+3. **Réouverture depuis l'historique** : l'historique (SQLite) vit dans le dossier de données de l'app (`~/.var/app/io.github.gnoooo.typst-ide/data/io.github.gnoooo.typst-ide/history.db` sous sandbox, via `app_data_dir`) et stocke le chemin retourné par le portail. Si l'autorisation a été révoquée ou le dossier déplacé, l'ouverture échoue et l'interface propose de re-sélectionner le dossier (et met l'entrée à jour).
 4. **Révéler dans le gestionnaire de fichiers** : passe par `org.freedesktop.portal.OpenURI` (`crates/app/src/portal.rs`) ; le montage document-portal est visible de l'hôte, donc le gestionnaire de fichiers ouvre le vrai emplacement.
 5. **Fonts** : les fonts de l'hôte sont chargées depuis `/run/host/fonts` (montage standard en lecture seule, aucune permission requise).
 
@@ -278,7 +278,6 @@ Soumission (une fois) :
 
 | Risque | Niveau | Repli |
 |---|---|---|
-| ID `com.typst.ide` refusé | Élevé | Utiliser `io.github.gnoooo.typst-ide` avant la première soumission |
 | Metainfo invalide (`@DATE@`, développeur absent) | Élevé | Ajouter le développeur, une date réelle et valider avec le linter Flathub |
 | Desktop file/icône incohérents | Élevé | Utiliser le nouvel ID partout, y compris `Icon=` et les chemins d'installation |
 | Runtime GNOME dépassé | Moyen | À chaque soumission/bump, vérifier la dernière branche GNOME sur Flathub et aligner les extensions (`//26.08` pour GNOME 51) |

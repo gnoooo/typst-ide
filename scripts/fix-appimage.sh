@@ -11,7 +11,7 @@
 #   3. records the bundled WebKitGTK version for the runtime AppRun;
 #   4. installs the custom AppRun (see scripts/appimage/AppRun);
 #   5. installs AppStream metadata and normalizes the desktop file to
-#      `com.typst.ide.desktop`;
+#      `io.github.gnoooo.typst-ide.desktop`;
 #   6. repacks with the official appimagetool, embedding the
 #      `gh-releases-zsync` update information, and generates the .zsync file.
 #
@@ -201,7 +201,7 @@ APPS_DIR="$APPDIR/usr/share/applications"
 mapfile -t DESKTOPS < <(find "$APPS_DIR" -maxdepth 1 -name '*.desktop' 2>/dev/null || true)
 [ "${#DESKTOPS[@]}" -eq 1 ] || die "expected exactly one .desktop file in usr/share/applications, found ${#DESKTOPS[@]}"
 
-DESKTOP_NAME="com.typst.ide.desktop"
+DESKTOP_NAME="io.github.gnoooo.typst-ide.desktop"
 if [ "${DESKTOPS[0]}" != "$APPS_DIR/$DESKTOP_NAME" ]; then
   mv "${DESKTOPS[0]}" "$APPS_DIR/$DESKTOP_NAME"
 fi
@@ -217,8 +217,8 @@ else
   BUILD_DATE="$(date -u +%F)"
 fi
 sed -e "s/@VERSION@/$VERSION/" -e "s/@DATE@/$BUILD_DATE/" \
-  "$SCRIPT_DIR/appimage/com.typst.ide.appdata.xml" \
-  > "$APPDIR/usr/share/metainfo/com.typst.ide.appdata.xml"
+  "$SCRIPT_DIR/appimage/io.github.gnoooo.typst-ide.appdata.xml" \
+  > "$APPDIR/usr/share/metainfo/io.github.gnoooo.typst-ide.appdata.xml"
 
 if command -v desktop-file-validate >/dev/null 2>&1; then
   if desktop-file-validate "$APPS_DIR/$DESKTOP_NAME"; then

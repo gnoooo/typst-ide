@@ -52,7 +52,7 @@ This crate is the desktop application entry point. It bridges the web frontend (
 |---|---|---|
 | `NotesDbState` | `Mutex<rusqlite::Connection>` | SQLite connection shared across note commands |
 
-The database is initialized on startup inside `app_data_dir()` (e.g. `~/.local/share/typst-ide/notes.db` on Linux).
+The database is initialized on startup inside `app_data_dir()` (e.g. `~/.local/share/io.github.gnoooo.typst-ide/notes.db` on Linux).
 
 ## Structure
 
@@ -74,7 +74,7 @@ crates/app/
 - **Dev URL** : `http://localhost:1420`
 - **Bundle targets** : `appimage` (Linux), `deb` (Linux), `rpm` (Linux), `nsis` (Windows, via cross-build `--target x86_64-pc-windows-gnu`)
 - **Desktop file** : `deb` and `rpm` (and therefore the AppImage) use the repository's `typst-ide.desktop` as a Handlebars template
-- **Identifier** : `com.typst.ide`
+- **Identifier** : `io.github.gnoooo.typst-ide`
 
 ## Build Commands
 

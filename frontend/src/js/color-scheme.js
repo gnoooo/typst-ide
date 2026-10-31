@@ -2,7 +2,7 @@
  * Color scheme
  *
  * At every launch the main window snapshots the palette the app is actually
- * showing (light and dark, colors only) into ~/.config/com.typst.ide/theme.json
+ * showing (light and dark, colors only) into ~/.config/io.github.gnoooo.typst-ide/theme.json
  * and applies it as inline custom properties on <html>. The other windows read
  * that file at startup, and the Help menu re-reads it on demand.
  *

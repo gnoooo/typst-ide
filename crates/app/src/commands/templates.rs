@@ -1,8 +1,8 @@
 // Local templates management commands
 //
 // Templates are stored in the OS config directory, under a `templates/` subfolder:
-//   Linux:   ~/.config/com.typst.ide/templates/
-//   Windows: %APPDATA%\com.typst.ide\templates\
+//   Linux:   ~/.config/io.github.gnoooo.typst-ide/templates/
+//   Windows: %APPDATA%\io.github.gnoooo.typst-ide\templates\
 //
 // Each template lives in its own directory:
 //   templates/<name>/lib.typ      mandatory entry file of the template

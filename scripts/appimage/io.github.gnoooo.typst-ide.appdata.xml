@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.typst.ide</id>
+  <id>io.github.gnoooo.typst-ide</id>
 
   <metadata_license>FSFAP</metadata_license>
   <project_license>GPL-3.0-only</project_license>
@@ -25,7 +25,7 @@
     </ul>
   </description>
 
-  <launchable type="desktop-id">com.typst.ide.desktop</launchable>
+  <launchable type="desktop-id">io.github.gnoooo.typst-ide.desktop</launchable>
 
   <url type="homepage">https://github.com/gnoooo/typst-ide</url>
   <url type="bugtracker">https://github.com/gnoooo/typst-ide/issues</url>

@@ -2,7 +2,7 @@
     "$schema": "https://tauri.app/schemas/config-schema.json",
     "productName": "Typst IDE",
     "version": "1.7.4",
-    "identifier": "com.typst.ide",
+    "identifier": "io.github.gnoooo.typst-ide",
     "build": {
         "beforeBuildCommand": {
             "script": "npm run build",

@@ -145,7 +145,7 @@ Marker lines are highlighted in the editor (with the tag in bold), a colored dot
 
 ## Color scheme (`theme.json`)
 
-The app ships with a single built-in theme (light and dark palettes, defined in `frontend/src/css/tokens.css`). At every launch the main window writes a snapshot of it to `~/.config/com.typst.ide/theme.json`:
+The app ships with a single built-in theme (light and dark palettes, defined in `frontend/src/css/tokens.css`). At every launch the main window writes a snapshot of it to `~/.config/io.github.gnoooo.typst-ide/theme.json` (under Flatpak: `~/.var/app/io.github.gnoooo.typst-ide/config/io.github.gnoooo.typst-ide/theme.json`):
 
 ```json
 {

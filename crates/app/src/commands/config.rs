@@ -103,7 +103,7 @@ pub async fn import_config() -> Result<Option<String>, String> {
 }
 
 /// Reads the optional user color scheme (`theme.json` in the app config
-/// directory, e.g. `~/.config/com.typst.ide/theme.json`).
+/// directory, e.g. `~/.config/io.github.gnoooo.typst-ide/theme.json`).
 /// Returns `Ok(None)` when the file does not exist; content validation is done
 /// by the frontend.
 #[tauri::command]
