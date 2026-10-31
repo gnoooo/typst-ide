@@ -19,6 +19,7 @@
 
 import { t } from '../i18n/index.js'
 import { toggleConsole } from "./toolbar.js";
+import { isToggleConsoleShortcut } from "./shortcut-keys.js";
 import {
   webviewZoomIn,
   webviewZoomOut,
@@ -87,13 +88,6 @@ export function registerShortcuts({
     label: t('shortcut.compile'),
     keybindings: [KM.CtrlCmd | KC.KeyR],
     run: () => onCompile(),
-  });
-
-  editor.addAction({
-    id: "toggle-console",
-    label: t('shortcut.toggle_console'),
-    keybindings: [KM.CtrlCmd | KC.KeyE],
-    run: () => toggleConsole(),
   });
 
   editor.addAction({
@@ -193,6 +187,14 @@ export function registerShortcuts({
       ) {
         e.preventDefault();
         onExportPDF?.();
+      }
+      // Ctrl+E : toggle the compilation console. This used to be a Monaco-only
+      // action, so it did nothing when the editor was not focused and could be
+      // swallowed by WebKitGTK. Handle it globally, like Ctrl+S.
+      if (isToggleConsoleShortcut(e)) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleConsole();
       }
       // Ctrl+/ : WebKitGTK swallows this before Monaco sees it, so we handle it here
       if (

@@ -11,7 +11,7 @@
 | `Ctrl + /` | Comment line |
 | `Ctrl + Shift + M` | Add a marker |
 | `Ctrl + Alt + M` | Marker book |
-| `Ctrl + E` | Show console |
+| `Ctrl + E` | Show/hide console |
 | `Ctrl + Shift + + / - / 0` | Window zoom |
 | `Ctrl + Alt + + / - / 0` | Editor zoom |
 
