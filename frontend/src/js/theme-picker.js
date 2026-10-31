@@ -93,9 +93,11 @@ function buildThemeRow(theme, selected, onSelect, registerVariant) {
             btn.classList.add('theme-variant-btn--missing');
             btn.title = t('theme.variant_missing', { mode: modeLabel(mode) });
         }
-        if (selected?.file === theme.file && selected?.mode === mode) {
+        const isSelected = selected?.file === theme.file && selected?.mode === mode;
+        if (isSelected) {
             btn.classList.add('theme-variant-btn--selected');
         }
+        btn.setAttribute('aria-pressed', String(isSelected));
 
         btn.appendChild(createSwatch(colors));
 
@@ -103,6 +105,11 @@ function buildThemeRow(theme, selected, onSelect, registerVariant) {
         label.className = 'theme-variant-label';
         label.textContent = modeLabel(mode);
         btn.appendChild(label);
+
+        const check = document.createElement('span');
+        check.className = 'material-symbols-outlined theme-variant-check';
+        check.textContent = 'check';
+        btn.appendChild(check);
 
         btn.addEventListener('click', () => {
             if (!colors) return;
@@ -166,10 +173,9 @@ export async function openThemePicker() {
 
     const syncSelection = () => {
         for (const { file, mode, btn } of variantButtons) {
-            btn.classList.toggle(
-                'theme-variant-btn--selected',
-                selected?.file === file && selected?.mode === mode,
-            );
+            const isSelected = selected?.file === file && selected?.mode === mode;
+            btn.classList.toggle('theme-variant-btn--selected', isSelected);
+            btn.setAttribute('aria-pressed', String(isSelected));
         }
         if (applyButton) applyButton.disabled = !selected;
     };
