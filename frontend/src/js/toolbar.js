@@ -3,14 +3,12 @@
  *
  * - Wires up dropdown open/close behaviour
  * - Wires each menu item to its action
- * - Theme toggle (light ↔ dark)
+ * - Theme mode restore (light/dark)
  * - Output console toggle
  * - Resizable split panel
  */
 
-import { showToast } from './toast.js';
 import { setBtnIcon } from './structures.js';
-import { applyColorScheme, currentScheme } from './color-scheme.js';
 
 // ## Dropdown behaviour ############################################
 
@@ -65,31 +63,14 @@ export function closeDropdowns() { closeAll(); }
 // ## Theme #########################################################
 
 /**
- * Register the theme toggle and return a getter for the current theme
+ * Apply the saved light/dark mode.
+ * Theme selection itself is handled by the theme picker: this only restores the mode used by the active theme.
  * @param {(theme: 'dark'|'light') => void} onThemeChange
  */
 export function initTheme(onThemeChange) {
-    const toggle = document.getElementById('theme-toggle');
-    if (!toggle) return;
-
-    const saved = localStorage.getItem('theme') ?? 'light';
-    applyTheme(saved, toggle, onThemeChange);
-
-    toggle.addEventListener('change', () => {
-        const theme = toggle.checked ? 'dark' : 'light';
-        localStorage.setItem('theme', theme);
-        applyTheme(theme, toggle, onThemeChange);
-    });
-}
-
-function applyTheme(theme, toggle, cb) {
-    document.documentElement.setAttribute('data-theme', theme);
-    applyColorScheme(currentScheme);
-    toggle.checked = theme === 'dark';
-    if (window.__TAURI__?.event) {
-        window.__TAURI__.event.emit('theme:changed', { theme });
-    }
-    cb?.(theme);
+    const saved = localStorage.getItem('theme') === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', saved);
+    onThemeChange?.(saved);
 }
 
 // ## Output console ################################################

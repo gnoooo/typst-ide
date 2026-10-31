@@ -46,16 +46,3 @@
 #zoom-preview-input[type="number"] {
     -moz-appearance: textfield;
 }
-
-/*  Theme toggle  */
-.theme-toggle {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    cursor: pointer;
-    font-size: 14px;
-}
-
-.theme-toggle input {
-    display: none;
-}

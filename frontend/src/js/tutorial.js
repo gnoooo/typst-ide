@@ -186,6 +186,9 @@ async function init() {
   await initI18n();
   applyTheme();
   await initColorScheme();
+  window.__TAURI__?.event?.listen("theme:changed", () => {
+    void initColorScheme();
+  });
   _steps = listSteps(getLang());
   bindChrome();
   showStep(initialIndex());

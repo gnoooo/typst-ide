@@ -25,6 +25,7 @@ use commands::misc;
 use commands::preview;
 use commands::preview_window;
 use commands::templates;
+use commands::themes;
 use state::{CompileState, HistoryDbState, NotesDbState, PdfExportPathState, ProjectRootState};
 
 /// Initialises one of the SQLite databases, showing a native error dialog and
@@ -203,8 +204,10 @@ fn main() {
             config::import_notes_data,
             config::import_history_data,
             config::import_templates_data,
-            config::load_color_scheme,
-            config::save_color_scheme,
+            themes::get_themes_dir,
+            themes::list_themes,
+            themes::read_theme,
+            themes::write_theme,
             preview_window::ensure_preview_window,
             preview_window::close_preview_window,
             preview_window::preview_window_status

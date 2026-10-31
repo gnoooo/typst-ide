@@ -14,6 +14,12 @@
   - Windows: `%LOCALAPPDATA%\com.typst.ide` → `%LOCALAPPDATA%\io.github.gnoooo.typst-ide`
 - **Manual fallback** : if the automatic migration fails, close the app and copy the **contents** of the old folders into the new ones. Do not copy the folder itself into the destination.
 
+### Theme picker
+
+- **Themes are JSON files** stored in the `themes/` config folder. `default.json` ships with both light and dark palettes; user themes can define one or both variants.
+- **Help > Change theme** lists the themes with their light/dark variants. A missing variant is disabled. **Help > Open themes folder** opens the folder in the file manager.
+- The active theme path and variant are persisted, so the selection survives restarts. The old generated `theme.json` is no longer used.
+
 ### Fixes
 
 - **Ctrl+E** now toggles the compilation console globally, including when the editor does not have focus.

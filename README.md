@@ -143,20 +143,25 @@ Typst IDE recognizes special comments (**markers**) like `// TODO: fix this` or 
 Marker lines are highlighted in the editor (with the tag in bold), a colored dot appears in the gutter and a stripe in the scrollbar. The **marker book** (toolbar button or `Ctrl + Alt + M`) lists all markers of the current document: search, filter, click to jump to the line, and `Ctrl + Shift + M` inserts a marker at the cursor. Only real comments are detected, so `//` inside strings or URLs never triggers a marker.
 
 
-## Color scheme (`theme.json`)
+## Themes (`themes/`)
 
-The app ships with a single built-in theme (light and dark palettes, defined in `frontend/src/css/tokens.css`). At every launch the main window writes a snapshot of it to `~/.config/io.github.gnoooo.typst-ide/theme.json` (under Flatpak: `~/.var/app/io.github.gnoooo.typst-ide/config/io.github.gnoooo.typst-ide/theme.json`):
+Themes are JSON files stored in `~/.config/io.github.gnoooo.typst-ide/themes/` (under Flatpak: `~/.var/app/io.github.gnoooo.typst-ide/config/io.github.gnoooo.typst-ide/themes/`). The app ships `default.json` with both light and dark palettes.
+
+The active theme is stored as a relative path in localStorage (`theme-path`), and the active variant in `theme` (`light` or `dark`). A theme may define only `light`, only `dark`, or both (the missing variant is disabled in the picker).
+
+Menu **Help > Change theme…** (Aide > Changer de thème…) lists the themes, and **Help > Open themes folder** (Aide > Ouvrir le dossier des thèmes) opens the folder in the file manager. After editing a JSON file, use the picker's **Reload** button.
 
 ```json
 {
   "format": "typst-ide-color-scheme",
   "formatVersion": 1,
+  "name": "My theme",
   "light": { "--bg": "#fdfdfd", "--text": "#202020" },
   "dark": { "--bg": "#1b1b1b", "--text": "#eeeeee" }
 }
 ```
 
-This file is a **reference, not a setting**: it mirrors the palette the app is actually using and is overwritten at every start, so editing it in place has no lasting effect. Only **color values** for variables that already exist in the built-in theme are meaningful (anything else, including `url(...)`, is ignored). Menu **Help > Reload theme** (Aide > Recharger le thème) re-reads it without restarting the app.
+Only **color values** for variables that already exist in the built-in theme are meaningful (anything else, including `url(...)`, is ignored).
 
 
 # Philosophy

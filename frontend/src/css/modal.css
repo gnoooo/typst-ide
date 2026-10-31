@@ -239,3 +239,145 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Theme picker */
+.theme-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.theme-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.theme-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-input);
+}
+
+.theme-picker-row--invalid {
+    opacity: 0.6;
+}
+
+.theme-picker-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.theme-picker-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.theme-current-badge {
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--btn-primary-text);
+    font-size: 10px;
+    font-weight: 500;
+}
+
+.theme-picker-file {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.theme-picker-error {
+    margin-top: 2px;
+    color: var(--error-text);
+    font-size: 11px;
+}
+
+.theme-picker-empty {
+    margin: 0;
+    padding: 12px;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+.theme-picker-variants {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+}
+
+.theme-variant-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-panel);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12px;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.theme-variant-btn:hover:not(:disabled) {
+    background: var(--bg-hover);
+}
+
+.theme-variant-btn--selected {
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.theme-variant-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}
+
+.theme-swatch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.theme-swatch-text {
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.theme-swatch-dot {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.theme-swatch--missing {
+    background: transparent;
+}

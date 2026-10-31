@@ -1,11 +1,20 @@
 /**
  * tests/color-scheme.test.js
- *  User color scheme parsing and application (vitest runs in node; jsdom is
+ *  Theme parsing, application and selection (vitest runs in node; jsdom is
  *  set up by hand, like the other DOM tests).
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { parseColorScheme, applyColorScheme, reloadColorScheme, initColorScheme } from '../src/js/color-scheme.js';
+import {
+  DEFAULT_THEME_FILE,
+  applyColorScheme,
+  applyThemeSelection,
+  getActiveThemePath,
+  getThemeMode,
+  initColorScheme,
+  loadActiveTheme,
+  parseColorScheme,
+} from '../src/js/color-scheme.js';
 
 // Fixed allowed set: the real one is read from getComputedStyle at runtime.
 const ALLOWED = new Set(['--bg', '--text', '--accent']);
@@ -17,12 +26,17 @@ function setupDom() {
   const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' });
   globalThis.window = dom.window;
   globalThis.document = dom.window.document;
+  globalThis.localStorage = dom.window.localStorage;
   globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
   // jsdom 29 ships no CSS.supports: stub the color check the parser calls.
   globalThis.CSS = {
     supports: (prop, value) =>
       prop === 'color' && /^(#[0-9a-f]{3,8}|rgb|hsl)/i.test(value),
   };
+  // getAllowedKeys() falls back to stylesheet declarations in jsdom.
+  const style = dom.window.document.createElement('style');
+  style.textContent = ':root { --bg: #fff; --text: #000; --accent: #123; }';
+  dom.window.document.head.appendChild(style);
   return dom.window.document.documentElement;
 }
 
@@ -30,6 +44,8 @@ let root;
 
 beforeEach(() => {
   root = setupDom();
+  localStorage.clear();
+  delete globalThis.window.__TAURI__;
 });
 
 describe('parseColorScheme', () => {
@@ -46,6 +62,11 @@ describe('parseColorScheme', () => {
     expect(scheme.name).toBe('Mine');
     expect(scheme.light).toEqual({ '--bg': '#ffffff', '--text': '#111111' });
     expect(scheme.dark).toEqual({ '--bg': '#000000' });
+  });
+
+  it('accepts a theme with only light or only dark', () => {
+    expect(parseColorScheme(withFormat({ light: { '--bg': '#fff' } }), ALLOWED).dark).toEqual({});
+    expect(parseColorScheme(withFormat({ dark: { '--bg': '#000' } }), ALLOWED).light).toEqual({});
   });
 
   it('ignores unknown keys and non--- keys', () => {
@@ -87,91 +108,6 @@ describe('parseColorScheme', () => {
   });
 });
 
-describe('reloadColorScheme', () => {
-  it('discovers variables from the stylesheets and applies the loaded file', async () => {
-    const style = document.createElement('style');
-    style.textContent = ':root { --bg: #ffffff; --text: #000000; }';
-    document.head.appendChild(style);
-    document.documentElement.setAttribute('data-theme', 'dark');
-    globalThis.window.__TAURI__ = {
-      core: {
-        invoke: async (cmd) =>
-          cmd === 'load_color_scheme'
-            ? withFormat({ dark: { '--bg': '#123456', '--nope': '#000000' } })
-            : null,
-      },
-    };
-
-    const scheme = await reloadColorScheme();
-
-    expect(scheme.dark).toEqual({ '--bg': '#123456' });
-    expect(root.style.getPropertyValue('--bg')).toBe('#123456');
-    delete globalThis.window.__TAURI__;
-  });
-
-  it('clears the applied overrides when the file is gone', async () => {
-    const scheme = parseColorScheme(withFormat({ light: { '--bg': '#ffffff' } }), ALLOWED);
-    applyColorScheme(scheme, 'light');
-    expect(root.style.getPropertyValue('--bg')).toBe('#ffffff');
-
-    globalThis.window.__TAURI__ = { core: { invoke: async () => null } };
-
-    expect(await reloadColorScheme()).toBeNull();
-    expect(root.style.getPropertyValue('--bg')).toBe('');
-    delete globalThis.window.__TAURI__;
-  });
-});
-
-describe('initColorScheme', () => {
-  // Fake computed style: the real WebKit returns the custom properties of the
-  // applied theme; jsdom does not, hence the stub.
-  function fakeComputed(theme) {
-    const vars = theme === 'dark'
-      ? { '--bg': '#000000', '--text': '#eeeeee', '--font-code': 'monospace' }
-      : { '--bg': '#ffffff', '--text': '#111111', '--font-code': 'monospace' };
-    const keys = Object.keys(vars);
-    const decl = { length: keys.length, getPropertyValue: (key) => vars[key] ?? '' };
-    keys.forEach((key, i) => { decl[i] = key; });
-    return decl;
-  }
-
-  it('writes the built-in palette for both themes, then applies the current one', async () => {
-    let saved = null;
-    document.documentElement.setAttribute('data-theme', 'dark');
-    globalThis.getComputedStyle = () => fakeComputed(document.documentElement.getAttribute('data-theme'));
-    globalThis.window.__TAURI__ = {
-      core: {
-        invoke: async (cmd, args) => {
-          if (cmd === 'save_color_scheme') saved = args.payload;
-        },
-      },
-    };
-
-    await initColorScheme({ writeDefault: true });
-
-    const doc = JSON.parse(saved);
-    expect(doc.name).toBeUndefined();
-    expect(doc.light['--bg']).toBe('#ffffff');
-    expect(doc.dark['--bg']).toBe('#000000');
-    expect(doc.light['--font-code']).toBeUndefined();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(root.style.getPropertyValue('--bg')).toBe('#000000');
-
-    delete globalThis.window.__TAURI__;
-  });
-
-  it('leaves no data-theme behind when the document had none', async () => {
-    document.documentElement.removeAttribute('data-theme');
-    globalThis.getComputedStyle = () => fakeComputed(document.documentElement.getAttribute('data-theme'));
-    globalThis.window.__TAURI__ = { core: { invoke: async () => undefined } };
-
-    await initColorScheme({ writeDefault: true });
-
-    expect(document.documentElement.getAttribute('data-theme')).toBeNull();
-    delete globalThis.window.__TAURI__;
-  });
-});
-
 describe('applyColorScheme', () => {
   it('applies a parsed scheme to documentElement for the given theme', () => {
     const scheme = parseColorScheme(
@@ -182,18 +118,7 @@ describe('applyColorScheme', () => {
     applyColorScheme(scheme, 'dark');
 
     expect(root.style.getPropertyValue('--bg')).toBe('#000000');
-  });
-
-  it('defaults to the theme currently set on the document', () => {
-    const scheme = parseColorScheme(
-      withFormat({ light: { '--bg': '#ffffff' }, dark: { '--bg': '#000000' } }),
-      ALLOWED,
-    );
-    document.documentElement.setAttribute('data-theme', 'dark');
-
-    applyColorScheme(scheme);
-
-    expect(root.style.getPropertyValue('--bg')).toBe('#000000');
+    expect(getThemeMode()).toBe('dark');
   });
 
   it('clears the previous overrides when switching theme', () => {
@@ -220,3 +145,112 @@ describe('applyColorScheme', () => {
     expect(root.style.getPropertyValue('--bg')).toBe('');
   });
 });
+
+describe('theme selection', () => {
+  it('persists the file path and mode, applies the palette and emits the event', async () => {
+    const emit = vi.fn();
+    globalThis.window.__TAURI__ = {
+      core: {
+        invoke: async (cmd) => {
+          if (cmd === 'read_theme') {
+            return withFormat({
+              name: 'Mine',
+              light: { '--bg': '#ffffff' },
+              dark: { '--bg': '#000000' },
+            });
+          }
+          return null;
+        },
+      },
+      event: { emit },
+    };
+
+    const result = await applyThemeSelection('mine.json', 'dark');
+
+    expect(result.mode).toBe('dark');
+    expect(getActiveThemePath()).toBe('mine.json');
+    expect(getThemeMode()).toBe('dark');
+    expect(root.style.getPropertyValue('--bg')).toBe('#000000');
+    expect(emit).toHaveBeenCalledWith('theme:changed', { theme: 'dark', path: 'mine.json' });
+  });
+
+  it('falls back to the available variant when the requested one is missing', async () => {
+    globalThis.window.__TAURI__ = {
+      core: {
+        invoke: async (cmd) => {
+          if (cmd === 'read_theme') {
+            return withFormat({ name: 'Light only', light: { '--bg': '#ffffff' } });
+          }
+          return null;
+        },
+      },
+      event: { emit: vi.fn() },
+    };
+
+    const result = await applyThemeSelection('light-only.json', 'dark');
+
+    expect(result.mode).toBe('light');
+    expect(getThemeMode()).toBe('light');
+    expect(root.style.getPropertyValue('--bg')).toBe('#ffffff');
+  });
+
+  it('falls back to default.json when the active file is missing', async () => {
+    localStorage.setItem('theme-path', 'missing.json');
+    globalThis.window.__TAURI__ = {
+      core: {
+        invoke: async (cmd, args) => {
+          if (cmd !== 'read_theme') return null;
+          if (args.file === DEFAULT_THEME_FILE) {
+            return withFormat({ name: 'Default', light: { '--bg': '#eeeeee' } });
+          }
+          return null;
+        },
+      },
+      event: { emit: vi.fn() },
+    };
+
+    await loadActiveTheme();
+
+    expect(getActiveThemePath()).toBe(DEFAULT_THEME_FILE);
+    expect(root.style.getPropertyValue('--bg')).toBe('#eeeeee');
+  });
+
+  it('creates the default theme when it is missing', async () => {
+    let saved = null;
+    document.documentElement.setAttribute('data-theme', 'dark');
+    globalThis.getComputedStyle = () => fakeComputed(document.documentElement.getAttribute('data-theme'));
+    globalThis.window.__TAURI__ = {
+      core: {
+        invoke: async (cmd, args) => {
+          if (cmd === 'read_theme') return null;
+          if (cmd === 'write_theme') {
+            saved = args;
+            return undefined;
+          }
+          return null;
+        },
+      },
+      event: { emit: vi.fn() },
+    };
+
+    await initColorScheme({ createDefault: true });
+
+    const doc = JSON.parse(saved.payload);
+    expect(saved.file).toBe(DEFAULT_THEME_FILE);
+    expect(doc.name).toBe('Default');
+    expect(doc.light['--bg']).toBe('#ffffff');
+    expect(doc.dark['--bg']).toBe('#000000');
+    expect(doc.light['--font-code']).toBeUndefined();
+    expect(root.style.getPropertyValue('--bg')).toBe('#000000');
+  });
+});
+
+function fakeComputed(theme) {
+  const vars = theme === 'dark'
+    ? { '--bg': '#000000', '--text': '#eeeeee', '--font-code': 'monospace' }
+    : { '--bg': '#ffffff', '--text': '#111111', '--font-code': 'monospace' };
+  const keys = Object.keys(vars);
+  const decl = { length: keys.length, getPropertyValue: (key) => vars[key] ?? '' };
+  keys.forEach((key, i) => { decl[i] = key; });
+  return decl;
+}

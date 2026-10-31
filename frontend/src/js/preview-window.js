@@ -15,7 +15,7 @@ import "../style.css";
 
 import { initI18n } from "../i18n/index.js";
 import { initWebviewZoom } from "./webview-zoom.js";
-import { initColorScheme, applyColorScheme, currentScheme } from "./color-scheme.js";
+import { initColorScheme, applyColorScheme, currentScheme, loadActiveTheme } from "./color-scheme.js";
 import {
   renderUpdate,
   showPreviewError,
@@ -32,12 +32,14 @@ async function main() {
   document.documentElement.setAttribute("data-theme", initialTheme);
 
   // Listen for theme changes from the main window.
-  window.__TAURI__.event.listen("theme:changed", (event) => {
-    const { theme } = event.payload ?? {};
-    if (theme) {
+  window.__TAURI__.event.listen("theme:changed", async (event) => {
+    const { theme, path } = event.payload ?? {};
+    if (path) {
+      await loadActiveTheme({ createDefault: false });
+    } else if (theme) {
       document.documentElement.setAttribute("data-theme", theme);
-      applyColorScheme(currentScheme);
       localStorage.setItem("theme", theme);
+      applyColorScheme(currentScheme, theme);
     }
   });
 
