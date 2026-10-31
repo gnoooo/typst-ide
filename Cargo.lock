@@ -6127,6 +6127,7 @@ dependencies = [
  "ashpd",
  "base64 0.22.1",
  "core",
+ "dirs 6.0.0",
  "fontdb",
  "rfd",
  "rusqlite",

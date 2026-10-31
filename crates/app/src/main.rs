@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod app_paths;
 mod commands;
 mod portal;
 mod state;
@@ -59,6 +60,27 @@ fn main() {
             // SAFETY: called before any threads are spawned (start of main, before Tauri init).
             unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
         }
+    }
+
+    // TEMPORARY MIGRATION (tag: `temp-migration-com.typst.ide`).
+    // The app identifier changed from `com.typst.ide` to
+    // `io.github.gnoooo.typst-ide`. Tauri creates the main window (and opens
+    // the webview data directory) before the `setup` hook, so the legacy
+    // directories must be copied here, before the builder starts.
+    if let Err(error) = app_paths::migrate_legacy_data() {
+        let message = format!(
+            "Typst IDE could not migrate its data to the new application identifier.\n\n\
+             {error}\n\n\
+             Your old data has not been modified. Fix the problem (disk space, permissions) \
+             and relaunch, or copy the old folders manually (see the release notes)."
+        );
+        eprintln!("{message}");
+        let _ = rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Error)
+            .set_title("Typst IDE")
+            .set_description(&message)
+            .show();
+        std::process::exit(1);
     }
 
     tauri::Builder::default()
