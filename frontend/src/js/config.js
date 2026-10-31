@@ -17,6 +17,7 @@ import { t } from '../i18n/index.js';
 import { openModal } from './modal.js';
 import { showToast } from './toast.js';
 import { flushPendingSave } from './project.js';
+import { getActiveThemePath } from './color-scheme.js';
 
 const FORMAT_ID = 'typst-ide-config';
 const FORMAT_VERSION = 1;
@@ -25,6 +26,7 @@ const FORMAT_VERSION = 1;
 // excludes `preview-debug` (developer flag) and any transient state.
 export const SETTINGS_KEYS = [
   'theme',
+  'theme-path',
   'lang',
   'auto-compile',
   'show-console-on-error',
@@ -49,7 +51,7 @@ const SECTION_IDS = ['settings', 'keytags', 'notes', 'history', 'templates'];
 /**
  * Builds the export document from the current localStorage state.
  * `data` is the Rust-side payload ({ notes, history, templates }),
- * `extra` may carry { appVersion }, and `selection` picks which sections
+ * `extra` may carry { appVersion, theme }, and `selection` picks which sections
  * ({ settings, keytags, notes, history, templates }) are exported. Unselected
  * sections are omitted (empty) instead of exported as nulls.
  */
@@ -68,6 +70,7 @@ export function buildExportPayload(data = {}, extra = {}, selection = {}) {
     appVersion: extra.appVersion ?? '',
     exportedAt: new Date().toISOString(),
     settings,
+    theme: sel.settings ? (extra.theme ?? null) : null,
     notes: sel.notes ? (data.notes ?? []) : [],
     history: sel.history ? (data.history ?? []) : [],
     templates: sel.templates ? (data.templates ?? {}) : {},
@@ -289,7 +292,16 @@ export async function exportConfig() {
     // Version is only informational.
   }
 
-  const payload = JSON.stringify(buildExportPayload(data, { appVersion }, selection), null, 2);
+  let theme = null;
+  if (selection.settings) {
+    try {
+      theme = await invoke('read_theme', { file: getActiveThemePath() });
+    } catch {
+      // The theme is optional: export the rest even if it cannot be read.
+    }
+  }
+
+  const payload = JSON.stringify(buildExportPayload(data, { appVersion, theme }, selection), null, 2);
   try {
     const path = await invoke('export_config', { payload });
     if (path) showToast('success', t('config.export_ok', { path }));
@@ -334,6 +346,22 @@ export async function importConfig() {
     ],
   });
   if (!selection) return;
+
+  // The current theme is a single raw JSON document. Import it only when the
+  // target file does not exist yet: an existing local theme always wins.
+  if (selection.settings && typeof doc.theme === 'string' && doc.theme.trim()) {
+    const file = doc.settings?.['theme-path'];
+    if (typeof file === 'string' && file) {
+      try {
+        const existing = await invoke('read_theme', { file });
+        if (existing === null || existing === undefined) {
+          await invoke('write_theme', { file, content: doc.theme });
+        }
+      } catch (error) {
+        showToast('error', t('config.theme_import_error', { error: String(error) }));
+      }
+    }
+  }
 
   applySettings(doc.settings, settingsKeysForSelection(selection));
 

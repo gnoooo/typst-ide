@@ -385,6 +385,7 @@
   "config.export_error": "Erreur pendant l'export de la configuration : {error}",
   "config.import_ok": "Configuration importée : {notes} note(s), {history} historique(s), {templates} template(s) ({files} fichier(s), {skipped} ignoré(s)). Rechargement...",
   "config.import_error": "Erreur pendant l'import de la configuration : {error}",
+  "config.theme_import_error": "Erreur pendant l'import du thème : {error}",
   "config.invalid_format": "Ce fichier n'est pas un fichier de configuration Typst IDE valide (ou provient d'une version plus récente).",
   "config.pick_export_title": "Exporter la configuration",
   "config.pick_import_title": "Importer la configuration",

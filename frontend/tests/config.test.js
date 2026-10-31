@@ -30,6 +30,7 @@ beforeEach(() => {
 
 const fillSettings = () => {
   localStorage.setItem('theme', 'dark');
+  localStorage.setItem('theme-path', 'my-theme.json');
   localStorage.setItem('lang', 'fr');
   localStorage.setItem('auto-compile', 'false');
   localStorage.setItem('show-console-on-error', 'true');
@@ -69,6 +70,18 @@ describe('buildExportPayload', () => {
   it('omits absent settings instead of exporting nulls', () => {
     const payload = buildExportPayload();
     expect(payload.settings).toEqual({});
+    expect(payload.theme).toBeNull();
+  });
+
+  it('includes the current theme only when settings are selected', () => {
+    fillSettings();
+    const theme = '{"format":"typst-ide-color-scheme","formatVersion":1,"light":{"--bg":"#fff"}}';
+
+    const withSettings = buildExportPayload({}, { theme }, { settings: true });
+    expect(withSettings.theme).toBe(theme);
+
+    const withoutSettings = buildExportPayload({}, { theme }, { settings: false });
+    expect(withoutSettings.theme).toBeNull();
   });
 
   it('excludes unselected sections', () => {

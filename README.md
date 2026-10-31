@@ -151,6 +151,8 @@ The active theme is stored as a relative path in localStorage (`theme-path`), an
 
 Menu **Help > Change theme…** (Aide > Changer de thème…) lists the themes, and **Help > Open themes folder** (Aide > Ouvrir le dossier des thèmes) opens the folder in the file manager. After editing a JSON file, use the picker's **Reload** button.
 
+The current theme is included in the configuration export (Settings section). Importing writes it only if the target theme file does not already exist.
+
 ```json
 {
   "$schema": "https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json",
