@@ -27,7 +27,7 @@ Les items sont groupés par priorité.
 - [x] Créer un workflow CI pour les PR (build + tests) en plus du workflow de release
 - [ ] Ajouter un job macOS au build de release
 - [x] Réparer bundle AppImage
-  - Corrigé en septembre 2026 : `scripts/fix-appimage.sh` retire les libs qui doivent venir de l'hôte (`libwayland-*`), l'AppRun personnalisé utilise le WebKitGTK de l'hôte quand il existe (comme le .deb/.rpm) et retombe sur le WebKit embarqué sinon, AppStream + desktop `com.typst.ide.desktop` embarqués, repack `appimagetool` avec update info + `.zsync`, asset nommé `typst-ide-<version>-x86_64.AppImage`. `manage.sh build appimage [--container]`, doc dans `docs/appimage.md`.
+  - Corrigé en septembre 2026 : `scripts/fix-appimage.sh` retire les libs qui doivent venir de l'hôte (`libwayland-*`), l'AppRun personnalisé utilise le WebKitGTK de l'hôte quand il existe (comme le .deb/.rpm) et retombe sur le WebKit embarqué sinon, AppStream + desktop `io.github.gnoooo.typst-ide.desktop` embarqués, repack `appimagetool` avec update info + `.zsync`, asset nommé `typst-ide-<version>-x86_64.AppImage`. `manage.sh build appimage [--container]`, doc dans `docs/appimage.md`.
 - [x] Bundle Windows exécutable (et non setup NSIS)
 
 ## Fonctionnalités
@@ -60,6 +60,7 @@ Les items sont groupés par priorité.
 
 ## Divers
 
+- [ ] Retirer la migration `com.typst.ide` → `io.github.gnoooo.typst-ide` après la transition (code tagué `temp-migration-com.typst.ide`)
 - [ ] Build macOS
 - [x] Assistant / solution pour l'AppImage (webkit bundlé cassé, documenté mais pas corrigé)
   - Résolu : voir `docs/appimage.md` (mode hybride WebKit hôte/embarqué, exclusions, conteneur de release).

@@ -1,5 +1,23 @@
 # Release Notes
 
+## v1.9.0
+
+### Application identity
+
+- **New identifier** : the Tauri identifier is now `io.github.gnoooo.typst-ide` instead of `com.typst.ide`, to match the Flathub application ID. The app data/config directories change accordingly.
+- **Automatic migration** : on first launch, if the old directory exists and contains files, the app copies its contents to the new directory. The migration runs once, never overwrites non-empty destination files, and keeps the old directory as a backup.
+  - Linux: `~/.config/com.typst.ide` → `~/.config/io.github.gnoooo.typst-ide`
+  - Linux: `~/.local/share/com.typst.ide` → `~/.local/share/io.github.gnoooo.typst-ide`
+  - Flatpak: `~/.var/app/io.github.gnoooo.typst-ide/config/com.typst.ide` → `~/.var/app/io.github.gnoooo.typst-ide/config/io.github.gnoooo.typst-ide`
+  - Flatpak: `~/.var/app/io.github.gnoooo.typst-ide/data/com.typst.ide` → `~/.var/app/io.github.gnoooo.typst-ide/data/io.github.gnoooo.typst-ide`
+  - Windows: `%APPDATA%\com.typst.ide` → `%APPDATA%\io.github.gnoooo.typst-ide`
+  - Windows: `%LOCALAPPDATA%\com.typst.ide` → `%LOCALAPPDATA%\io.github.gnoooo.typst-ide`
+- **Manual fallback** : if the automatic migration fails, close the app and copy the **contents** of the old folders into the new ones. Do not copy the folder itself into the destination.
+
+### Fixes
+
+- **Ctrl+E** now toggles the compilation console globally, including when the editor does not have focus.
+
 ## v1.7.4
 
 ### For developers
