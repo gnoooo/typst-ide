@@ -65,7 +65,6 @@ describe('theme picker', () => {
         const buttons = lightOnly.querySelectorAll('.theme-variant-btn');
         expect(buttons[0].disabled).toBe(false);
         expect(buttons[1].disabled).toBe(true);
-        expect(buttons[0].querySelector('.theme-variant-check')).not.toBeNull();
         expect(buttons[0].getAttribute('aria-pressed')).toBe('false');
 
         buttons[0].dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));

@@ -106,11 +106,6 @@ function buildThemeRow(theme, selected, onSelect, registerVariant) {
         label.textContent = modeLabel(mode);
         btn.appendChild(label);
 
-        const check = document.createElement('span');
-        check.className = 'material-symbols-outlined theme-variant-check';
-        check.textContent = 'check';
-        btn.appendChild(check);
-
         btn.addEventListener('click', () => {
             if (!colors) return;
             onSelect(theme.file, mode);

@@ -344,19 +344,7 @@
 .theme-variant-btn--selected {
     border-color: var(--color-link);
     background: var(--bg-hover);
-    color: var(--text);
-    outline: 2px solid var(--color-link);
-    outline-offset: 1px;
-}
-
-.theme-variant-check {
-    display: none;
-    color: var(--color-link);
-    font-size: 14px;
-}
-
-.theme-variant-btn--selected .theme-variant-check {
-    display: inline;
+    box-shadow: inset 0 0 0 1px var(--color-link);
 }
 
 .theme-variant-btn:disabled {
