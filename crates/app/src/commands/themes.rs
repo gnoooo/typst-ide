@@ -20,12 +20,18 @@ Each *.json file in this folder is a theme.
 
 Format:
 {
+  \"$schema\": \"https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json\",
   \"format\": \"typst-ide-color-scheme\",
   \"formatVersion\": 1,
   \"name\": \"My theme\",
   \"light\": { \"--bg\": \"#...\", \"--text\": \"#...\" },
   \"dark\":  { \"--bg\": \"#...\", \"--text\": \"#...\" }
 }
+
+JSON Schema:
+https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json
+
+Add the \"$schema\" key above to get completion and validation in JSON editors.
 
 `light` and `dark` are both optional. A missing variant is disabled in the
 theme picker. Only existing color variables are accepted; values are colors

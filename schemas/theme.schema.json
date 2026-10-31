@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json",
+  "title": "Typst IDE theme",
+  "description": "A Typst IDE theme file. Colors are CSS color values for existing theme variables (the application ignores unknown variables and invalid colors).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "formatVersion"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri-reference"
+    },
+    "format": {
+      "const": "typst-ide-color-scheme"
+    },
+    "formatVersion": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "light": {
+      "$ref": "#/$defs/palette"
+    },
+    "dark": {
+      "$ref": "#/$defs/palette"
+    }
+  },
+  "anyOf": [
+    { "required": ["light"] },
+    { "required": ["dark"] }
+  ],
+  "$defs": {
+    "palette": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Map of CSS custom property names to CSS color values. Only variables already defined by Typst IDE are applied.",
+      "propertyNames": {
+        "pattern": "^--[a-zA-Z0-9-]+$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "not": {
+          "pattern": "url\\("
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "$schema": "https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json",
+      "format": "typst-ide-color-scheme",
+      "formatVersion": 1,
+      "name": "My theme",
+      "light": {
+        "--bg": "#fdfdfd",
+        "--text": "#202020",
+        "--accent": "#526d82"
+      },
+      "dark": {
+        "--bg": "#1b1b1b",
+        "--text": "#eeeeee",
+        "--accent": "#9db2bf"
+      }
+    }
+  ]
+}

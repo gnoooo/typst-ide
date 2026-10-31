@@ -13,6 +13,7 @@ import { showToast } from './toast.js';
 
 const FORMAT_ID = 'typst-ide-color-scheme';
 const FORMAT_VERSION = 1;
+const SCHEMA_URL = 'https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json';
 const THEME_PATH_KEY = 'theme-path';
 const THEME_MODE_KEY = 'theme';
 export const DEFAULT_THEME_FILE = 'default.json';
@@ -117,6 +118,7 @@ function dumpColorScheme() {
     const root = document.documentElement;
     const previous = root.getAttribute('data-theme');
     const scheme = {
+        $schema: SCHEMA_URL,
         format: FORMAT_ID,
         formatVersion: FORMAT_VERSION,
         name: 'Default',

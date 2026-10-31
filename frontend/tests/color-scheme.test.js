@@ -237,6 +237,7 @@ describe('theme selection', () => {
 
     const doc = JSON.parse(saved.payload);
     expect(saved.file).toBe(DEFAULT_THEME_FILE);
+    expect(doc.$schema).toContain('schemas/theme.schema.json');
     expect(doc.name).toBe('Default');
     expect(doc.light['--bg']).toBe('#ffffff');
     expect(doc.dark['--bg']).toBe('#000000');

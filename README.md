@@ -153,6 +153,7 @@ Menu **Help > Change theme…** (Aide > Changer de thème…) lists the themes, 
 
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/gnoooo/typst-ide/main/schemas/theme.schema.json",
   "format": "typst-ide-color-scheme",
   "formatVersion": 1,
   "name": "My theme",
@@ -160,6 +161,8 @@ Menu **Help > Change theme…** (Aide > Changer de thème…) lists the themes, 
   "dark": { "--bg": "#1b1b1b", "--text": "#eeeeee" }
 }
 ```
+
+The [JSON Schema](./schemas/theme.schema.json) provides completion and validation in JSON editors when the `$schema` key is present.
 
 Only **color values** for variables that already exist in the built-in theme are meaningful (anything else, including `url(...)`, is ignored).
 
