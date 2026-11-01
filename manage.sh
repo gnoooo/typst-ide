@@ -1058,15 +1058,22 @@ cmd_flatpak_sources() {
   local tools="$REPO_ROOT/.flatpak-builder/tools"
   local venv="$tools/venv"
   local fbt="$tools/flatpak-builder-tools"
+  # maitres du vendoring : le clone suit un commit precise, pas master du jour
+  local fbt_pin=9d86d336a39b9af38b86f114b6ce5820fe260f91
 
   echo "==> flatpak-cargo-generator (Cargo.lock -> flatpak/cargo-sources.json)"
   if [ ! -x "$venv/bin/python" ]; then
     python3 -m venv "$venv" \
       || die "python3 -m venv a échoué : installe python-venv (ou utilise un conteneur python:3.12-slim, voir docs/flatpak.md)"
   fi
-  if [ ! -f "$fbt/cargo/flatpak-cargo-generator.py" ]; then
-    git clone --depth 1 https://github.com/flatpak/flatpak-builder-tools.git "$fbt" \
+  if ! git -C "$fbt" checkout --detach "$fbt_pin" 2>/dev/null; then
+    # un clone shallow d'une session precedente peut ne pas
+    # contenir le commit demande : on repart d'un clone complet
+    rm -rf "$fbt"
+    git clone https://github.com/flatpak/flatpak-builder-tools.git "$fbt" \
       || die "clone de flatpak-builder-tools a échoué"
+    git -C "$fbt" checkout --detach "$fbt_pin" \
+      || die "checkout de flatpak-builder-tools sur $fbt_pin a échoué"
   fi
   "$venv/bin/pip" install -q 'aiohttp<4.0.0,>=3.9.5' 'PyYAML<7.0.0,>=6.0.2' 'tomlkit>=0.13.3,<1.0' \
     || die "pip install des dépendances a échoué"
@@ -1077,7 +1084,7 @@ cmd_flatpak_sources() {
   echo "==> flatpak-node-generator (frontend/package-lock.json -> flatpak/node-sources.json)"
   # paquet Python du dépôt flatpak-builder-tools, installé dans le même venv
   if [ ! -x "$venv/bin/flatpak-node-generator" ]; then
-    "$venv/bin/pip" install -q "git+https://github.com/flatpak/flatpak-builder-tools.git#subdirectory=node" \
+    "$venv/bin/pip" install -q "git+https://github.com/flatpak/flatpak-builder-tools.git@$fbt_pin#subdirectory=node" \
       || die "pip install flatpak-node-generator a échoué"
   fi
   # IMPORTANT : générer depuis un arbre SANS node_modules (bug flatpak-builder-tools#377 :
