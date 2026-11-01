@@ -465,9 +465,15 @@ cmd_check() {
     echo "    ${YELLOW}rustfmt non installé (rustup component add rustfmt), vérification ignorée${NC}"
   fi
 
+  # CI_SKIP_CARGO_CHECK=1 : skip the final cargo check, for CI where clippy
+  # already compiles the whole workspace right after
   echo
   echo "== cargo check --workspace =="
-  ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
+  if [[ "${CI_SKIP_CARGO_CHECK:-0}" == "1" ]]; then
+    echo "    ${YELLOW}skip (CI_SKIP_CARGO_CHECK=1, clippy compiles the workspace)${NC}"
+  else
+    ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
+  fi
 }
 
 cmd_test() {
