@@ -8,7 +8,7 @@ import "../style.css";
 import * as monaco from 'monaco-editor';
 window.monaco = monaco;
 
-import { createEditor, setEditorTheme, editorZoomIn, editorZoomOut, editorZoomReset, getCurrentZoomPct, getCurrentFontFamily, setEditorFontFamily, getEditor, insertImageAtCursor } from "./editor.js";
+import { createEditor, setEditorTheme, editorZoomIn, editorZoomOut, editorZoomReset, getCurrentFontFamily, setEditorFontFamily, getEditor, insertImageAtCursor } from "./editor.js";
 import { initPreview, zoomPreviewIn, zoomPreviewOut, zoomPreviewReset, setPreviewZoom, getPreviewZoom, scrollToJumpPos, fitPreviewToWidth, forceCompile } from "./preview.js";
 import { initWebviewZoom, webviewZoomIn, webviewZoomOut, webviewZoomReset } from "./webview-zoom.js";
 import {
@@ -82,6 +82,11 @@ async function main() {
     if (_pasteInFlight) return;
     _pasteInFlight = true;
     try {
+
+      // Decide before any await: once this handler yields, the browser
+      // default paste (Monaco inserting the text) has already fired and
+      // a later preventDefault() cannot undo it -> duplicated content.
+      if (hasSyncImageHint(event)) event.preventDefault();
 
       console.debug("[paste-image] paste event captured");
 
@@ -535,6 +540,23 @@ function extractDataImageUrl(event) {
   if (htmlMatch) return htmlMatch[0].replace(/\s+/g, "");
 
   return null;
+}
+
+// Synchronous image-presence check for paste events: true whenever
+// extractImagePayload could find an image without awaiting its
+// blob-to-dataURL conversions (those awaits are what lose the race
+// against the default paste action).
+function hasSyncImageHint(event) {
+  if (extractDataImageUrl(event)) return true;
+  const clipboard = event.clipboardData;
+  if (!clipboard) return false;
+  for (const item of clipboard.items ?? []) {
+    if (item.type?.startsWith("image/")) return true;
+  }
+  for (const file of clipboard.files ?? []) {
+    if (file.type?.startsWith("image/")) return true;
+  }
+  return false;
 }
 
 function blobToDataUrl(blob) {
