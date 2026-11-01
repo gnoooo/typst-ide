@@ -241,15 +241,21 @@ impl TypstWrapperWorld {
             .map_err(|error| PackageError::MalformedArchive(Some(eco_format!("{error}"))))?;
 
         // Wipe any stale or half-extracted directory before unpacking.
-        _ = std::fs::remove_dir_all(&path);
+        // Best effort, the unpack below catches a leftover tree anyway.
+        if let Err(error) = std::fs::remove_dir_all(&path) {
+            eprintln!("failed to clear {}: {error}", path.display());
+        }
 
         let mut archive = tar::Archive::new(raw_archive.as_slice());
         archive.unpack(&path).map_err(|error| {
-            _ = std::fs::remove_dir_all(&path);
+            if let Err(cleanup) = std::fs::remove_dir_all(&path) {
+                eprintln!("failed to clear {}: {cleanup}", path.display());
+            }
             PackageError::MalformedArchive(Some(eco_format!("{error}")))
         })?;
 
-        _ = std::fs::write(path.join(".ok"), b"");
+        std::fs::write(path.join(".ok"), b"")
+            .map_err(|error| PackageError::MalformedArchive(Some(eco_format!("{error}"))))?;
 
         Ok(path)
     }
