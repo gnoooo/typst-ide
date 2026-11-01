@@ -1,0 +1,3 @@
+#!/bin/sh
+# mirror push to the local bare remote in background; silent fail (no VPN → next commit retries)
+( git push -q local --all >/dev/null 2>&1 & ) 2>/dev/null
