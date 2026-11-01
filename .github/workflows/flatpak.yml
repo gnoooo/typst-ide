@@ -1,9 +1,11 @@
 name: Flatpak
 
 on:
+  # Only main and pull requests: a tag points at a commit whose manifest still
+  # pins the previous release, so a tag build would verify the wrong version.
+  # The push to main after `manage.sh flatpak-bump` verifies the new release.
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
 
 jobs:
