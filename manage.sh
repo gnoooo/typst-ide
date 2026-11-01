@@ -214,7 +214,9 @@ check_consistency() {
   [ "$ok" = "1" ]
 }
 
-# Vérifie que flatpak/node-sources.json vendore chaque tarball npm du lock.
+# Vérifie que flatpak/node-sources.json vendore chaque tarball npm du lock,
+# et qu'aucun `resolved` ne pointe hors du registre npmjs (git, autre
+# registre) car ces dépendances sont impossibles à installer hors ligne.
 # Les builds Flatpak/Flathub sont hors ligne : une archive absente du cache
 # fait échouer `npm ci --offline` avec ENOTCACHED. Régénérer avec
 # `./manage.sh flatpak-sources` après tout changement de package-lock.json.
@@ -222,10 +224,19 @@ check_flatpak_node_sources() {
   local sources="$REPO_ROOT/flatpak/node-sources.json"
   [ -f "$sources" ] || { echo "    flatpak/node-sources.json absent -> ./manage.sh flatpak-sources" >&2; return 1; }
 
-  local lock_urls src_urls missing
+  local lock_urls src_urls missing unsupported
   lock_urls="$(sed -n 's/.*"resolved": "\(https:\/\/registry\.npmjs\.org\/[^"]*\.tgz\)".*/\1/p' "$FRONTEND_LOCK" | sort -u)"
   src_urls="$(sed -n 's/.*"url": "\(https:\/\/registry\.npmjs\.org\/[^"]*\.tgz\)".*/\1/p' "$sources" | sort -u)"
   missing="$(comm -23 <(printf '%s\n' "$lock_urls") <(printf '%s\n' "$src_urls"))"
+
+  # Hors-ligne, un `resolved` ne pouvant pas venir du miroir npmjs (git, autre
+  # registre) échoue aussi : résolutions locales file:/link: uniquement tolérées.
+  unsupported="$(sed -n 's/.*"resolved": "\([^"]*\)".*/\1/p' "$FRONTEND_LOCK" | grep -vE '^(https://registry\.npmjs\.org/[^"]*\.tgz|file:|link:)' | sort -u)"
+
+  if [ -n "$unsupported" ]; then
+    printf '%s\n' "$unsupported" | sed 's/^/    non supporté hors-ligne: /' >&2
+    return 1
+  fi
 
   if [ -n "$missing" ]; then
     printf '%s\n' "$missing" | sed 's/^/    manquant: /' >&2
@@ -427,7 +438,7 @@ cmd_bump() {
 }
 
 cmd_check() {
-  require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD"
+  require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$FRONTEND_LOCK"
 
   echo "== Cohérence des versions =="
   if check_consistency --pretty; then
@@ -1112,7 +1123,7 @@ cmd_flatpak_run() {
 cmd_flatpak_bump() {
   [ $# -eq 1 ] || die "usage: manage.sh flatpak-bump <tag>"
   local tag="$1" commit
-  require_file "$FLATPAK_MANIFEST"
+  require_file "$FLATPAK_MANIFEST" "$FRONTEND_LOCK"
 
   echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || die "format de tag attendu : vX.Y.Z"
   commit="$(git -C "$REPO_ROOT" rev-parse "$tag^{commit}" 2>/dev/null)" \
