@@ -80,7 +80,10 @@ pub fn update_note(
         &scope,
         project_id.as_deref(),
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| match &e {
+        rusqlite::Error::QueryReturnedNoRows => "Note introuvable".to_string(),
+        _ => e.to_string(),
+    })
 }
 
 /// ################################################
@@ -122,5 +125,13 @@ pub fn update_history_entry(
     path: String,
 ) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| e.to_string())
+    history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| match &e {
+        rusqlite::Error::QueryReturnedNoRows => "Entrée d'historique introuvable".to_string(),
+        rusqlite::Error::SqliteFailure(err, _)
+            if err.code == rusqlite::ffi::ErrorCode::ConstraintViolation =>
+        {
+            "Un projet avec ce chemin existe déjà dans l'historique".to_string()
+        }
+        _ => e.to_string(),
+    })
 }
