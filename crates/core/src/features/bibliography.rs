@@ -128,21 +128,6 @@ pub fn parse_bib_file(path: &str) -> Result<Vec<BibEntry>> {
         .collect())
 }
 
-/// Returns `true` when `cite_key` is not used by any entry of the file.
-/// (Fits its name: the old `check_if_entry_exists` returned the inverted
-/// value, `false` when the entry existed.)
-pub fn is_cite_key_available(filepath: &str, cite_key_tocheck: &str) -> Result<bool> {
-    let entries = parse_bib_file(filepath)?;
-
-    for entry in entries {
-        if entry.cite_key == cite_key_tocheck {
-            return Ok(false);
-        }
-    }
-
-    Ok(true)
-}
-
 pub fn build_bib_entry(entry_type: &str, cite_key: &str, json: &Value) -> String {
     let mut entry = String::new();
 
@@ -169,16 +154,37 @@ pub fn build_bib_entry(entry_type: &str, cite_key: &str, json: &Value) -> String
     entry
 }
 
+/// Guards the read-modify-write window of the rewriting functions: if the
+/// file changed on disk (a save from the user's editor) between our read
+/// and our write, fail loudly instead of silently discarding that edit.
+fn ensure_unchanged(filepath: &str, before: &fs::Metadata) -> Result<()> {
+    let now = fs::metadata(filepath)
+        .map_err(|e| Error::other(format!("Cannot re-stat {filepath}: {e}")))?;
+    let unchanged = now.len() == before.len() && now.modified().ok() == before.modified().ok();
+    if unchanged {
+        Ok(())
+    } else {
+        Err(Error::other("File changed on disk, reload and retry"))
+    }
+}
+
 pub fn add_entry_to_bib(
     filepath: &str,
     entry_type: &str,
     cite_key: &str,
     json: &Value,
 ) -> Result<()> {
-    if !is_cite_key_available(filepath, cite_key)? {
+    // Un seul read pour le check de clé, un append derrière : le check et
+    // l'écriture ne séparent plus deux relectures du fichier
+    if parse_bib_file(filepath)?
+        .iter()
+        .any(|entry| entry.cite_key == cite_key)
+    {
         return Err(Error::other("Entry already exists"));
     }
 
+    // shortcut: le check et l'append restent deux opérations non atomiques,
+    // un verrou fichier à ajouter si un jour les ajouts deviennent concurrents
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -214,6 +220,7 @@ pub fn get_all_bibs(projectpath: &str) -> Result<Vec<String>> {
 /// Only the lines of the target entry are touched: everything else in the
 /// file is preserved as-is, whatever its formatting.
 pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Value) -> Result<()> {
+    let before = fs::metadata(filepath)?;
     let content = fs::read_to_string(filepath)?;
     let spans = parse_entries(&content);
 
@@ -250,12 +257,14 @@ pub fn replace_whole_bib_source(filepath: &str, old_cite_key: &str, entry: &Valu
         }
     }
 
+    ensure_unchanged(filepath, &before)?;
     write_atomic(filepath, out.as_bytes())?;
     Ok(())
 }
 
 /// Removes the entry with the given cite key from the file.
 pub fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Result<()> {
+    let before = fs::metadata(filepath)?;
     let content = fs::read_to_string(filepath)?;
     let spans = parse_entries(&content);
 
@@ -276,6 +285,7 @@ pub fn delete_whole_bib_source(filepath: &str, cite_key_to_delete: &str) -> Resu
         out.push('\n');
     }
 
+    ensure_unchanged(filepath, &before)?;
     write_atomic(filepath, out.as_bytes())?;
     Ok(())
 }
@@ -287,6 +297,7 @@ pub fn delete_bib_source_value(
     cite_key_to_edit: &str,
     key_to_delete: &str,
 ) -> Result<()> {
+    let before = fs::metadata(filepath)?;
     let content = fs::read_to_string(filepath)?;
     let lines: Vec<&str> = content.lines().collect();
     let spans = parse_entries(&content);
@@ -340,6 +351,7 @@ pub fn delete_bib_source_value(
         out = content;
     }
 
+    ensure_unchanged(filepath, &before)?;
     write_atomic(filepath, out.as_bytes())?;
     Ok(())
 }
@@ -532,6 +544,45 @@ mod tests {
         delete_bib_source_value(&path, "key", "title").unwrap();
         let entries = parse_bib_file(&path).unwrap();
         assert_eq!(entries.len(), 1);
+    }
+
+    #[test]
+    fn ensure_unchanged_passes_on_a_stable_file() {
+        let dir = tempdir().unwrap();
+        let path = write_sample(&dir);
+
+        let before = fs::metadata(&path).unwrap();
+        assert!(ensure_unchanged(&path, &before).is_ok());
+    }
+
+    #[test]
+    fn ensure_unchanged_fails_after_an_edit() {
+        let dir = tempdir().unwrap();
+        let path = write_sample(&dir);
+
+        let before = fs::metadata(&path).unwrap();
+        fs::write(&path, "shorter").unwrap();
+        let res = ensure_unchanged(&path, &before);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().to_string().contains("changed on disk"));
+    }
+
+    #[test]
+    fn add_entry_appends_and_refuses_duplicate() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("add.bib");
+        fs::write(&path, SAMPLE).unwrap();
+        let path = path.to_string_lossy().to_string();
+
+        let json = serde_json::json!({ "title": "T" });
+        add_entry_to_bib(&path, "misc", "new-key", &json).unwrap();
+        // duplicate cite key must be refused, the file must keep one entry
+        assert!(add_entry_to_bib(&path, "misc", "new-key", &json).is_err());
+
+        let entries = parse_bib_file(&path).unwrap();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[2].cite_key, "new-key");
+        assert_eq!(entries[2].data["title"], "T");
     }
 
     #[test]
