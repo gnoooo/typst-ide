@@ -227,6 +227,7 @@ pub fn copy_template_to_project(
 /// Writes `lib.typ` (mandatory) and, depending on `test_typ`,
 /// writes or removes `test.typ`.
 fn write_template_files(dir: &Path, lib_typ: &str, test_typ: Option<&str>) -> Result<(), String> {
+    // write_atomic (like themes.rs) avoids a truncated template on crash mid-write
     typst_ide_core::fs::write_atomic(dir.join("lib.typ"), lib_typ.as_bytes())
         .map_err(|e| e.to_string())?;
     match test_typ {

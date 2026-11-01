@@ -80,7 +80,10 @@ pub fn update_note(
         &scope,
         project_id.as_deref(),
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| match &e {
+        rusqlite::Error::QueryReturnedNoRows => "Note introuvable".to_string(),
+        _ => e.to_string(),
+    })
 }
 
 /// ################################################
@@ -105,13 +108,21 @@ pub fn get_history(
     history_db::get_history(&conn).map_err(|e| e.to_string())
 }
 
+/// Deletes a history entry and, because removing a project from the app
+/// must not leave its notes behind, every project-scoped note of it
 #[tauri::command]
 pub fn delete_history_entry(
-    state: tauri::State<'_, HistoryDbState>,
+    history_state: tauri::State<'_, HistoryDbState>,
+    notes_state: tauri::State<'_, NotesDbState>,
     id: String,
 ) -> Result<(), String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    history_db::delete_history_entry(&conn, &id).map_err(|e| e.to_string())
+    let history_conn = history_state.0.lock().map_err(|e| e.to_string())?;
+    if let Some(path) = history_db::get_entry_path(&history_conn, &id).map_err(|e| e.to_string())? {
+        let notes_conn = notes_state.0.lock().map_err(|e| e.to_string())?;
+        let project_id = notes_db::project_id_from_path(&path);
+        notes_db::delete_project_notes(&notes_conn, &project_id).map_err(|e| e.to_string())?;
+    }
+    history_db::delete_history_entry(&history_conn, &id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -122,5 +133,13 @@ pub fn update_history_entry(
     path: String,
 ) -> Result<(), String> {
     let conn = state.0.lock().map_err(|e| e.to_string())?;
-    history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| e.to_string())
+    history_db::update_history_entry(&conn, &id, &name, &path).map_err(|e| match &e {
+        rusqlite::Error::QueryReturnedNoRows => "Entrée d'historique introuvable".to_string(),
+        rusqlite::Error::SqliteFailure(err, _)
+            if err.code == rusqlite::ffi::ErrorCode::ConstraintViolation =>
+        {
+            "Un projet avec ce chemin existe déjà dans l'historique".to_string()
+        }
+        _ => e.to_string(),
+    })
 }

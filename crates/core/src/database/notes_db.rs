@@ -129,6 +129,17 @@ pub fn delete_note(conn: &Connection, note_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Deletes every project-scoped note of one project (by its hashed path).
+/// Called when the project is removed from the app, so content of a
+/// deleted project no longer stays in exports.
+pub fn delete_project_notes(conn: &Connection, project_id: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM notes WHERE scope = 'project' AND project_id = ?1",
+        [project_id],
+    )?;
+    Ok(())
+}
+
 pub fn update_note(
     conn: &Connection,
     note_id: &str,
@@ -141,7 +152,12 @@ pub fn update_note(
     let mut stmt = conn.prepare(
         "UPDATE notes SET title = ?1, content = ?2, scope = ?3, project_id = ?4, updated_at = ?5 WHERE id = ?6"
     )?;
-    stmt.execute((&title, &content, &scope, &project_id, &now, &note_id))?;
+    let updated = stmt.execute((&title, &content, &scope, &project_id, &now, &note_id))?;
+    // Modifier une note supprimée ailleurs dans une vue obsolète
+    // ne doit pas se terminer en faux succès sans message
+    if updated == 0 {
+        return Err(Error::QueryReturnedNoRows);
+    }
     Ok(())
 }
 
@@ -176,6 +192,40 @@ pub fn import_notes(conn: &Connection, notes: &[NoteImport]) -> Result<usize> {
 mod tests {
     use super::*;
     use rusqlite::Connection;
+
+    fn fresh_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE notes (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                project_id TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn update_of_a_deleted_note_fails() {
+        let conn = fresh_db();
+        assert!(update_note(&conn, "missing", "t", "c", "global", None).is_err());
+    }
+
+    #[test]
+    fn update_of_a_live_note_succeeds() {
+        let conn = fresh_db();
+        add_note(&conn, "One", "content", "global", None).unwrap();
+        let id = get_all_notes(&conn).unwrap()[0].id.clone();
+        update_note(&conn, &id, "Two", "edited", "global", None).unwrap();
+        let note = &get_all_notes(&conn).unwrap()[0];
+        assert_eq!(note.title, "Two");
+        assert_eq!(note.content, "edited");
+    }
 
     #[test]
     fn import_notes_merges_without_duplicates() {
