@@ -6,16 +6,22 @@
   <project_license>GPL-3.0-only</project_license>
 
   <name>Typst IDE</name>
-  <summary>A modern, local-first Typst editor</summary>
+  <summary>Write and preview Typst documents</summary>
 
   <developer id="io.github.gnoooo">
     <name>gnoooo</name>
   </developer>
 
+  <branding>
+    <color type="primary" scheme_preference="light">#8FE0EA</color>
+    <color type="primary" scheme_preference="dark">#1D7F8C</color>
+  </branding>
+
   <description>
     <p>
-      Typst IDE is a local editor for Typst, rebuilt with Tauri and Rust.
-      Documents stay on your own machine: no account, no cloud, no browser.
+      Typst IDE is a local editor for Typst. Write documents in a modern editor
+      with live preview, and keep your files on your own machine: no account,
+      no cloud, no browser.
     </p>
     <p>Features include:</p>
     <ul>
@@ -26,6 +32,7 @@
       <li>Markers (TODO, FIXME, …) highlighted in the editor, with a marker book</li>
       <li>Global and per-project notes, templates, history</li>
       <li>PDF export, bibliography helpers, configuration import/export</li>
+      <li>JSON themes with light and dark variants</li>
     </ul>
   </description>
 
@@ -37,8 +44,17 @@
 
   <categories>
     <category>Development</category>
+    <category>IDE</category>
     <category>TextEditor</category>
   </categories>
+
+  <keywords>
+    <keyword>typst</keyword>
+    <keyword>editor</keyword>
+    <keyword>markup</keyword>
+    <keyword>typesetting</keyword>
+    <keyword>pdf</keyword>
+  </keywords>
 
   <screenshots>
     <screenshot type="default">
@@ -54,6 +70,19 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
-    <release version="1.7.4" date="2026-10-08"/>
+    <release version="1.8.0" date="2026-11-01">
+      <description>
+        <p>This release adds JSON themes, automatic system language detection, a persistent scratch draft, and the new application identifier.</p>
+        <ul>
+          <li>Choose light and dark variants from JSON theme files in the Help menu.</li>
+          <li>The current theme is included in the configuration export and restored on import.</li>
+          <li>The interface follows the system locale, with English as fallback.</li>
+          <li>Text typed without an open project is saved as a draft and restored at startup.</li>
+          <li>The app identifier is now io.github.gnoooo.typst-ide, with automatic migration of existing data.</li>
+          <li>Improved Typst syntax highlighting, PDF export feedback, and performance.</li>
+          <li>Fixed Ctrl+E, bibliography refresh, autosave races, modal validation, and package caching.</li>
+        </ul>
+      </description>
+    </release>
   </releases>
 </component>

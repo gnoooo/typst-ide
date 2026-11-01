@@ -1,6 +1,21 @@
 # Release Notes
 
-## v1.9.0
+## v1.8.0
+
+### Highlights
+
+- **JSON themes** : themes are now user-editable JSON files with light and dark variants, selectable from the Help menu.
+- **Automatic system language** : the interface follows the system locale on first launch, with English as fallback.
+- **Scratch draft** : text typed without an open project is autosaved and restored at startup.
+- **Flathub** : the app is published on Flathub as `io.github.gnoooo.typst-ide`.
+
+### Themes
+
+- **Themes are JSON files** stored in the `themes/` config folder. `default.json` ships with both light and dark palettes; user themes can define one or both variants.
+- **Help > Change theme** lists the themes with their light/dark variants. A missing variant is disabled. **Help > Open themes folder** opens the folder in the file manager, and **Reload** re-reads it after editing a file.
+- The active theme path and variant are persisted, so the selection survives restarts. The old generated `theme.json` is no longer used.
+- `schemas/theme.schema.json` documents the JSON format for completion and validation in JSON editors.
+- The current theme is included in the configuration export (Settings section) and restored on import when the target theme file does not already exist.
 
 ### Application identity
 
@@ -14,16 +29,36 @@
   - Windows: `%LOCALAPPDATA%\com.typst.ide` → `%LOCALAPPDATA%\io.github.gnoooo.typst-ide`
 - **Manual fallback** : if the automatic migration fails, close the app and copy the **contents** of the old folders into the new ones. Do not copy the folder itself into the destination.
 
-### Theme picker
+### Improvements
 
-- **Themes are JSON files** stored in the `themes/` config folder. `default.json` ships with both light and dark palettes; user themes can define one or both variants.
-- **Help > Change theme** lists the themes with their light/dark variants. A missing variant is disabled. **Help > Open themes folder** opens the folder in the file manager.
-- The active theme path and variant are persisted, so the selection survives restarts. The old generated `theme.json` is no longer used.
-- The current theme is included in the configuration export and restored on import when the target theme file does not already exist.
+- **System language** : the UI now follows `LANGUAGE`, then `LC_ALL`, `LC_MESSAGES` and `LANG`, instead of always defaulting to French. English is used when the locale is not French. The language setting still overrides the system locale.
+- **Scratch draft** : content typed while no project is open is autosaved to `draft.typ` in the app data folder and restored on the next startup.
+- **Typst syntax highlighting** : the Monarch grammar was rewritten with broader coverage, including math words, unclosed labels and mid-line strong/emphasis, and is covered by validation tests.
+- **PDF export** : success and error toasts, a visible shortcut on the "Save as PDF..." button, and Ctrl+S exports the PDF again.
+- **Editor fonts** : bundled fonts are now served correctly in development and production builds.
+- **Performance** : project loading is about 800 ms faster, and the system font list is scanned once and shared between font checks and suggestions.
+- **Configuration import** : notes and history imports are atomic, and an imported theme never overwrites an existing local theme.
+- **Flathub** : brand colors, release notes, a clearer summary/description, keywords and the `IDE` category were added to the AppStream metadata.
 
 ### Fixes
 
 - **Ctrl+E** now toggles the compilation console globally, including when the editor does not have focus.
+- **Bibliography** : fixed stale `.bib` parsing when the file is edited outside Typst IDE.
+- **Autosave** : fixed a race on pending saves, and paste/project writes are now atomic.
+- **Compiler** : fixed handling of a poisoned mutex in the compile function.
+- **Modals** : close-all now closes every open modal, fixed HTML injection through modal/font settings, fixed history entry and notepad edit validation.
+- **Package cache** : Typst packages are trusted only when a `.ok` marker is present, stale or half-extracted directories are re-downloaded, and the default cache moved to `~/.cache/typst-ide`.
+- **Database imports** : errors are reported instead of silently dropping rows.
+- **Filesystem paths** : commands use the canonical path returned by the sandbox check, and paths are stored only in the Rust backend.
+- **AppImage** : release artifacts are hashed, `appimagetool` is pinned to an immutable release, and only the built version's `.deb`/`.rpm` are published.
+
+### For developers
+
+- **Build** : frontend `dist/` is untracked, the frontend build runs once through Tauri's `beforeBuildCommand`, `manage.sh build` honors `--target`, and container builds skip the prebuilt frontend.
+- **Release checks** : `manage.sh` and the pre-push hook share the same version consistency rule, releases fail on a tag/version mismatch or a missing `.deb`/`.rpm`, git hooks are installed with `hooks/install.sh`.
+- **Tooling** : `manage.sh test [rust|front]`, scoped `manage.sh clean`, Flatpak `sources/build/run/bump` commands and CI job, shared version helpers, XSS sink tests, Vite/Vitest updates and a clippy-clean workspace.
+- **Packaging** : Flatpak cargo/npm sources regenerated against the current lockfiles, and the AppImage AppStream template now matches the Flatpak metadata.
+- **Code quality** : dead code removal, shared font cache, atomic writes, canonical sandbox paths, and a cleaned-up license file.
 
 ## v1.7.4
 

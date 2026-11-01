@@ -1,6 +1,6 @@
 # Publication sur Flathub : plan et justification des permissions
 
-> **Statut : packaging implémenté et vérifié, soumission à ouvrir.** Build + install Flatpak, smoke test et les deux `flatpak-builder-lint` (manifest et repo) passent sur GNOME 51. Les étapes restantes sont la PR de soumission Flathub (§9) et la maintenance post-merge. Les commandes de packaging sont intégrées à `manage.sh` (§3).
+> **Statut : publié sur Flathub.** L'application est disponible sous `io.github.gnoooo.typst-ide` (https://flathub.org/apps/io.github.gnoooo.typst-ide). Build + install Flatpak, smoke test et les deux `flatpak-builder-lint` (manifest et repo) passent sur GNOME 51. Les commandes de packaging sont intégrées à `manage.sh` (§3) et la maintenance est décrite au §9.
 
 ## 1. Contexte
 
@@ -19,7 +19,7 @@ Ce qui est déjà en place dans le dépôt et réutilisable :
 | Licence | GPL-3.0 (`LICENSE` à la racine) |
 | `Cargo.lock` commité, aucune dépendance git | vendoring cargo simple |
 | Fork `crates/typst-as-library` inclus dans le dépôt | source git autoportante |
-| AppStream | `scripts/appimage/io.github.gnoooo.typst-ide.metainfo.xml` à créer à partir de l'existant |
+| AppStream | `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` (validé avec `appstreamcli`) |
 | Desktop + icônes | `typst-ide.desktop`, `crates/app/icons/*` |
 | Tags Git | `v1.6.13` (`3d5a80bb42024d97ab85dba980a6218476091d48`) |
 
@@ -27,11 +27,11 @@ Ce qui est déjà en place dans le dépôt et réutilisable :
 
 Avant de générer le manifeste, les identifiants doivent être alignés sur `io.github.gnoooo.typst-ide`. Flathub impose le préfixe `io.github.` pour les applications hébergées sur GitHub. Il faut modifier l'identifiant Tauri, le metainfo, le desktop file, le nom des icônes et le manifeste. Cette décision doit être prise avant la première soumission : un changement d'identifiant après publication nécessite une nouvelle soumission.
 
-Le metainfo actuel n'est pas encore valide : il contient le placeholder `@DATE@` et aucun élément `<developer>`. Il faut également utiliser une URL de screenshot immuable (tag ou commit, pas `main`) et fournir une release réelle. Le desktop file copié dans Flatpak doit avoir `Icon=io.github.gnoooo.typst-ide`, et l'icône installée doit porter ce même nom.
+Le metainfo Flatpak est valide : il contient un `<developer>`, une release réelle et des screenshots épinglés sur un commit immuable. Le template AppImage (`scripts/appimage/io.github.gnoooo.typst-ide.appdata.xml`) conserve les placeholders `@VERSION@`/`@DATE@`, remplacés au build. Le desktop file copié dans Flatpak doit avoir `Icon=io.github.gnoooo.typst-ide`, et l'icône installée doit porter ce même nom.
 
 Le code d'accès aux projets est maintenant validé : `create_project()` et `open_project()` n'acceptent que des dossiers choisis via un dialogue (registre `GRANTED_PATHS` de `commands/fs.rs`), les montages document-portal sous le sandbox, ou `$HOME` hors sandbox. Les sources de templates passent par le même contrôle.
 
-Les outils Flatpak ne sont pas encore présents sur tous les environnements de développement : le build et les linters ci-dessous sont obligatoires avant soumission.
+Les outils Flatpak sont requis pour le build et les linters ci-dessous.
 
 ```bash
 # Outils locaux
@@ -61,7 +61,7 @@ flatpak-builder-tools/           # sous-module git (génération des sources)
 docs/flatpak.md                  # ce document
 ```
 
-Le manifeste présenté dans la PR Flathub doit être au niveau supérieur du dépôt Flathub, conformément aux exigences actuelles. Le projet amont peut conserver ses fichiers de packaging dans `flatpak/`, mais la PR Flathub doit placer le manifeste et `flathub.json` à la racine du dépôt de soumission.
+Le manifeste est maintenu dans le dépôt `flathub/io.github.gnoooo.typst-ide`, à la racine, conformément aux exigences actuelles. Le projet amont conserve ses fichiers de packaging dans `flatpak/`.
 
 `manage.sh` gère le packaging :
 
@@ -257,15 +257,9 @@ Résultats constatés : les lints `manifest` et `repo` passent sans erreur ni av
 
 Tester au minimum le lancement, la création et la réouverture d'un projet, les imports, l'export PDF, un package `@preview`, les fonts, et « révéler dans le gestionnaire de fichiers ».
 
-## 9. Soumission et maintenance
+## 9. Publication et maintenance
 
-Soumission (une fois) :
-1. Fork de `flathub/flathub`, puis clone de la branche `new-pr`.
-2. Créer une branche de soumission.
-3. Ajouter au niveau supérieur `io.github.gnoooo.typst-ide.yml`, `cargo-sources.json`, `node-sources.json` et, si nécessaire, `flathub.json`.
-4. Vérifier que le metainfo et le desktop file intégrés dans la source amont correspondent exactement à `io.github.gnoooo.typst-ide`.
-5. Ouvrir une PR contre `new-pr` avec le bloc de justification (paragraphe 6.3) et les informations sur les permissions.
-6. Itérer avec les reviewers, puis accès en écriture au dépôt `flathub/io.github.gnoooo.typst-ide`.
+L'application a été soumise via une PR contre `flathub/flathub` (branche `new-pr`), puis publiée dans le dépôt `flathub/io.github.gnoooo.typst-ide`. Le metainfo et le desktop file intégrés dans la source amont doivent rester alignés sur `io.github.gnoooo.typst-ide`.
 
 À chaque release :
 1. `./manage.sh bump <version>` : versions + entrée `<release>` du metainfo (date du jour) ; si `Cargo.lock` ou `frontend/package-lock.json` ont changé, `./manage.sh flatpak-sources` avant.

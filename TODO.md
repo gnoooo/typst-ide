@@ -46,17 +46,14 @@ Les items sont groupés par priorité.
 
 ## Flathub
 
-- [ ] Brand color : https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/quality-guidelines#brand-colors
-  - Constat octobre 2026 : la page Flathub "Details" indique **1 vérification en échec**, "Has primary brand colors". Non bloquant pour publier -> à regrouper avec la prochaine release fonctionnelle avec les fixes
-  - Ajouter dans `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` après `<developer>` :
-    ```xml
-    <branding>
-      <color type="primary" scheme_preference="light">#8FE0EA</color>
-      <color type="primary" scheme_preference="dark">#1D7F8C</color>
-    </branding>
-    ```
-- [ ] Ajouter les notes de version dans `<release>`
-- [ ] Plus simplement régler les problèmes pour avoir une belle page : https://flathub.org/fr/apps/io.github.gnoooo.typst-ide
+- [x] Brand color : https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/quality-guidelines#brand-colors
+  - Fait en v1.8.0 : `<branding>` ajouté dans `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` avec `#8FE0EA` (clair) et `#1D7F8C` (sombre).
+- [x] Ajouter les notes de version dans `<release>`
+  - Fait en v1.8.0 : description de la release ajoutée dans le metainfo.
+- [ ] Finaliser la page Flathub : https://flathub.org/fr/apps/io.github.gnoooo.typst-ide
+  - [ ] Captures d'écran en anglais (les captures actuelles montrent les menus en français).
+  - [ ] Icône 512 px avec marge et style contemporain.
+  - [ ] MIME `text/typst` : incohérent avec `text/x-typst`, et l'application ne traite pas les fichiers passés en argument. Retirer la ligne ou implémenter l'ouverture.
 
 ## Divers
 

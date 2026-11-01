@@ -15,7 +15,7 @@ A modern local Typst editor (not a lie anymore, since Electron has been replaced
 Check out the [releases](https://github.com/gnoooo/typst-ide/releases) page for the latest version.
 
 Available versions:
-- **Linux** : AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./PKGBUILD) for Arch.
+- **Linux** : [Flatpak](https://flathub.org/apps/io.github.gnoooo.typst-ide) (`flatpak install flathub io.github.gnoooo.typst-ide`), AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./PKGBUILD) for Arch.
   The AppImage is portable (no installation): it uses the system `webkit2gtk-4.1` when available (like the `.deb`/`.rpm`) and falls back to the bundled copy otherwise. It supports AppImageUpdate through the published `.zsync` : see [docs/appimage.md](./docs/appimage.md).
 - **Windows** : setup executable, plus a portable executable.
 - Maybe MacOS in the future?
@@ -149,7 +149,7 @@ Themes are JSON files stored in `~/.config/io.github.gnoooo.typst-ide/themes/` (
 
 The active theme is stored as a relative path in localStorage (`theme-path`), and the active variant in `theme` (`light` or `dark`). A theme may define only `light`, only `dark`, or both (the missing variant is disabled in the picker).
 
-Menu **Help > Change theme…** (Aide > Changer de thème…) lists the themes, and **Help > Open themes folder** (Aide > Ouvrir le dossier des thèmes) opens the folder in the file manager. After editing a JSON file, use the picker's **Reload** button.
+Menu **Help > Change theme** (Aide > Changer de thème) lists the themes, and **Help > Open themes folder** (Aide > Ouvrir le dossier des thèmes) opens the folder in the file manager. After editing a JSON file, use the picker's **Reload** button.
 
 The current theme is included in the configuration export (Settings section). Importing writes it only if the target theme file does not already exist.
 
