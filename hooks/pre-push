@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# pre-push hook: verify that all project version files are consistent, that
-# any pushed tag vX.Y.Z matches the version in those files, and that the
-# frontend npm audit passes (same check as CI, see .github/workflows/ci.yml)
+# pre-push hook: verify that all project version files are consistent, and
+# that any pushed tag vX.Y.Z matches the version in those files
 set -u
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -36,24 +35,6 @@ if [ -n "$mismatches" ]; then
     echo "  crates/app/Cargo.toml holds the reference version, align the files above"
   } >&2
   exit 1
-fi
-
-# Check D: frontend npm audit, exact same command as CI: any vulnerability
-# found here would fail the GitHub workflow after the push. Best effort: skip
-# silently (with a note) when npm is missing or the audit cannot run (network).
-if ! command -v npm >/dev/null 2>&1; then
-  echo "pre-push: npm not installed, skipping frontend audit" >&2
-elif audit_out="$( cd "$REPO_ROOT/frontend" && npm audit --package-lock-only 2>&1 )"; then
-  echo "pre-push: frontend npm audit: no vulnerabilities."
-elif printf '%s\n' "$audit_out" | grep -qE '[0-9]+ [a-z]+ severity vulnerabilit(y|ies)'; then
-  {
-    echo "pre-push: frontend npm audit found vulnerabilities:"
-    printf '%s\n' "$audit_out" | sed 's/^/  /'
-    echo "  fix with: cd frontend && npm audit fix (weaker: git push --no-verify, CI will still fail)"
-  } >&2
-  exit 1
-else
-  echo "pre-push: npm audit could not run (network?), skipping" >&2
 fi
 
 # Check B: every pushed tag refs/tags/vX.Y.Z must match the file version

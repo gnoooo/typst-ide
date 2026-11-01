@@ -4,7 +4,7 @@
 # manage.sh : manager de projet pour Typst IDE (Rust + Tauri + frontend)
 
 # Usage:
-#   ./manage.sh info                      Infos du projet (nom, version, cohérence, audit npm, git…)
+#   ./manage.sh info                      Infos du projet (nom, version, cohérence, git…)
 #   ./manage.sh bump <version|type>       Met à jour la version partout (--dry-run dispo)
 #   ./manage.sh check                     Cohérence des versions + cargo fmt/check
 #   ./manage.sh test [cibles]             Tests du workspace
@@ -330,23 +330,6 @@ cmd_info() {
   printf "    %-28s %s\n" "cargo" "$(cargo --version 2>/dev/null || echo "(introuvable)")"
   printf "    %-28s %s\n" "node" "$(node --version 2>/dev/null || echo "(introuvable)")"
   printf "    %-28s %s\n" "npm" "$(npm --version 2>/dev/null || echo "(introuvable)")"
-
-  # Même check que la CI (.github/workflows/ci.yml) : avec --package-lock-only,
-  # npm audit n'a besoin que du lock + du registre (pas de node_modules).
-  echo
-  echo "${BOLD}Audit npm (frontend)${NC}"
-  # NB : npm audit crie « N high severity vulnerability » (singulier/pluriel),
-  # le « found N vulnerabilities » n'apparaît que dans le retour OK.
-  if ! command -v npm >/dev/null 2>&1; then
-    printf "    %-28s %s\n" "audit" "(npm introuvable, vérification ignorée)"
-  elif audit_out="$( cd "$REPO_ROOT/frontend" && npm audit --package-lock-only 2>&1 )"; then
-    printf "    %-28s %s\n" "audit" "${GREEN}OK${NC} (aucune vulnérabilité)"
-  elif vulns="$(printf '%s\n' "$audit_out" | sed -nE 's/^([0-9]+) [a-z]+ severity vulnerabilit(y|ies).*/\1/p' | tail -n 1)" && [ -n "$vulns" ]; then
-    printf "    %-28s %s %s vulnérabilité(s)\n" "audit" "${RED}KO${NC}" "$vulns"
-    printf "    %-28s %s\n" "" "cd frontend && npm audit fix"
-  else
-    printf "    %-28s %s\n" "audit" "${DIM}(vérification impossible : réseau ?)${NC}"
-  fi
 
   echo
   echo "${BOLD}Git${NC}"
