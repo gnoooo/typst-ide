@@ -8,6 +8,7 @@ import { openModal, showConfirm, showSelect } from "../modal.js"
 import { showToast } from '../toast.js';
 import { closeBibliography } from "./bibliography.js";
 import { biblatex } from "../schema/biblatex-entries.js";
+import { wireSearchInput } from "../utils/search.js";
 
 let _sourceEntries = [];
 let _sourceFilepath = "";
@@ -41,10 +42,7 @@ function createSearchBar() {
   input.style.fontSize = "13px";
   container.appendChild(input);
 
-  input.addEventListener("input", () => {
-    const text = input.value.trim().toLowerCase();
-    rebuildSourcesList(text);
-  });
+  wireSearchInput(input, (text) => rebuildSourcesList(text.toLowerCase()));
 
   return container;
 }

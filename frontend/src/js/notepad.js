@@ -37,6 +37,7 @@ import { t, getLang } from '../i18n/index.js'
 import { openModal, showPrompt, showConfirm, closeTopModal } from './modal.js';
 import { getCurrentFontFamily, getEditor } from './editor.js';
 import { getCurrentProject } from './project.js';
+import { wireSearchInput } from './utils/search.js';
 
 let _globalNotes = [];
 let _projectNotes = [];
@@ -70,10 +71,7 @@ function createSearchBar() {
   input.style.fontSize = "13px";
   container.appendChild(input);
 
-  input.addEventListener("input", () => {
-    const text = input.value.trim().toLowerCase();
-    rebuildNotesList(text);
-  });
+  wireSearchInput(input, (text) => rebuildNotesList(text.toLowerCase()));
 
   return container;
 }
@@ -273,7 +271,12 @@ async function deleteNote(noteId) {
     });
 
     if (confirmed) {
-        await invoke('delete_note', { noteId });
+        try {
+            await invoke('delete_note', { noteId });
+        } catch (err) {
+            showToast('error', t('notepad.delete_error', { error: err }));
+            return;
+        }
         closeNotepad();
         openNotepad(); // Refresh the notepad
     }

@@ -10,6 +10,7 @@
 
 import { t } from '../../i18n/index.js';
 import { openModal } from '../modal.js';
+import { wireSearchInput } from '../utils/search.js';
 import { getEditor } from '../editor.js';
 import { findKeytagComments } from './scan.js';
 import { commentSpansFromBuffer } from './tokens.js';
@@ -34,8 +35,8 @@ export function openCommentBook() {
   search.type = "text";
   search.className = "ide-modal-input";
   search.placeholder = t('comment.search');
-  search.addEventListener("input", () => {
-    filterText = search.value.trim();
+  wireSearchInput(search, (value) => {
+    filterText = value.toLowerCase();
     rebuild();
   });
   body.appendChild(search);

@@ -6,6 +6,7 @@ import { wireSet } from "./wire.js";
 import { refreshTree, rebuildTreeView } from "./tree.js";
 import { setFilter } from "./state.js";
 import { handleImport, handleCreateFolder } from "./operations.js";
+import { wireSearchInput } from "../utils/search.js";
 
 export async function openFileManager() {
   if (!getCurrentProject()) {
@@ -75,8 +76,8 @@ function createSearchBar() {
   input.style.fontSize = "13px";
   container.appendChild(input);
 
-  input.addEventListener("input", () => {
-    setFilter(input.value.trim().toLowerCase());
+  wireSearchInput(input, (text) => {
+    setFilter(text.toLowerCase());
     const treeContainer = document.getElementById("file-tree-container");
     if (treeContainer) rebuildTreeView(treeContainer);
   });

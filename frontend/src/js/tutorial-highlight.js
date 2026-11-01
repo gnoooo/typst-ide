@@ -9,8 +9,12 @@
  *
  *  ## API
  *  highlightTypst(code) -> string   HTML with .tut-tok-* spans
- *  escapeHtml(text)     -> string   basic HTML escaping
+ *  escapeHtml(text)     -> string   basic HTML escaping (re-exported from utils/escape.js)
  */
+
+import { escapeHtml } from "./utils/escape.js";
+
+export { escapeHtml };
 
 const TOKEN_RE =
   /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|(#[a-zA-Z_][\w-]*)|(\b\d+(?:\.\d+)?(?:%|[a-zA-Z]+)?\b)|(\*[^*\n]+\*)|(_[^_\n]+_)/g;
@@ -23,15 +27,6 @@ const TOKEN_CLASS = [
   "tut-tok-strong",
   "tut-tok-emphasis",
 ];
-
-export function escapeHtml(text) {
-  return text
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 export function highlightTypst(code) {
   let out = "";

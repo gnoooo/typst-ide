@@ -117,7 +117,7 @@ export function openModal({ title, body, buttons = [], width = '480px', height =
         footer.className = 'ide-modal-actions';
         buttons.forEach(({ label, primary = false, onClick }) => {
             const btn = document.createElement('button');
-            btn.className = primary ? 'btn' : 'btn';
+            btn.className = 'btn';
             btn.textContent = label;
             btn.addEventListener('click', () => onClick?.(close, closeAll));
             footer.appendChild(btn);
