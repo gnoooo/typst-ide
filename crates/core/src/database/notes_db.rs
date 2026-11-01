@@ -129,6 +129,17 @@ pub fn delete_note(conn: &Connection, note_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Deletes every project-scoped note of one project (by its hashed path).
+/// Called when the project is removed from the app, so content of a
+/// deleted project no longer stays in exports.
+pub fn delete_project_notes(conn: &Connection, project_id: &str) -> Result<()> {
+    conn.execute(
+        "DELETE FROM notes WHERE scope = 'project' AND project_id = ?1",
+        [project_id],
+    )?;
+    Ok(())
+}
+
 pub fn update_note(
     conn: &Connection,
     note_id: &str,

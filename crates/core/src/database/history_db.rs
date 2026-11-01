@@ -77,6 +77,14 @@ pub fn delete_history_entry(conn: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Path of a history entry, to purge project-scoped data alongside it.
+pub fn get_entry_path(conn: &Connection, id: &str) -> Result<Option<String>> {
+    conn.query_row("SELECT path FROM history WHERE id = ?", [id], |row| {
+        row.get(0)
+    })
+    .optional()
+}
+
 pub fn update_history_entry(conn: &Connection, id: &str, name: &str, path: &str) -> Result<()> {
     let updated = conn.execute(
         "

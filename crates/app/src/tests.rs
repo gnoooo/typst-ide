@@ -109,12 +109,43 @@ fn history_crud_through_commands() {
     let updated = crate::commands::db::get_history(app.state::<HistoryDbState>()).unwrap();
     assert_eq!(updated[0].name, "Renamed report");
 
-    crate::commands::db::delete_history_entry(app.state::<HistoryDbState>(), history[0].id.clone())
-        .unwrap();
+    // Les notes vivantes du projet au moment de la suppression le suivent
+    crate::commands::db::add_note(
+        app.state::<NotesDbState>(),
+        "Report note".into(),
+        "p".into(),
+        "project".into(),
+        Some(crate::commands::db::get_current_project_id(
+            "/home/user/report-renamed".into(),
+        )),
+    )
+    .unwrap();
+    crate::commands::db::add_note(
+        app.state::<NotesDbState>(),
+        "Omnipresent note".into(),
+        "g".into(),
+        "global".into(),
+        None,
+    )
+    .unwrap();
+
+    crate::commands::db::delete_history_entry(
+        app.state::<HistoryDbState>(),
+        app.state::<NotesDbState>(),
+        history[0].id.clone(),
+    )
+    .unwrap();
     assert!(
         crate::commands::db::get_history(app.state::<HistoryDbState>())
             .unwrap()
             .is_empty()
+    );
+    // Les notes projet ont suivi, les globales restent
+    assert!(
+        crate::commands::db::get_all_notes(app.state::<NotesDbState>())
+            .unwrap()
+            .iter()
+            .all(|note| note.title == "Omnipresent note")
     );
 }
 
