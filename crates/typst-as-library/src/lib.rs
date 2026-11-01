@@ -295,8 +295,10 @@ impl TypstWrapperWorld {
             .decode_gzip()
             .map_err(|error| PackageError::MalformedArchive(Some(eco_format!("{error}"))))?;
 
-        // Wipe any stale or half-extracted directory before unpacking.
-        _ = std::fs::remove_dir_all(&path);
+        // Ne pas laisser de dépendances à moitié existantes, l'erreur est
+        // propagée puisque la décompression complète dépend de ce nettoyage
+        std::fs::remove_dir_all(&path)
+            .map_err(|error| PackageError::Other(Some(eco_format!("{error}"))))?;
 
         let mut archive = tar::Archive::new(raw_archive.as_slice());
         archive.unpack(&path).map_err(|error| {

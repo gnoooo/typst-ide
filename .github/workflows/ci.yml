@@ -55,8 +55,9 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Check versions consistency, formatting and compilation
-        run: ./manage.sh check
+      - name: Check versions consistency and formatting
+        # cargo check omis : clippy et les tests compilent déjà tout le workspace
+        run: ./manage.sh check --no-cargo-check
 
       - name: Lint (clippy)
         run: cargo clippy --workspace --all-targets -- -D warnings

@@ -438,6 +438,12 @@ cmd_bump() {
 }
 
 cmd_check() {
+  local no_cargo_check=false
+  case "${1:-}" in
+    --no-cargo-check) no_cargo_check=true ;;
+    "") ;;
+    *) die "option inconnue: $1 (seule --no-cargo-check est acceptée)" ;;
+  esac
   require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$FRONTEND_LOCK"
 
   echo "== Cohérence des versions =="
@@ -466,8 +472,13 @@ cmd_check() {
   fi
 
   echo
-  echo "== cargo check --workspace =="
-  ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
+  if [ "$no_cargo_check" = true ]; then
+    echo "== cargo check --workspace =="
+    echo "    (omis, l'appelant compile le workspace autrement)"
+  else
+    echo "== cargo check --workspace =="
+    ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
+  fi
 }
 
 cmd_test() {
@@ -1155,7 +1166,7 @@ shift || true
 case "$cmd" in
   info)    cmd_info ;;
   bump)    cmd_bump "$@" ;;
-  check)   cmd_check ;;
+  check)   cmd_check "$@" ;;
   test)    cmd_test "$@" ;;
   build)   cmd_build "$@" ;;
   fix-appimage) cmd_fix_appimage "$@" ;;
