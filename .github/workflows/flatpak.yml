@@ -8,6 +8,10 @@ on:
     branches: [main]
   pull_request:
 
+# Le build vérifie le manifeste et n'écrit nulle part dans le dépôt.
+permissions:
+  contents: read
+
 jobs:
   flatpak:
     name: "Flatpak (${{ matrix.arch }})"
@@ -24,7 +28,7 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
       options: --privileged
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Verification build only : the official Flathub build stays on their
       # buildbot. The manifest is pinned to the last release tag, the CI
