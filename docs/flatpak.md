@@ -147,6 +147,12 @@ Les builds Flathub sont **sans réseau**. Il faut donc fournir les dépendances 
 `flatpak-sources` encapsule les deux commandes (venv Python local, générateur npm local).
 À relancer quand `Cargo.lock` ou `frontend/package-lock.json` changent.
 
+`./manage.sh check` vérifie que `flatpak/node-sources.json` vendore chaque tarball npm
+référencé par `frontend/package-lock.json`, et `flatpak-bump` refuse d'épingler un tag
+si ce n'est pas le cas. C'est le garde-fou contre l'erreur `ENOTCACHED` : les builds
+Flatpak étant hors ligne, toute archive ajoutée par un `npm audit fix` ou une montée de
+version doit être régénérée **après** la modification du lock, jamais avant.
+
 ## 6. Justification des permissions
 
 ### 6.1 Résumé

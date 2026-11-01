@@ -55,7 +55,7 @@
 ### For developers
 
 - **Build** : frontend `dist/` is untracked, the frontend build runs once through Tauri's `beforeBuildCommand`, `manage.sh build` honors `--target`, and container builds skip the prebuilt frontend.
-- **Release checks** : `manage.sh` and the pre-push hook share the same version consistency rule, releases fail on a tag/version mismatch or a missing `.deb`/`.rpm`, git hooks are installed with `hooks/install.sh`.
+- **Release checks** : `manage.sh` and the pre-push hook share the same version consistency rule, releases fail on a tag/version mismatch or a missing `.deb`/`.rpm`, git hooks are installed with `hooks/install.sh`, and `manage.sh check` / `flatpak-bump` verify that the vendored npm sources cover the lockfile so offline Flatpak builds cannot fail on `ENOTCACHED`.
 - **Tooling** : `manage.sh test [rust|front]`, scoped `manage.sh clean`, Flatpak `sources/build/run/bump` commands and CI job, shared version helpers, XSS sink tests, Vite/Vitest updates and a clippy-clean workspace.
 - **Packaging** : Flatpak cargo/npm sources regenerated against the current lockfiles, and the AppImage AppStream template now matches the Flatpak metadata.
 - **Code quality** : dead code removal, shared font cache, atomic writes, canonical sandbox paths, and a cleaned-up license file.

@@ -214,6 +214,25 @@ check_consistency() {
   [ "$ok" = "1" ]
 }
 
+# Vérifie que flatpak/node-sources.json vendore chaque tarball npm du lock.
+# Les builds Flatpak/Flathub sont hors ligne : une archive absente du cache
+# fait échouer `npm ci --offline` avec ENOTCACHED. Régénérer avec
+# `./manage.sh flatpak-sources` après tout changement de package-lock.json.
+check_flatpak_node_sources() {
+  local sources="$REPO_ROOT/flatpak/node-sources.json"
+  [ -f "$sources" ] || { echo "    flatpak/node-sources.json absent -> ./manage.sh flatpak-sources" >&2; return 1; }
+
+  local lock_urls src_urls missing
+  lock_urls="$(sed -n 's/.*"resolved": "\(https:\/\/registry\.npmjs\.org\/[^"]*\.tgz\)".*/\1/p' "$FRONTEND_LOCK" | sort -u)"
+  src_urls="$(sed -n 's/.*"url": "\(https:\/\/registry\.npmjs\.org\/[^"]*\.tgz\)".*/\1/p' "$sources" | sort -u)"
+  missing="$(comm -23 <(printf '%s\n' "$lock_urls") <(printf '%s\n' "$src_urls"))"
+
+  if [ -n "$missing" ]; then
+    printf '%s\n' "$missing" | sed 's/^/    manquant: /' >&2
+    return 1
+  fi
+}
+
 # --- Divers ---
 
 last_git_tag() {
@@ -415,6 +434,15 @@ cmd_check() {
     echo "    ${GREEN}OK${NC}"
   else
     echo "    ${RED}INCOHÉRENTES, alignez les fichiers avant de pousser${NC}"
+    exit 1
+  fi
+
+  echo
+  echo "== Sources Flatpak hors-ligne =="
+  if check_flatpak_node_sources; then
+    echo "    flatpak/node-sources.json: ${GREEN}OK${NC} (complet pour package-lock.json)"
+  else
+    echo "    ${RED}KO${NC} : régénérez avec ./manage.sh flatpak-sources"
     exit 1
   fi
 
@@ -1089,6 +1117,12 @@ cmd_flatpak_bump() {
   echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || die "format de tag attendu : vX.Y.Z"
   commit="$(git -C "$REPO_ROOT" rev-parse "$tag^{commit}" 2>/dev/null)" \
     || die "tag introuvable : $tag"
+
+  echo "==> Vérification des sources npm hors-ligne"
+  check_flatpak_node_sources \
+    || die "flatpak/node-sources.json ne couvre pas frontend/package-lock.json -> ./manage.sh flatpak-sources"
+  echo "    ${GREEN}OK${NC} node-sources.json couvre package-lock.json"
+  echo
 
   sed -i "s|^        tag: .*|        tag: $tag|" "$FLATPAK_MANIFEST"
   sed -i "s|^        commit: .*|        commit: $commit|" "$FLATPAK_MANIFEST"
