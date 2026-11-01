@@ -272,13 +272,18 @@ done < <(find "$OUT_DIR" -maxdepth 1 \( -name '*.AppImage' -o -name '*.AppImage.
            ! -name "$(basename "$OUT")" ! -name "$(basename "$OUT").zsync" -print0 2>/dev/null || true)
 
 info "repacking with appimagetool..."
-rm -f "$OUT" "$OUT.zsync"
+# garder le precedent artefact jusqu'a ce que le nouveau existe :
+# un echec du repack ne doit pas detruire la release publiable
+[ -f "$OUT" ] && mv "$OUT" "$OUT.prev"
+[ -f "$OUT.zsync" ] && mv "$OUT.zsync" "$OUT.zsync.prev"
 # appimagetool writes the .zsync into the current directory: run it from OUT_DIR.
 APPT_LOG="$TMP_DIR/appimagetool.log"
 [ -n "$TMP_DIR" ] || APPT_LOG="$(mktemp)"
 if ! ( cd "$OUT_DIR" && ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 "$TOOL" -u "$UPDATE_INFO" "$APPDIR" "$OUT" ) >"$APPT_LOG" 2>&1; then
   cat "$APPT_LOG" >&2
   rm -f "$APPT_LOG"
+  [ -f "$OUT.prev" ] && mv "$OUT.prev" "$OUT"
+  [ -f "$OUT.zsync.prev" ] && mv "$OUT.zsync.prev" "$OUT.zsync"
   die "appimagetool failed (see output above)"
 fi
 rm -f "$APPT_LOG"
@@ -288,6 +293,7 @@ for file in "${PRE_EXISTING[@]+"${PRE_EXISTING[@]}"}"; do
 done
 
 [ -f "$OUT" ] || die "appimagetool did not produce $OUT"
+rm -f "$OUT.prev" "$OUT.zsync.prev"
 
 info "AppImage : $OUT"
 if [ -f "$OUT.zsync" ]; then
