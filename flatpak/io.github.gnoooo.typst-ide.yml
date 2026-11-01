@@ -34,8 +34,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/gnoooo/typst-ide.git
-        tag: v1.7.4
-        commit: b23a4b3690e918e2c2048de3cc2319b1ab0f6112
+        tag: v1.8.0
+        commit: 65cc12d2647fe1f6eb280650a3ac58f21b6c7ecc
         x-checker-data:
           type: git
           tag-pattern: ^v([\d.]+)$
