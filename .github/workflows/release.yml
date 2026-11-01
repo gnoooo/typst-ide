@@ -212,6 +212,14 @@ jobs:
         with:
           path: artifacts
 
+      # SHA256SUMS ships with the release so PKGBUILD (= the 'SKIP' sums) and
+      # anyone else can verify the artifacts after download.
+      - name: Generate SHA256SUMS
+        run: |
+          cd artifacts
+          find . -type f ! -name SHA256SUMS -print0 | sort -z \
+            | xargs -0 sha256sum > SHA256SUMS
+
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: artifacts/**/*
