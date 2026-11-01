@@ -10,6 +10,7 @@
 import * as monaco from 'monaco-editor';
 import { readText as tauriReadText } from '@tauri-apps/plugin-clipboard-manager';
 import { registerTypstLanguage, getThemeName } from './typst-syntax.js';
+import { escapeTypstString } from './utils/escape.js';
 import { isValidFontFamily } from './font-family.js';
 
 const DEFAULT_FONT_SIZE = 14;
@@ -85,7 +86,7 @@ export function insertImageAtCursor(dataUrl) {
 
   if (!position) return;
 
-  const typstSyntax = `#image("${dataUrl}", width: 100%)`;
+  const typstSyntax = `#image("${escapeTypstString(dataUrl)}", width: 100%)`;
 
   _editor.executeEdits('paste-image', [
     {

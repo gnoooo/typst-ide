@@ -16,3 +16,15 @@ export function escapeHtml(text) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
+// Escape `text` for a Typst string literal: backslash first, then the quote.
+export function escapeTypstString(text) {
+  return String(text).replace(/[\\"]/g, "\\$&");
+}
+
+// Escape `text` for a Typst content block [...]: prefix every char that can
+// open or close a different syntax group (# code, [ ] delims, * _ emphasis,
+// $ math, ` raw, @ refs, \ escape).
+export function escapeTypstContent(text) {
+  return String(text).replace(/[#\[\]*_`$@\\]/g, "\\$&");
+}
