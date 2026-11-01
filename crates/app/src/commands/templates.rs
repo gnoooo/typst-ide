@@ -227,10 +227,12 @@ pub fn copy_template_to_project(
 /// Writes `lib.typ` (mandatory) and, depending on `test_typ`,
 /// writes or removes `test.typ`.
 fn write_template_files(dir: &Path, lib_typ: &str, test_typ: Option<&str>) -> Result<(), String> {
-    std::fs::write(dir.join("lib.typ"), lib_typ).map_err(|e| e.to_string())?;
+    typst_ide_core::fs::write_atomic(dir.join("lib.typ"), lib_typ.as_bytes())
+        .map_err(|e| e.to_string())?;
     match test_typ {
         Some(test) => {
-            std::fs::write(dir.join("test.typ"), test).map_err(|e| e.to_string())?;
+            typst_ide_core::fs::write_atomic(dir.join("test.typ"), test.as_bytes())
+                .map_err(|e| e.to_string())?;
         }
         None => {
             let _ = std::fs::remove_file(dir.join("test.typ"));
