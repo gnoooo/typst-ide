@@ -204,7 +204,9 @@ pub fn copy_template_to_project(
     if !src.exists() {
         return Err(format!("Template '{}' introuvable.", template_name));
     }
-    let dest_base = PathBuf::from(&dest_dir);
+    // dest_dir comes from the frontend, constrain it to the registered roots
+    // like every other filesystem command
+    let dest_base = super::fs::check_in_roots(&app, &dest_dir)?;
     if dest_base.as_os_str().is_empty() {
         return Err("Destination directory is empty".to_string());
     }
