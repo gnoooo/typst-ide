@@ -1,7 +1,7 @@
 /**
  * External-change detection for the currently open file.
  *
- * Periodically compares the FNV-1a 64 hash of the file on disk (via the
+ * Periodically compares the FNV-1a 32-bit hash of the file on disk (via the
  * `file_hash` Tauri command) with the hash of the editor's content. When the
  * disk content differs from both the editor and our last known saved state,
  * the file was modified outside this IDE (e.g. in VSCode), two toolbar

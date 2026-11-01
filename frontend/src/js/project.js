@@ -147,11 +147,9 @@ export function openProjectBtnUpdate() {
     if (getCurrentProject() === null){
         // document.getElementById('open-project-btn')?.classList.remove('_open-project-btn-none');
         btn.classList.add("_open-project-blinking");
-        btn.classList.add("_open-project-blinking:hover");
     } else {
         // document.getElementById('open-project-btn')?.classList.add('_open-project-btn-none');
         btn.classList.remove("_open-project-blinking");
-        btn.classList.remove("_open-project-blinking:hover");
     }
 }
 

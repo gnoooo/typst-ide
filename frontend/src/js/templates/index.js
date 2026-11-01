@@ -3,6 +3,7 @@ import { openModal, showConfirm, showPrompt } from '../modal.js';
 import { showToast } from '../toast.js';
 import { openTemplateForm } from './form.js';
 import { instantiateTemplate } from './instantiate.js';
+import { wireSearchInput } from '../utils/search.js';
 
 const { invoke } = window.__TAURI__.core;
 
@@ -26,6 +27,7 @@ export async function openTemplateManager() {
   _container.style.minHeight = "0";
   body.appendChild(_container);
 
+  await fetchTemplates();
   await rebuildList();
 
   openModal({
@@ -75,7 +77,7 @@ function createSearchBar() {
   input.style.fontSize = "13px";
   container.appendChild(input);
 
-  input.addEventListener("input", () => rebuildList(input.value.trim().toLowerCase()));
+  wireSearchInput(input, (text) => rebuildList(text.toLowerCase()));
 
   return container;
 }
@@ -90,10 +92,9 @@ async function fetchTemplates() {
   }
 }
 
-/** Renders the template list, optionally filtered. */
-async function rebuildList(filterText = "") {
+/** Renders the template list from the fetched cache, optionally filtered. */
+function rebuildList(filterText = "") {
   if (!_container) return;
-  await fetchTemplates();
 
   _container.innerHTML = "";
   const filtered = filterText
@@ -179,6 +180,7 @@ function renderTemplateEntry(tpl) {
     if (btn.danger) b.style.color = 'var(--error-text)';
     b.addEventListener('click', async () => {
       await btn.fn();
+      await fetchTemplates();
       await rebuildList();
     });
     actions.appendChild(b);

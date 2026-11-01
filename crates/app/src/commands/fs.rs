@@ -542,16 +542,19 @@ pub fn delete_file_or_dir(app: tauri::AppHandle, path: String) -> Result<(), Str
     }
 }
 
-/// Computes the FNV-1a 64-bit hash of a file's content (hex, 16 chars).
-/// Used to detect external modifications of the file being edited.
+/// Computes the FNV-1a 32-bit hash of a file's content (hex, 8 chars).
+/// Matches the JS implementation in `frontend/src/js/file-hash.js`.
+/// Used to detect external modifications of the file being edited;
+/// 32 bits are plenty for a couple of candidate states.
 #[tauri::command]
 pub fn file_hash(app: tauri::AppHandle, path: String) -> Result<String, String> {
     let path = check_in_roots(&app, &path)?;
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
-    let hash = bytes.iter().fold(0xcbf29ce484222325_u64, |h, &b| {
-        (h ^ b as u64).wrapping_mul(0x100000001b3)
-    });
-    Ok(format!("{hash:016x}"))
+    let mut hash: u32 = 0x811c9dc5;
+    for &b in &bytes {
+        hash = (hash ^ b as u32).wrapping_mul(0x01000193);
+    }
+    Ok(format!("{hash:08x}"))
 }
 
 /// Reads an image file and returns it as a base64 data URL

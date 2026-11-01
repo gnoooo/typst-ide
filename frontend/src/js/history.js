@@ -5,6 +5,7 @@ const { invoke } = window.__TAURI__.core;
 
 import { t, getLang } from '../i18n/index.js'
 import { openModal, showConfirm, closeTopModal } from './modal.js';
+import { wireSearchInput } from './utils/search.js';
 import { getCurrentFontFamily } from './editor.js';
 import { showToast } from './toast.js';
 import { openProjectFromPath } from './project.js';
@@ -40,10 +41,7 @@ function createSearchBar() {
   input.style.fontSize = "13px";
   container.appendChild(input);
 
-  input.addEventListener("input", () => {
-    const text = input.value.trim().toLowerCase();
-    rebuildHistoryList(text);
-  });
+  wireSearchInput(input, (text) => rebuildHistoryList(text.toLowerCase()));
 
   return container;
 }
@@ -166,12 +164,12 @@ async function createHistoryEntry() {
         buttons: [
             { label: t('modal.cancel'),    primary: false, onClick: (c) => c() },
             { label: t('modal.add'), primary: true,  onClick: async (c) => {
-                if (!path) return;
+                if (!path) return false;
 
                 const name = path.split(/[/\\]/).pop();
                 if (!name || !path) {
                     showToast("error", t('history.invalid_path'));
-                    return;
+                    return false;
                 }
 
                 try {
@@ -179,12 +177,13 @@ async function createHistoryEntry() {
                     if (inserted) {
                         showToast("success", t('history.added'));
                         c();
-                    } else {
-                        showToast("error", t('history.exists'));
+                        return true;
                     }
+                    showToast("error", t('history.exists'));
                 } catch (err) {
                     showToast("error", t('history.add_error', { error: err }));
                 }
+                return false;
             }}
         ],
     });
@@ -196,7 +195,12 @@ async function deleteHistoryEntry(entryId) {
         message: t('history.delete_message'),
     });
     if (confirmed) {
-        await invoke('delete_history_entry', { id: entryId });
+        try {
+            await invoke('delete_history_entry', { id: entryId });
+        } catch (err) {
+            showToast("error", t('history.delete_error', { error: err }));
+            return;
+        }
         closeHistory();
         showToast("success", t('history.deleted'));
         openHistory();
@@ -444,8 +448,9 @@ export async function openHistory() {
         buttons: [
             { label: t('modal.close_all'), primary: true, onClick: (close, closeAll) => closeAll() },
             { label: t('history.add_title'), primary: false, onClick: async (c) => {
-                await createHistoryEntry();
-                c();
+                // Close this modal only when an entry was actually added,
+                // not when the picker dialog is cancelled
+                if (await createHistoryEntry()) c();
             }},
         ],
     });

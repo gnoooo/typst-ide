@@ -7,6 +7,7 @@ import { openModal, showConfirm, closeTopModal } from "../modal.js";
 import { showToast } from '../toast.js';
 import { getCurrentProject } from "../project.js";
 import { openSources, addNewSource } from "./sources.js";
+import { wireSearchInput } from "../utils/search.js";
 
 let _bibEntries = [];
 let _bibContainer = null;
@@ -39,10 +40,7 @@ function createSearchBar() {
   input.style.fontSize = "13px";
   container.appendChild(input);
 
-  input.addEventListener("input", () => {
-    const text = input.value.trim().toLowerCase();
-    rebuildBibList(text);
-  });
+  wireSearchInput(input, (text) => rebuildBibList(text.toLowerCase()));
 
   return container;
 }
@@ -73,7 +71,6 @@ function rebuildBibList(filterText) {
 
     const mainBtn = document.createElement('button');
     mainBtn.className = 'bibliography-entry-btn';
-    mainBtn.id = `bibliography-${entry.title}`;
     const titleDiv = document.createElement('div');
     titleDiv.className = 'bibliography-entry-btn-title';
     titleDiv.textContent = String(entry.title ?? '');

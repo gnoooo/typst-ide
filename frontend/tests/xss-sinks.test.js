@@ -43,7 +43,9 @@ function assertNoExecutableMarkup() {
   expect(doc.querySelector('[onerror], [onmouseover], [onload]')).toBeNull();
 }
 
-const type = (el, dom, value) => { el.value = value; el.dispatchEvent(new dom.window.Event('input', { bubbles: true })); };
+// Debounce-aware typing: wireSearchInput delays the rebuild by 150 ms, so the
+// event must be followed by that wait before the assertions run.
+const type = async (el, dom, value) => { el.value = value; el.dispatchEvent(new dom.window.Event('input', { bubbles: true })); await new Promise(r => setTimeout(r, 160)); };
 const click = (el, dom) => el.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
 
 // Modules freeze `window.__TAURI__.core` at first import: rebuild them for
@@ -84,11 +86,11 @@ describe('XSS: bibliography source list (sources.js, real code)', () => {
     await openSources('test.bib');
 
     const search = doc.querySelector('input[placeholder="source.search"]');
-    type(search, dom, 'she said');
+    await type(search, dom, 'she said');
     assertNoExecutableMarkup();
     expect(doc.querySelector('.cite-key-input').value).toBe(entry.cite_key);
 
-    type(search, dom, 'zzz-no-match');
+    await type(search, dom, 'zzz-no-match');
     expect(doc.querySelector('.cite-key-input')).toBeNull(); // empty-state path
     assertNoExecutableMarkup();
   });
@@ -114,9 +116,9 @@ describe('XSS: history builder (history.js, real code)', () => {
     expect(doc.querySelector('.history-entry-btn-content').textContent).toBe(entry.path);
 
     const search = doc.querySelector('input[placeholder="history.search"]');
-    type(search, dom, 'onerror');
+    await type(search, dom, 'onerror');
     expect(doc.querySelector('.history-entry-btn-title').textContent).toBe(entry.name);
-    type(search, dom, 'zzz-no-match');
+    await type(search, dom, 'zzz-no-match');
     expect(doc.querySelector('.history-entry')).toBeNull();
     assertNoExecutableMarkup();
   });

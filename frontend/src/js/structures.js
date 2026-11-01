@@ -7,6 +7,7 @@
 
 import { t } from '../i18n/index.js'
 import { getCurrentFontFamily, getEditor } from './editor'
+import { escapeTypstContent, escapeTypstString } from './utils/escape.js';
 import { openModal } from './modal';
 import { showToast } from './toast';
 import { getCurrentProject } from './project';
@@ -646,7 +647,7 @@ export const STRUCT_ELEMENTS = [
                 showToast('warning', t('toast.image_path_required'));
                 return;
               }
-              const typst_code = `\n#figure(\n    image("${path}"),\n    caption: [${caption}]\n)\n`;
+              const typst_code = `\n#figure(\n    image("${escapeTypstString(path)}"),\n    caption: [${escapeTypstContent(caption)}]\n)\n`;
               const editor = getEditor();
               if (editor) {
                 const selection = editor.getSelection();

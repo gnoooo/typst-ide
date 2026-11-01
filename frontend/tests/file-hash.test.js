@@ -1,19 +1,24 @@
 import { describe, it, expect } from 'vitest';
 import { hashText } from '../src/js/file-hash.js';
 
-// Vecteurs de test connus de FNV-1a 64 (offset basis 0xcbf29ce484222325).
-// Le hash doit correspondre à la version Rust de commands::fs::file_hash.
-describe('hashText (FNV-1a 64)', () => {
+// Known FNV-1a 32 test vectors (offset basis 0x811c9dc5).
+// The hash must match the Rust version of commands::fs::file_hash.
+describe('hashText (FNV-1a 32)', () => {
     it('hashes the empty string', () => {
-        expect(hashText('')).toBe('cbf29ce484222325');
+        expect(hashText('')).toBe('811c9dc5');
     });
 
     it('hashes "a"', () => {
-        expect(hashText('a')).toBe('af63dc4c8601ec8c');
+        expect(hashText('a')).toBe('e40c292c');
     });
 
     it('hashes "hello world"', () => {
-        expect(hashText('hello world')).toBe('779a65e7023cd2e7');
+        expect(hashText('hello world')).toBe('d58b3fa7');
+    });
+
+    // Reference vector from the FNV reference test suite
+    it('hashes "foobar" (reference vector)', () => {
+        expect(hashText('foobar')).toBe('bf9cf968');
     });
 
     it('handles multi-byte UTF-8 characters', () => {
