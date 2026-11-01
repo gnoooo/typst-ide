@@ -53,8 +53,9 @@ export NO_STRIP=1
 
 mkdir -p "$CARGO_HOME" "$npm_config_cache" "$XDG_CACHE_HOME" "$XWIN_CACHE_DIR" "$TMPDIR" "$DIST_DIR"
 
-# TMPDIR ne sert qu'au build en cours : repartir propre évite qu'il ne gonfle.
-if [ -n "$TMPDIR" ] && [ "$TMPDIR" != "/" ] && [ -d "$TMPDIR" ]; then
+# purger uniquement le tmp du cache du script : si TMPDIR pointe
+# ailleurs (par exemple /tmp de la machine hote), ne rien effacer
+if [ "$TMPDIR" = "$CACHE_DIR/tmp" ] && [ -d "$TMPDIR" ]; then
   rm -rf "${TMPDIR:?}"/*
 fi
 
