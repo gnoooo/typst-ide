@@ -67,6 +67,25 @@ if grep -q "trap .*ERR" "$ROOT/manage.sh"; then expect "0" "0" "trap ERR install
 out="$(bash -c 'set -Eeuo pipefail; die_code() { local c="$1"; shift; echo "manage: [$c] $*" >&2; exit "$c"; }; trap '"'"'die_code 70 "erreur interne (ligne $LINENO)"'"'"' ERR; false' 2>&1)"; code=$?
 expect "70" "$code" "échec non rattrapé -> 70"
 
+# 10) commande inconnue -> l'usage est affiché (et le code 64 reste le même)
+out="$("$ROOT/manage.sh" commande-inexistante 2>/dev/null)"
+if printf '%s' "$out" | grep -q "Usage:"; then expect "0" "0" "commande inconnue : usage affiché"; else expect "0" "1" "commande inconnue : usage affiché"; fi
+
+# 11) aucune couleur quand stdout n'est pas un terminal (CI, pipes)
+esc="$(FORCE_COLOR=0 "$ROOT/manage.sh" help | cat | grep -c $'\033' || true)"
+expect "0" "$esc" "help sans TTY : aucune séquence ANSI"
+
+# 12) couleur quand elle est forcée (FORCE_COLOR)
+esc="$(FORCE_COLOR=1 "$ROOT/manage.sh" help | grep -c $'\033' || true)"
+if [ "${esc:-0}" -gt 0 ]; then expect "0" "0" "help avec FORCE_COLOR : séquences ANSI présentes"; else expect "0" "1" "help avec FORCE_COLOR : séquences ANSI présentes"; fi
+
+# 13) indices de palette dans 16-255
+bad=""
+for i in $(grep -oE '_palette [0-9]+ [0-9]+ [0-9]+ [0-9]+' "$ROOT/manage.sh" | awk '{print $5}'); do
+  if [ "$i" -lt 16 ] || [ "$i" -gt 255 ]; then bad="$bad $i"; fi
+done
+expect "" "$bad" "indices de palette dans 16-255"
+
 if [ "$fails" -ne 0 ]; then
   echo "    codes de sortie : tests échoués" >&2
   exit 1
