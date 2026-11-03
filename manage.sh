@@ -2,45 +2,8 @@
 
 # ===================================================================================================
 # manage.sh : manager de projet pour Typst IDE (Rust + Tauri + frontend)
-
-# Usage:
-#   ./manage.sh info                      Infos du projet (nom, version, cohérence, audit npm, git…)
-#   ./manage.sh bump <version|type>       Met à jour la version partout (--dry-run dispo)
-#   ./manage.sh check                     Cohérence des versions + cargo fmt/check + tests npm audit/codes
-#   ./manage.sh test [cibles]             Tests du workspace
-#                                           cibles : rust | front | all (défaut)
-#   ./manage.sh build [cibles] [opts]     Build frontend + bundles Tauri
-#                                           cibles   : frontend | rust | appimage | deb | rpm | nsis | windows | all (défaut)
-#                                                      windows = installateur NSIS + exe portable
-#                                                      all     = bundles natifs + Windows (toolchain host, ou conteneur)
-#                                           options  : --target <triple>           cross-compilation (ex. x86_64-pc-windows-msvc)
-#                                                      --container                 build release dans un conteneur ubuntu:22.04
-#                                                                                  (Windows y est cross-compilé en MSVC via cargo-xwin)
-#                                                      --container-image <image>   image de base (défaut : ubuntu:22.04)
-#                                                      --container-rebuild         reconstruit l'image de build sans cache
-#   ./manage.sh fix-appimage [chemin]     Rejoue le post-traitement AppImage (docs/appimage.md)
-#   ./manage.sh flatpak-sources           Régénère les sources cargo/npm du manifeste Flatpak
-#   ./manage.sh flatpak-build             Build + installe le Flatpak + lints (cache .flatpak-builder)
-#   ./manage.sh flatpak-run               Lance l'app sandboxée (flatpak run)
-#   ./manage.sh flatpak-bump <tag>        Épingle tag/commit dans le manifeste Flatpak (après la sortie d'un tag)
-#   ./manage.sh clean [cibles] [opts]     Nettoie les builds et caches
-#                                           cibles   : build (défaut) | cache | dist | image | all
-#                                           options  : --dry-run, --yes, --with-dist, --host-caches
-#   ./manage.sh dev                       Lance tauri dev
-#   ./manage.sh codes                     Codes de sortie de manage.sh (usage : commande inconnue = 64)
-#   ./manage.sh help                      Cette aide
-
-# Exemples:
-#   ./manage.sh build                                     # natif + Windows (host, ou MSVC en conteneur)
-#   ./manage.sh build appimage                            # seulement l'AppImage (post-traitée)
-#   ./manage.sh build appimage,deb,rpm                    # plusieurs cibles
-#   ./manage.sh build windows                             # installateur NSIS + exe portable (cross Linux)
-#   ./manage.sh build windows --container                 # idem mais MSVC via cargo-xwin (parité CI)
-#   ./manage.sh build appimage,deb,rpm,windows --container  # tout, comme la CI
-#   ./manage.sh build rust                                # ancien comportement (frontend + cargo release)
-#   ./manage.sh clean --dry-run                           # montrer ce qui serait supprimé
-#   ./manage.sh clean build --yes                         # libérer les intermédiaires cargo
 #
+# Commandes, options et exemples : ./manage.sh help
 # Artefacts finaux : target/dist/ (build hôte) ou target/container/dist/ (conteneur), organisés en linux/ et windows/.
 # ===================================================================================================
 
@@ -69,24 +32,86 @@ FLATPAK_BUILDER_APP="org.flatpak.Builder"
 
 SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 
+# --- Palette : tokens du thème de l'app -> truecolor exact, sinon index xterm-256 le plus proche ---
+#   CYAN   --color-accent   #00d3bb -> 43    BLUE   --color-info    #00bafe -> 39
+#   GREEN  --color-success  #00d390 -> 42    YELLOW --color-warning #fcb700 -> 214
+#   RED    --color-error    #ff627d -> 204   DIM    --text-muted   #9db2bf -> 145
+# Émis seulement si stdout est un terminal (ou FORCE_COLOR) et NO_COLOR est absent.
+_palette() { # <r> <g> <b> <index256>
+  if [ "$_TRUECOLOR" = 1 ]; then printf '\033[38;2;%s;%s;%sm' "$1" "$2" "$3"
+  else printf '\033[38;5;%sm' "$4"; fi
+}
+if [ -z "${NO_COLOR:-}" ] && { [ "${FORCE_COLOR:-0}" != "0" ] || [ -t 1 ]; }; then
+  case "${COLORTERM:-} ${TERM:-}" in
+    *truecolor* | *-24bit*) _TRUECOLOR=1 ;;
+    *) _TRUECOLOR=0 ;;
+  esac
+  CYAN="$(_palette 0 211 187 43)"
+  CYAN_DIM="$(_palette 0 175 175 37)"
+  BLUE="$(_palette 0 186 254 39)"
+  GREEN="$(_palette 0 211 144 42)"
+  YELLOW="$(_palette 252 183 0 214)"
+  RED="$(_palette 255 98 125 204)"
+  DIM="$(_palette 157 178 191 145)"
+  BOLD=$'\033[1m'; NC=$'\033[0m'
+else
+  _TRUECOLOR=0
+  CYAN=; CYAN_DIM=; BLUE=; GREEN=; YELLOW=; RED=; DIM=; BOLD=; NC=
+fi
+
 # ---------------------
 # Helpers
 # ---------------------
 usage() {
-  sed -n '4,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  cat <<EOF
+${BOLD}$0${NC} : manager de projet pour ${CYAN}${BOLD}Typst IDE${NC} (Rust + Tauri + frontend)
+
+${BOLD}${CYAN_DIM}Usage:${NC}
+  $0 ${BLUE}info${NC}                      Infos du projet (nom, version, cohérence, audit npm, git…)
+  $0 ${BLUE}bump${NC} ${YELLOW}<version|type>${NC}       Met à jour la version partout (${GREEN}--dry-run${NC} dispo)
+  $0 ${BLUE}check${NC}                     Cohérence des versions + cargo fmt/check + tests npm audit/codes
+  $0 ${BLUE}test${NC} [${YELLOW}cibles${NC}]             Tests du workspace
+                                          ${YELLOW}cibles${NC} : rust | front | all (défaut)
+  $0 ${BLUE}build${NC} [${YELLOW}cibles${NC}] [${GREEN}opts${NC}]     Build frontend + bundles Tauri
+                                          ${YELLOW}cibles${NC}   : frontend | rust | appimage | deb | rpm | nsis | windows | all (défaut)
+                                                     windows = installateur NSIS + exe portable
+                                                     all     = bundles natifs + Windows (toolchain host, ou conteneur)
+                                          ${GREEN}options${NC}  : ${GREEN}--target${NC} ${YELLOW}<triple>${NC}           cross-compilation (ex. x86_64-pc-windows-msvc)
+                                                     ${GREEN}--container${NC}                 build release dans un conteneur ubuntu:22.04
+                                                                                 (Windows y est cross-compilé en MSVC via cargo-xwin)
+                                                     ${GREEN}--container-image${NC} ${YELLOW}<image>${NC}   image de base (défaut : ubuntu:22.04)
+                                                     ${GREEN}--container-rebuild${NC}         reconstruit l'image de build sans cache
+  $0 ${BLUE}fix-appimage${NC} [${YELLOW}chemin${NC}]     Rejoue le post-traitement AppImage (docs/appimage.md)
+  $0 ${BLUE}flatpak-sources${NC}           Régénère les sources cargo/npm du manifeste Flatpak
+  $0 ${BLUE}flatpak-build${NC}             Build + installe le Flatpak + lints (cache .flatpak-builder)
+  $0 ${BLUE}flatpak-run${NC}               Lance l'app sandboxée (flatpak run)
+  $0 ${BLUE}flatpak-bump${NC} ${YELLOW}<tag>${NC}        Épingle tag/commit dans le manifeste Flatpak (après la sortie d'un tag)
+  $0 ${BLUE}clean${NC} [${YELLOW}cibles${NC}] [${GREEN}opts${NC}]     Nettoie les builds et caches
+                                          ${YELLOW}cibles${NC}   : build (défaut) | cache | dist | image | all
+                                          ${GREEN}options${NC}  : ${GREEN}--dry-run${NC}, ${GREEN}--yes${NC}, ${GREEN}--with-dist${NC}, ${GREEN}--host-caches${NC}
+  $0 ${BLUE}dev${NC}                       Lance tauri dev
+  $0 ${BLUE}codes${NC}                     Codes de sortie de manage.sh (usage : commande inconnue = 64)
+  $0 ${BLUE}help${NC}                      Cette aide
+
+${BOLD}${CYAN_DIM}Exemples:${NC}
+  $0 build                                     # natif + Windows (host, ou MSVC en conteneur)
+  $0 build appimage                            # seulement l'AppImage (post-traitée)
+  $0 build appimage,deb,rpm                    # plusieurs cibles
+  $0 build windows                             # installateur NSIS + exe portable (cross Linux)
+  $0 build windows --container                 # idem mais MSVC via cargo-xwin (parité CI)
+  $0 build appimage,deb,rpm,windows --container  # tout, comme la CI
+  $0 build rust                                # ancien comportement (frontend + cargo release)
+  $0 clean --dry-run                           # montrer ce qui serait supprimé
+  $0 clean build --yes                         # libérer les intermédiaires cargo
+
+${BOLD}${CYAN_DIM}Artefacts finaux :${NC} target/dist/ (build hôte) ou target/container/dist/ (conteneur), organisés en linux/ et windows/.
+EOF
 }
 
 # die_code <code> "message" : sort avec un code de sortie documenté (scripts/exit-codes.sh).
 # Le code est affiché dans le message, donc lisible dans un log sans table à consulter.
-die_code() { local code="$1"; shift; echo "manage: [$code] $*" >&2; exit "$code"; }
+die_code() { local code="$1"; shift; echo "manage: [${RED}$code${NC}] $*" >&2; exit "$code"; }
 die() { die_code "$EXIT_ERROR" "$@"; }
-
-# Couleurs : codes émis seulement si stdout est un terminal (et NO_COLOR absent).
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-  GREEN=$'\e[32m'; RED=$'\e[31m'; YELLOW=$'\e[33m'; DIM=$'\e[2m'; BOLD=$'\e[1m'; NC=$'\e[0m'
-else
-  GREEN=''; RED=''; YELLOW=''; DIM=''; BOLD=''; NC=''
-fi
 
 require_file() {
   local f
@@ -1235,5 +1260,5 @@ case "$cmd" in
   dev)     cmd_dev ;;
   codes)   cmd_codes ;;
   help|-h|--help) usage ;;
-  *) die_code "$EXIT_USAGE" "commande inconnue: $cmd"; usage ;;
+  *) usage; die_code "$EXIT_USAGE" "commande inconnue: $cmd" ;;
 esac
