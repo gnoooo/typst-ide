@@ -57,6 +57,12 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Server-side guard: the pre-push hook checks the developer machine, this
+      # one checks the release itself (a push forced with --no-verify still fails).
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit
+
       - name: Install Tauri CLI
         # Pinned so releases stay reproducible (a CLI update silently changed
         # the NSIS template and broke the build once already).
@@ -159,6 +165,12 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
+
+      # Server-side guard: the pre-push hook checks the developer machine, this
+      # one checks the release itself (a push forced with --no-verify still fails).
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit
 
       - name: Install Tauri CLI
         # Pinned so releases stay reproducible (a CLI update silently changed
