@@ -94,15 +94,15 @@ ${BOLD}${CYAN_DIM}Usage:${NC}
   $0 ${BLUE}help${NC}                      Cette aide
 
 ${BOLD}${CYAN_DIM}Exemples:${NC}
-  $0 build                                     # natif + Windows (host, ou MSVC en conteneur)
-  $0 build appimage                            # seulement l'AppImage (post-traitée)
-  $0 build appimage,deb,rpm                    # plusieurs cibles
-  $0 build windows                             # installateur NSIS + exe portable (cross Linux)
-  $0 build windows --container                 # idem mais MSVC via cargo-xwin (parité CI)
-  $0 build appimage,deb,rpm,windows --container  # tout, comme la CI
-  $0 build rust                                # ancien comportement (frontend + cargo release)
-  $0 clean --dry-run                           # montrer ce qui serait supprimé
-  $0 clean build --yes                         # libérer les intermédiaires cargo
+  $0 build                                     ${DIM}# natif + Windows (host, ou MSVC en conteneur)${NC}
+  $0 build appimage                            ${DIM}# seulement l'AppImage (post-traitée)${NC}
+  $0 build appimage,deb,rpm                    ${DIM}# plusieurs cibles${NC}
+  $0 build windows                             ${DIM}# installateur NSIS + exe portable (cross Linux)${NC}
+  $0 build windows --container                 ${DIM}# idem mais MSVC via cargo-xwin (parité CI)${NC}
+  $0 build appimage,deb,rpm,windows --container  ${DIM}# tout, comme la CI${NC}
+  $0 build rust                                ${DIM}# ancien comportement (frontend + cargo release)${NC}
+  $0 clean --dry-run                           ${DIM}# montrer ce qui serait supprimé${NC}
+  $0 clean build --yes                         ${DIM}# libérer les intermédiaires cargo${NC}
 
 ${BOLD}${CYAN_DIM}Artefacts finaux :${NC} target/dist/ (build hôte) ou target/container/dist/ (conteneur), organisés en linux/ et windows/.
 EOF
