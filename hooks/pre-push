@@ -29,35 +29,38 @@ metainfo_ver="$(version_from_metainfo "$METAINFO" 2>/dev/null)"
 
 # Checks A + C in one place: the file list must agree with the Cargo.toml version,
 # including the Flatpak metainfo (same rule as manage.sh check_consistency).
+echo "pre-push: 1/3 version files (Cargo.toml, tauri.conf.json, PKGBUILD, metainfo)" >&2
 mismatches="$(version_mismatches "$cargo_ver" "$tauri_ver" "$pkgbuild_ver" "$metainfo_ver")"
 if [ -n "$mismatches" ]; then
   {
-    echo "pre-push: version files are inconsistent:"
+    echo "pre-push:   KO: version files are inconsistent:"
     echo "$mismatches" | sed 's/^/  /'
     echo "  crates/app/Cargo.toml holds the reference version, align the files above"
   } >&2
   exit 1
 fi
+echo "pre-push:   OK: consistent ($cargo_ver)" >&2
 
 # Check D: frontend npm audit (same check as CI, see .github/workflows/ci.yml).
 # The count comes from scripts/npm-audit.sh: one place knows how to read npm.
 # The audit runs on the working tree, so a local lockfile fix that is not
 # committed would hide a vulnerable lockfile from this check (CI fails later).
+echo "pre-push: 2/3 frontend npm audit (network)" >&2
 if ! git -C "$REPO_ROOT" diff --quiet HEAD -- frontend/package-lock.json 2>/dev/null; then
   fail "frontend/package-lock.json has uncommitted changes: commit them so the audit matches what is pushed."
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
-  echo "pre-push: npm not installed, skipping frontend audit" >&2
+  echo "pre-push:   skipped: npm not installed" >&2
 else
   vulns="$(npm_audit_count "$REPO_ROOT/frontend")"
   if [ -z "$vulns" ]; then
-    echo "pre-push: npm audit could not run (no network?), skipping" >&2
+    echo "pre-push:   skipped: npm audit could not run (no network?)" >&2
   elif [ "$vulns" -eq 0 ]; then
-    echo "pre-push: frontend npm audit: no vulnerabilities."
+    echo "pre-push:   OK: no vulnerabilities" >&2
   else
     {
-      echo "pre-push: frontend npm audit found $vulns vulnerable package(s):"
+      echo "pre-push:   KO: frontend npm audit found $vulns vulnerable package(s):"
       npm_audit_report "$REPO_ROOT/frontend" | sed 's/^/  /'
       echo "  npm output above gives the fix command (npm audit fix, maybe --force)"
       echo "  escape hatch: git push --no-verify (CI will still fail)"
@@ -67,6 +70,7 @@ else
 fi
 
 # Check B: every pushed tag refs/tags/vX.Y.Z must match the file version
+echo "pre-push: 3/3 pushed tags" >&2
 tags=""
 while read -r _local_ref _local_sha remote_ref _remote_sha; do
   case "$remote_ref" in
@@ -81,7 +85,9 @@ while read -r _local_ref _local_sha remote_ref _remote_sha; do
 done
 
 if [ -n "$tags" ]; then
-  echo "pre-push: tags v$tags match version files ($cargo_ver)."
+  echo "pre-push:   OK: tag(s) v$tags match version files ($cargo_ver)" >&2
+else
+  echo "pre-push:   OK: no tag pushed" >&2
 fi
 
 exit 0
