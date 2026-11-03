@@ -6,7 +6,7 @@
 # Usage:
 #   ./manage.sh info                      Infos du projet (nom, version, cohérence, audit npm, git…)
 #   ./manage.sh bump <version|type>       Met à jour la version partout (--dry-run dispo)
-#   ./manage.sh check                     Cohérence des versions + cargo fmt/check + test npm audit
+#   ./manage.sh check                     Cohérence des versions + cargo fmt/check + tests npm audit/codes
 #   ./manage.sh test [cibles]             Tests du workspace
 #                                           cibles : rust | front | all (défaut)
 #   ./manage.sh build [cibles] [opts]     Build frontend + bundles Tauri
@@ -27,6 +27,7 @@
 #                                           cibles   : build (défaut) | cache | dist | image | all
 #                                           options  : --dry-run, --yes, --with-dist, --host-caches
 #   ./manage.sh dev                       Lance tauri dev
+#   ./manage.sh codes                     Codes de sortie de manage.sh (usage : commande inconnue = 64)
 #   ./manage.sh help                      Cette aide
 
 # Exemples:
@@ -72,10 +73,13 @@ SEMVER_RE='^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'
 # Helpers
 # ---------------------
 usage() {
-  sed -n '4,43p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '4,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
-die() { echo "manage: $*" >&2; exit 1; }
+# die_code <code> "message" : sort avec un code de sortie documenté (scripts/exit-codes.sh).
+# Le code est affiché dans le message, donc lisible dans un log sans table à consulter.
+die_code() { local code="$1"; shift; echo "manage: [$code] $*" >&2; exit "$code"; }
+die() { die_code "$EXIT_ERROR" "$@"; }
 
 # Couleurs : codes émis seulement si stdout est un terminal (et NO_COLOR absent).
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -87,7 +91,7 @@ fi
 require_file() {
   local f
   for f in "$@"; do
-    [ -f "$f" ] || die "fichier introuvable: $f"
+    [ -f "$f" ] || die_code "$EXIT_NOINPUT" "fichier introuvable: $f"
   done
 }
 
@@ -96,6 +100,11 @@ require_file() {
 # extraction version mutualisée avec hooks/pre-push, scripts/fix-appimage.sh et scripts/build/in-container.sh : éditer les patterns dans scripts/version.sh
 . "$REPO_ROOT/scripts/version.sh"
 . "$REPO_ROOT/scripts/npm-audit.sh"
+. "$REPO_ROOT/scripts/exit-codes.sh"
+
+# tout échec non rattrapé sort en 70 (erreur interne) au lieu de laisser fuire le code de la commande
+set -E
+trap 'die_code "$EXIT_SOFTWARE" "erreur interne (ligne $LINENO)"' ERR
 
 app_version()      { version_from_toml "$APP_CRATE"; }
 app_name()         { sed -n 's/^name = "\([^"]*\)"/\1/p' "$APP_CRATE" | head -n 1; }
@@ -266,7 +275,7 @@ compute_bump() {
     ma=${BASH_REMATCH[1]}; mi=${BASH_REMATCH[2]}; pa=${BASH_REMATCH[3]}
     suffix="${BASH_REMATCH[4]}"
   else
-    die "version actuelle non valide ('$cur') : impossible de bumper '$kind'"
+    die_code "$EXIT_DATAERR" "version actuelle non valide ('$cur') : impossible de bumper '$kind'"
   fi
   case "$kind" in
     major)     echo "$((ma + 1)).0.0" ;;
@@ -284,7 +293,7 @@ compute_bump() {
         echo "$ma.$mi.$pa-0"
       fi
       ;;
-    *) die "type de bump inconnu: $kind" ;;
+    *) die_code "$EXIT_USAGE" "type de bump inconnu: $kind" ;;
   esac
 }
 
@@ -367,16 +376,16 @@ cmd_bump() {
   for arg in "$@"; do
     case "$arg" in
       --dry-run) dry_run=1 ;;
-      -*) die "option inconnue: $arg (seule option acceptée: --dry-run)" ;;
+      -*) die_code "$EXIT_USAGE" "option inconnue: $arg (seule option acceptée: --dry-run)" ;;
       major|minor|patch|premajor|preminor|prepatch|prerelease)
-        [ -z "$bump_kind" ] && bump_kind="$arg" || die "trop d'arguments: bump attend une seule version ou un seul type"
+        [ -z "$bump_kind" ] && bump_kind="$arg" || die_code "$EXIT_USAGE" "trop d'arguments: bump attend une seule version ou un seul type"
         ;;
       *)
-        [ -z "$new_version" ] && new_version="$arg" || die "trop d'arguments: bump attend une seule version"
+        [ -z "$new_version" ] && new_version="$arg" || die_code "$EXIT_USAGE" "trop d'arguments: bump attend une seule version"
         ;;
     esac
   done
-  [ -n "$new_version" ] || [ -n "$bump_kind" ] || die "usage: manage.sh bump <version|major|minor|patch|...> [--dry-run]"
+  [ -n "$new_version" ] || [ -n "$bump_kind" ] || die_code "$EXIT_USAGE" "usage: manage.sh bump <version|major|minor|patch|...> [--dry-run]"
 
   require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$LOCKFILE" "$FRONTEND_PKG" "$FLATPAK_METAINFO"
 
@@ -394,10 +403,10 @@ cmd_bump() {
 
   # --- Validation ---
   echo "$new_version" | grep -qE "$SEMVER_RE" \
-    || die "version invalide '$new_version' (format attendu: X.Y.Z, ex. 1.3.0)"
+    || die_code "$EXIT_DATAERR" "version invalide '$new_version' (format attendu: X.Y.Z, ex. 1.3.0)"
 
   [ "$old" = "$new_version" ] \
-    && die "la version est déjà $new_version"
+    && die_code "$EXIT_USAGE" "la version est déjà $new_version"
 
   if ! echo "$new_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
     echo "manage: ${YELLOW}attention${NC} : version non purement numérique ('$new_version') ; "
@@ -445,7 +454,7 @@ cmd_bump() {
     echo "${GREEN}Cohérence des versions : OK${NC}"
   else
     echo "${RED}Cohérence des versions : KO${NC}"
-    exit 1
+    exit "$EXIT_DATAERR"
   fi
 
   echo
@@ -464,7 +473,7 @@ cmd_check() {
     echo "    ${GREEN}OK${NC}"
   else
     echo "    ${RED}INCOHÉRENTES, alignez les fichiers avant de pousser${NC}"
-    exit 1
+    exit "$EXIT_DATAERR"
   fi
 
   echo
@@ -473,40 +482,44 @@ cmd_check() {
     echo "    flatpak/node-sources.json: ${GREEN}OK${NC} (complet pour package-lock.json)"
   else
     echo "    ${RED}KO${NC} : régénérez avec ./manage.sh flatpak-sources"
-    exit 1
+    exit "$EXIT_CONFIG"
   fi
 
   echo
   echo "== cargo fmt --all --check =="
   if cargo fmt --version >/dev/null 2>&1; then
-    ( cd "$REPO_ROOT" && cargo fmt --all --check ) && echo -e "    rustfmt: ${GREEN}OK${NC}" || die "    rustfmt: des fichiers ne sont pas formatés"
+    ( cd "$REPO_ROOT" && cargo fmt --all --check ) && echo -e "    rustfmt: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    rustfmt: des fichiers ne sont pas formatés"
   else
     echo "    ${YELLOW}rustfmt non installé (rustup component add rustfmt), vérification ignorée${NC}"
   fi
 
   echo
   echo "== cargo check --workspace =="
-  ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
+  ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    cargo check a échoué"
 
   echo
   echo "== Test du parseur npm audit =="
-  "$REPO_ROOT/scripts/test-npm-audit.sh" || die "    le test npm audit a échoué"
+  "$REPO_ROOT/scripts/test-npm-audit.sh" || die_code "$EXIT_SOFTWARE" "    le test npm audit a échoué"
+
+  echo
+  echo "== Test des codes de sortie =="
+  "$REPO_ROOT/scripts/test-exit-codes.sh" || die_code "$EXIT_SOFTWARE" "    le test des codes de sortie a échoué"
 }
 
 cmd_test() {
   local cible="${1:-all}"
   case "$cible" in
     rust|all)
-      ( cd "$REPO_ROOT" && cargo test --workspace ) && echo "    tests rust: ${GREEN}OK (tout passe)${NC}" || die "    tests rust ont échoué"
+      ( cd "$REPO_ROOT" && cargo test --workspace ) && echo "    tests rust: ${GREEN}OK (tout passe)${NC}" || die_code "$EXIT_SOFTWARE" "    tests rust ont échoué"
       ;;
     front) ;;
-    *) die "cible inconnue: $cible (rust | front | all)" ;;
+    *) die_code "$EXIT_USAGE" "cible inconnue: $cible (rust | front | all)" ;;
   esac
   case "$cible" in
     front|all)
-      command -v npm >/dev/null 2>&1 || die "npm introuvable"
-      [ -d "$REPO_ROOT/frontend/node_modules" ] || die "frontend/node_modules absent -> lance npm install dans frontend/"
-      ( cd "$REPO_ROOT/frontend" && npm test ) && echo "    tests front: ${GREEN}OK (tout passe)${NC}" || die "    tests front ont échoué"
+      command -v npm >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "npm introuvable"
+      [ -d "$REPO_ROOT/frontend/node_modules" ] || die_code "$EXIT_UNAVAILABLE" "frontend/node_modules absent -> lance npm install dans frontend/"
+      ( cd "$REPO_ROOT/frontend" && npm test ) && echo "    tests front: ${GREEN}OK (tout passe)${NC}" || die_code "$EXIT_SOFTWARE" "    tests front ont échoué"
       ;;
   esac
 }
@@ -612,7 +625,7 @@ build_in_container() {
   local list="$1" target="$2" image="$3" rebuild="$4"
 
   local runtime
-  runtime="$(container_runtime)" || die "ni podman ni docker n'est installé (requis pour --container)"
+  runtime="$(container_runtime)" || die_code "$EXIT_UNAVAILABLE" "ni podman ni docker n'est installé (requis pour --container)"
 
   local containerfile="$REPO_ROOT/scripts/build/Containerfile.ubuntu2204"
   require_file "$containerfile"
@@ -634,7 +647,7 @@ build_in_container() {
   [ "$rebuild" = "1" ] && build_args+=(--no-cache)
   echo "== Image de build ($runtime, $image) =="
   "$runtime" "${build_args[@]}" "$REPO_ROOT/scripts/build" \
-    || die "la construction de l'image de build a échoué"
+    || die_code "$EXIT_SOFTWARE" "la construction de l'image de build a échoué"
 
   local -a run_args=(run --rm -w /work)
   if command -v selinuxenabled >/dev/null 2>&1 && selinuxenabled 2>/dev/null; then
@@ -655,7 +668,7 @@ build_in_container() {
     bash scripts/build/in-container.sh
   )
   echo "== Build dans le conteneur ($list${target:+ --target $target}) =="
-  "$runtime" "${run_args[@]}" || die "le build conteneurisé a échoué"
+  "$runtime" "${run_args[@]}" || die_code "$EXIT_SOFTWARE" "le build conteneurisé a échoué"
 }
 
 cmd_build() {
@@ -666,9 +679,9 @@ cmd_build() {
     case "$1" in
       --container)         use_container=1; shift ;;
       --container-rebuild) rebuild=1; shift ;;
-      --container-image)   image="${2:-}"; [ -n "$image" ] || die "--container-image attend une valeur"; shift 2 ;;
-      --target)            target="${2:-}"; [ -n "$target" ] || die "--target attend une valeur"; shift 2 ;;
-      -*)                  die "option inconnue: $1 (voir manage.sh help)" ;;
+      --container-image)   image="${2:-}"; [ -n "$image" ] || die_code "$EXIT_USAGE" "--container-image attend une valeur"; shift 2 ;;
+      --target)            target="${2:-}"; [ -n "$target" ] || die_code "$EXIT_USAGE" "--target attend une valeur"; shift 2 ;;
+      -*)                  die_code "$EXIT_USAGE" "option inconnue: $1 (voir manage.sh help)" ;;
       *)                   requested+=("$1"); shift ;;
     esac
   done
@@ -689,7 +702,7 @@ cmd_build() {
 
   # Validation du triple éventuel.
   if [ -n "$target" ] && ! rustc --print target-list 2>/dev/null | grep -qx "$target"; then
-    die "triple cible inconnu: $target"
+    die_code "$EXIT_USAGE" "triple cible inconnu: $target"
   fi
 
   # Résolution de `all` selon l'OS + déduplication.
@@ -724,7 +737,7 @@ cmd_build() {
         fi
         ;;
       frontend|rust|appimage|deb|rpm|nsis|windows) add_target "$t" ;;
-      *) die "cible inconnue: $t (attendu: frontend|rust|appimage|deb|rpm|nsis|windows|all)" ;;
+      *) die_code "$EXIT_USAGE" "cible inconnue: $t (attendu: frontend|rust|appimage|deb|rpm|nsis|windows|all)" ;;
     esac
   done
 
@@ -740,9 +753,9 @@ cmd_build() {
   # Garde-fous --target.
   if [ -n "$target" ]; then
     if target_is_windows "$target"; then
-      [ -n "$native_bundles" ] && die "--target $target ne peut pas produire appimage/deb/rpm (cibles Linux)"
+      [ -n "$native_bundles" ] && die_code "$EXIT_USAGE" "--target $target ne peut pas produire appimage/deb/rpm (cibles Linux)"
     else
-      [ "$has_windows" = "1" ] && die "--target $target ne peut pas produire l'installateur Windows (utilise un triple *windows*)"
+      [ "$has_windows" = "1" ] && die_code "$EXIT_USAGE" "--target $target ne peut pas produire l'installateur Windows (utilise un triple *windows*)"
     fi
   fi
 
@@ -769,7 +782,7 @@ cmd_build() {
   # Prérequis Windows : obligatoires si la cible est explicite (hors `all` filtré).
   if [ "$has_windows" = "1" ] && ! is_windows_shell && ! windows_prereqs_ok; then
     windows_prereqs_hint >&2
-    die "prérequis manquants pour la cible Windows"
+    die_code "$EXIT_UNAVAILABLE" "prérequis manquants pour la cible Windows"
   fi
 
   # Tauri reconstruit lui-même le frontend (beforeBuildCommand de
@@ -784,7 +797,7 @@ cmd_build() {
   if [ "$tauri_targets" = "1" ] && ! echo " $list " | grep -qw rust; then
     echo "    build frontend: délégué au beforeBuildCommand de Tauri (tauri.conf.json)"
   else
-    ( cd "$REPO_ROOT/frontend" && npm run build ) && echo "    build frontend: ${GREEN}OK${NC}" || die "    le build frontend a échoué"
+    ( cd "$REPO_ROOT/frontend" && npm run build ) && echo "    build frontend: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    le build frontend a échoué"
   fi
 
   if echo " $list " | grep -qw rust; then
@@ -793,13 +806,13 @@ cmd_build() {
     local -a rust_target_arg=()
     [ -n "$target" ] && rust_target_arg=(--target "$target")
     ( cd "$REPO_ROOT" && cargo build --release -p typst-ide-app "${rust_target_arg[@]}" ) \
-      && echo "    build Rust: ${GREEN}OK${NC}" || die "    le build Rust a échoué"
+      && echo "    build Rust: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    le build Rust a échoué"
   fi
 
   local -a tauri=()
   if [ -n "$native_bundles" ] || [ "$has_windows" = "1" ]; then
     local tauri_str
-    tauri_str="$(tauri_cmd)" || die "tauri-cli introuvable. Installation : npm install -g @tauri-apps/cli@2.12.0"
+    tauri_str="$(tauri_cmd)" || die_code "$EXIT_UNAVAILABLE" "tauri-cli introuvable. Installation : npm install -g @tauri-apps/cli@2.12.0"
     read -ra tauri <<< "$tauri_str"
   fi
 
@@ -813,15 +826,15 @@ cmd_build() {
     echo
     echo "== Tauri (${native_bundles}) =="
     ( cd "$REPO_ROOT/crates/app" && NO_STRIP=1 "${tauri[@]}" build --bundles "$native_bundles" "${native_target_arg[@]}" ) \
-      || die "    tauri build a échoué"
+      || die_code "$EXIT_SOFTWARE" "    tauri build a échoué"
 
     if echo ",$native_bundles," | grep -q ',appimage,'; then
       local dir
       dir="$(bundle_dir_for appimage "$target")"
-      [ -d "$dir" ] || die "    bundle appimage introuvable: $dir"
+      [ -d "$dir" ] || die_code "$EXIT_SOFTWARE" "    bundle appimage introuvable: $dir"
       echo
       echo "== AppImage : post-traitement =="
-      "$REPO_ROOT/scripts/fix-appimage.sh" --out-dir "$dir" "$dir" || die "    le post-traitement AppImage a échoué"
+      "$REPO_ROOT/scripts/fix-appimage.sh" --out-dir "$dir" "$dir" || die_code "$EXIT_SOFTWARE" "    le post-traitement AppImage a échoué"
     fi
   fi
 
@@ -831,7 +844,7 @@ cmd_build() {
     echo
     echo "== Tauri (nsis, $wt) =="
     ( cd "$REPO_ROOT/crates/app" && NO_STRIP=1 "${tauri[@]}" build --bundles nsis --target "$wt" ) \
-      || die "    tauri build (Windows) a échoué"
+      || die_code "$EXIT_SOFTWARE" "    tauri build (Windows) a échoué"
   fi
 
   # --- Publication dans target/dist/ (linux/ + windows/) --------------------
@@ -865,7 +878,7 @@ cmd_build() {
       [ -n "$win_pub_target" ] && publish_args+=(--windows-target "$win_pub_target")
     fi
     "$REPO_ROOT/scripts/publish-artifacts.sh" "${publish_args[@]}" \
-      || die "    la publication des artefacts a échoué"
+      || die_code "$EXIT_SOFTWARE" "    la publication des artefacts a échoué"
     echo
     echo "Artefacts : ${BOLD}target/dist/${NC}"
     if [ -d "$REPO_ROOT/target/dist" ]; then
@@ -903,7 +916,7 @@ cmd_clean() {
       --with-dist)   with_dist=1; shift ;;
       --host-caches) host_caches=1; shift ;;
       -h|--help)     usage; return 0 ;;
-      -*)            die "option inconnue: $1 (voir manage.sh help)" ;;
+      -*)            die_code "$EXIT_USAGE" "option inconnue: $1 (voir manage.sh help)" ;;
       *)             requested+=("$1"); shift ;;
     esac
   done
@@ -918,7 +931,7 @@ cmd_clean() {
       case "$t" in
         build|cache|dist|image) add_clean "$t" ;;
         all) add_clean build; add_clean cache; add_clean image ;;
-        *) die "cible clean inconnue: $t (attendu: build|cache|dist|image|all)" ;;
+        *) die_code "$EXIT_USAGE" "cible clean inconnue: $t (attendu: build|cache|dist|image|all)" ;;
       esac
     done
   fi
@@ -961,7 +974,7 @@ cmd_clean() {
     case "$p" in
       "$REPO_ROOT"/target/*) ;;
       "${HOME:-/tmp}/.cache/tauri") ;;
-      *) die "refus de supprimer hors de target/ : $p" ;;
+      *) die_code "$EXIT_CONFIG" "refus de supprimer hors de target/ : $p" ;;
     esac
     size_kb="$(du -sk "$p" 2>/dev/null | cut -f1)"
     [ -n "$size_kb" ] || size_kb=0
@@ -1026,11 +1039,11 @@ cmd_clean() {
 }
 
 cmd_dev() {
-  command -v cargo >/dev/null 2>&1 || die "cargo introuvable"
+  command -v cargo >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "cargo introuvable"
   if ! command -v tauri >/dev/null 2>&1 && ! cargo tauri --version >/dev/null 2>&1; then
-    die "tauri-cli introuvable. Installation : cargo install tauri-cli --locked"
+    die_code "$EXIT_UNAVAILABLE" "tauri-cli introuvable. Installation : cargo install tauri-cli --locked"
   fi
-  ( cd "$REPO_ROOT/crates/app" && cargo tauri dev ) || die "tauri dev a échoué"
+  ( cd "$REPO_ROOT/crates/app" && cargo tauri dev ) || die_code "$EXIT_SOFTWARE" "tauri dev a échoué"
 }
 
 # ---------------------
@@ -1038,7 +1051,7 @@ cmd_dev() {
 # ---------------------
 
 flatpak_ready() {
-  command -v flatpak >/dev/null 2>&1 || die "flatpak introuvable (Fedora : sudo dnf install flatpak ; Arch : pacman -S flatpak)"
+  command -v flatpak >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "flatpak introuvable (Fedora : sudo dnf install flatpak ; Arch : pacman -S flatpak)"
 }
 
 flatpak_has() {
@@ -1062,7 +1075,7 @@ flatpak_setup() {
   [ "$missing" = "0" ] && return 0
   echo "==> Installation (plusieurs Go au premier lancement)..."
   flatpak install --user -y flathub "$FLATPAK_BUILDER_APP" "$FLATPAK_RUNTIME" "$FLATPAK_SDK" "$FLATPAK_RUST_EXT" "$FLATPAK_NODE_EXT" \
-    || die "l'installation des runtimes Flatpak a échoué"
+    || die_code "$EXIT_SOFTWARE" "l'installation des runtimes Flatpak a échoué"
 }
 
 # contournement d'un bug du linter : il supprime un linter.log qui peut ne pas
@@ -1075,8 +1088,8 @@ flatpak_lint_fix() {
 
 cmd_flatpak_sources() {
   require_file "$LOCKFILE" "$FRONTEND_LOCK" "$FLATPAK_MANIFEST"
-  command -v python3 >/dev/null 2>&1 || die "python3 introuvable"
-  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || die "node/npm introuvables"
+  command -v python3 >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "python3 introuvable"
+  command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "node/npm introuvables"
 
   local tools="$REPO_ROOT/.flatpak-builder/tools"
   local venv="$tools/venv"
@@ -1085,23 +1098,23 @@ cmd_flatpak_sources() {
   echo "==> flatpak-cargo-generator (Cargo.lock -> flatpak/cargo-sources.json)"
   if [ ! -x "$venv/bin/python" ]; then
     python3 -m venv "$venv" \
-      || die "python3 -m venv a échoué : installe python-venv (ou utilise un conteneur python:3.12-slim, voir docs/flatpak.md)"
+      || die_code "$EXIT_UNAVAILABLE" "python3 -m venv a échoué : installe python-venv (ou utilise un conteneur python:3.12-slim, voir docs/flatpak.md)"
   fi
   if [ ! -f "$fbt/cargo/flatpak-cargo-generator.py" ]; then
     git clone --depth 1 https://github.com/flatpak/flatpak-builder-tools.git "$fbt" \
-      || die "clone de flatpak-builder-tools a échoué"
+      || die_code "$EXIT_TEMPFAIL" "clone de flatpak-builder-tools a échoué"
   fi
   "$venv/bin/pip" install -q 'aiohttp<4.0.0,>=3.9.5' 'PyYAML<7.0.0,>=6.0.2' 'tomlkit>=0.13.3,<1.0' \
-    || die "pip install des dépendances a échoué"
+    || die_code "$EXIT_TEMPFAIL" "pip install des dépendances a échoué"
   "$venv/bin/python" "$fbt/cargo/flatpak-cargo-generator.py" -o "$REPO_ROOT/flatpak/cargo-sources.json" "$LOCKFILE" \
-    || die "flatpak-cargo-generator a échoué"
+    || die_code "$EXIT_SOFTWARE" "flatpak-cargo-generator a échoué"
   echo "    ${GREEN}OK${NC} flatpak/cargo-sources.json"
 
   echo "==> flatpak-node-generator (frontend/package-lock.json -> flatpak/node-sources.json)"
   # paquet Python du dépôt flatpak-builder-tools, installé dans le même venv
   if [ ! -x "$venv/bin/flatpak-node-generator" ]; then
     "$venv/bin/pip" install -q "git+https://github.com/flatpak/flatpak-builder-tools.git#subdirectory=node" \
-      || die "pip install flatpak-node-generator a échoué"
+      || die_code "$EXIT_SOFTWARE" "pip install flatpak-node-generator a échoué"
   fi
   # IMPORTANT : générer depuis un arbre SANS node_modules (bug flatpak-builder-tools#377 :
   # des paquets présents localement seraient traités comme « locaux » et absents du cache).
@@ -1111,7 +1124,7 @@ cmd_flatpak_sources() {
   cp "$FRONTEND_PKG" "$FRONTEND_LOCK" "$clean/"
   "$venv/bin/flatpak-node-generator" --no-requests-cache \
     -o "$REPO_ROOT/flatpak/node-sources.json" npm "$clean/package-lock.json" \
-    || die "flatpak-node-generator a échoué"
+    || die_code "$EXIT_SOFTWARE" "flatpak-node-generator a échoué"
   echo "    ${GREEN}OK${NC} flatpak/node-sources.json"
 }
 
@@ -1122,16 +1135,16 @@ cmd_flatpak_build() {
 
   echo "==> Build + install (org.flatpak.Builder, cache .flatpak-builder)"
   ( cd "$REPO_ROOT" && flatpak run --command=flathub-build "$FLATPAK_BUILDER_APP" --install "$FLATPAK_MANIFEST" ) \
-    || die "le build Flatpak a échoué"
+    || die_code "$EXIT_SOFTWARE" "le build Flatpak a échoué"
 
   echo "==> flatpak-builder-lint manifest"
   ( cd "$REPO_ROOT" && flatpak run --command=flatpak-builder-lint "$FLATPAK_BUILDER_APP" manifest "$FLATPAK_MANIFEST" ) \
-    || die "lint manifest : erreurs à corriger"
+    || die_code "$EXIT_DATAERR" "lint manifest : erreurs à corriger"
 
   echo "==> flatpak-builder-lint repo"
   flatpak_lint_fix
   ( cd "$REPO_ROOT" && flatpak run --command=flatpak-builder-lint "$FLATPAK_BUILDER_APP" repo "$REPO_ROOT/repo" ) \
-    || die "lint repo : erreurs à corriger"
+    || die_code "$EXIT_CONFIG" "lint repo : erreurs à corriger"
 
   echo
   echo "${GREEN}Flatpak : build et lints OK.${NC} Lancez avec : ./manage.sh flatpak-run"
@@ -1139,22 +1152,22 @@ cmd_flatpak_build() {
 
 cmd_flatpak_run() {
   flatpak_ready
-  flatpak_has "$FLATPAK_APP_ID" || die "l'app n'est pas installée : lancez ./manage.sh flatpak-build"
+  flatpak_has "$FLATPAK_APP_ID" || die_code "$EXIT_UNAVAILABLE" "l'app n'est pas installée : lancez ./manage.sh flatpak-build"
   exec flatpak run "$FLATPAK_APP_ID" "$@"
 }
 
 cmd_flatpak_bump() {
-  [ $# -eq 1 ] || die "usage: manage.sh flatpak-bump <tag>"
+  [ $# -eq 1 ] || die_code "$EXIT_USAGE" "usage: manage.sh flatpak-bump <tag>"
   local tag="$1" commit
   require_file "$FLATPAK_MANIFEST" "$FRONTEND_LOCK"
 
-  echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || die "format de tag attendu : vX.Y.Z"
+  echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$' || die_code "$EXIT_USAGE" "format de tag attendu : vX.Y.Z"
   commit="$(git -C "$REPO_ROOT" rev-parse "$tag^{commit}" 2>/dev/null)" \
-    || die "tag introuvable : $tag"
+    || die_code "$EXIT_NOINPUT" "tag introuvable : $tag"
 
   echo "==> Vérification des sources npm hors-ligne"
   check_flatpak_node_sources \
-    || die "flatpak/node-sources.json ne couvre pas frontend/package-lock.json -> ./manage.sh flatpak-sources"
+    || die_code "$EXIT_CONFIG" "flatpak/node-sources.json ne couvre pas frontend/package-lock.json -> ./manage.sh flatpak-sources"
   echo "    ${GREEN}OK${NC} node-sources.json couvre package-lock.json"
   echo
 
@@ -1166,6 +1179,20 @@ cmd_flatpak_bump() {
   echo "Faites un dernier point sur le metainfo (entrée <release>, screenshots), puis :"
   echo "    git add flatpak/ && git commit && git push"
   echo "Note : l'entrée <release> du metainfo est mise à jour par 'manage.sh bump' (avant le tag)."
+}
+
+# ---------------------
+# Codes de sortie
+# ---------------------
+
+cmd_codes() {
+  echo "Codes de sortie de manage.sh (64-78 = plage sysexits.h) :"
+  echo
+  for c in $EXIT_CODES; do
+    printf '  %3d  %s\n' "$c" "$(exit_code_label "$c")"
+  done
+  echo
+  echo "Les messages d'erreur portent leur code : manage: [70] ... (./manage.sh codes pour le décoder)"
 }
 
 # ---------------------
@@ -1188,6 +1215,7 @@ case "$cmd" in
   flatpak-bump)    cmd_flatpak_bump "$@" ;;
   clean)   cmd_clean "$@" ;;
   dev)     cmd_dev ;;
+  codes)   cmd_codes ;;
   help|-h|--help) usage ;;
-  *) die "commande inconnue: $cmd"; usage ;;
+  *) die_code "$EXIT_USAGE" "commande inconnue: $cmd"; usage ;;
 esac
