@@ -67,16 +67,16 @@ usage() {
 ${BOLD}$0${NC} : manager de projet pour ${CYAN}${BOLD}Typst IDE${NC} (Rust + Tauri + frontend)
 
 ${BOLD}${CYAN_DIM}Usage:${NC}
-  $0 ${BLUE}info${NC}                      Infos du projet (nom, version, cohérence, audit npm, git…)
+  $0 ${BLUE}info${NC}                      Infos du projet (nom, version, cohérence, audit npm, git...)
   $0 ${BLUE}bump${NC} ${YELLOW}<version|type>${NC}       Met à jour la version partout (${GREEN}--dry-run${NC} dispo)
   $0 ${BLUE}check${NC}                     Cohérence des versions + cargo fmt/check + tests npm audit/codes
   $0 ${BLUE}test${NC} [${YELLOW}cibles${NC}]             Tests du workspace
                                           ${YELLOW}cibles${NC} : rust | front | all (défaut)
   $0 ${BLUE}build${NC} [${YELLOW}cibles${NC}] [${GREEN}opts${NC}]     Build frontend + bundles Tauri
-                                          ${YELLOW}cibles${NC}   : frontend | rust | appimage | deb | rpm | nsis | windows | all (défaut)
+                                          ${YELLOW}cibles${NC} : frontend | rust | appimage | deb | rpm | nsis | windows | all (défaut)
                                                      windows = installateur NSIS + exe portable
                                                      all     = bundles natifs + Windows (toolchain host, ou conteneur)
-                                          ${GREEN}options${NC}  : ${GREEN}--target${NC} ${YELLOW}<triple>${NC}           cross-compilation (ex. x86_64-pc-windows-msvc)
+                                          ${GREEN}opts${NC}   : ${GREEN}--target${NC} ${YELLOW}<triple>${NC}             cross-compilation (ex. x86_64-pc-windows-msvc)
                                                      ${GREEN}--container${NC}                 build release dans un conteneur ubuntu:22.04
                                                                                  (Windows y est cross-compilé en MSVC via cargo-xwin)
                                                      ${GREEN}--container-image${NC} ${YELLOW}<image>${NC}   image de base (défaut : ubuntu:22.04)
@@ -87,22 +87,22 @@ ${BOLD}${CYAN_DIM}Usage:${NC}
   $0 ${BLUE}flatpak-run${NC}               Lance l'app sandboxée (flatpak run)
   $0 ${BLUE}flatpak-bump${NC} ${YELLOW}<tag>${NC}        Épingle tag/commit dans le manifeste Flatpak (après la sortie d'un tag)
   $0 ${BLUE}clean${NC} [${YELLOW}cibles${NC}] [${GREEN}opts${NC}]     Nettoie les builds et caches
-                                          ${YELLOW}cibles${NC}   : build (défaut) | cache | dist | image | all
-                                          ${GREEN}options${NC}  : ${GREEN}--dry-run${NC}, ${GREEN}--yes${NC}, ${GREEN}--with-dist${NC}, ${GREEN}--host-caches${NC}
+                                          ${YELLOW}cibles${NC} : build (défaut) | cache | dist | image | all
+                                          ${GREEN}opts${NC}   : ${GREEN}--dry-run${NC}, ${GREEN}--yes${NC}, ${GREEN}--with-dist${NC}, ${GREEN}--host-caches${NC}
   $0 ${BLUE}dev${NC}                       Lance tauri dev
   $0 ${BLUE}codes${NC}                     Codes de sortie de manage.sh (usage : commande inconnue = 64)
   $0 ${BLUE}help${NC}                      Cette aide
 
 ${BOLD}${CYAN_DIM}Exemples:${NC}
-  $0 build                                     # natif + Windows (host, ou MSVC en conteneur)
-  $0 build appimage                            # seulement l'AppImage (post-traitée)
-  $0 build appimage,deb,rpm                    # plusieurs cibles
-  $0 build windows                             # installateur NSIS + exe portable (cross Linux)
-  $0 build windows --container                 # idem mais MSVC via cargo-xwin (parité CI)
-  $0 build appimage,deb,rpm,windows --container  # tout, comme la CI
-  $0 build rust                                # ancien comportement (frontend + cargo release)
-  $0 clean --dry-run                           # montrer ce qui serait supprimé
-  $0 clean build --yes                         # libérer les intermédiaires cargo
+  $0 build                                       ${DIM}# natif + Windows (host, ou MSVC en conteneur)${NC}
+  $0 build appimage                              ${DIM}# seulement l'AppImage (post-traitée)${NC}
+  $0 build appimage,deb,rpm                      ${DIM}# plusieurs cibles${NC}
+  $0 build windows                               ${DIM}# installateur NSIS + exe portable (cross Linux)${NC}
+  $0 build windows --container                   ${DIM}# idem mais MSVC via cargo-xwin (parité CI)${NC}
+  $0 build appimage,deb,rpm,windows --container  ${DIM}# tout, comme la CI${NC}
+  $0 build rust                                  ${DIM}# ancien comportement (frontend + cargo release)${NC}
+  $0 clean --dry-run                             ${DIM}# montrer ce qui serait supprimé${NC}
+  $0 clean build --yes                           ${DIM}# libérer les intermédiaires cargo${NC}
 
 ${BOLD}${CYAN_DIM}Artefacts finaux :${NC} target/dist/ (build hôte) ou target/container/dist/ (conteneur), organisés en linux/ et windows/.
 EOF
@@ -1216,8 +1216,6 @@ cmd_codes() {
   for c in $EXIT_CODES; do
     printf '  %3d  %s\n' "$c" "$(exit_code_label "$c")"
   done
-  echo
-  echo "Les messages d'erreur portent leur code : manage: [70] ... (./manage.sh codes pour le décoder)"
 }
 
 # ---------------------
@@ -1233,7 +1231,7 @@ case "$cmd" in
   check)   cmd_check ;;
   test)    cmd_test "$@" ;;
   build)   cmd_build "$@" ;;
-  fix-appimage) cmd_fix_appimage "$@" ;;
+  fix-appimage)    cmd_fix_appimage "$@" ;;
   flatpak-sources) cmd_flatpak_sources ;;
   flatpak-build)   cmd_flatpak_build ;;
   flatpak-run)     cmd_flatpak_run "$@" ;;
