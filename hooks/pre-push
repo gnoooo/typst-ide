@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# pre-push hook: verify that all project version files are consistent, and
-# that any pushed tag vX.Y.Z matches the version in those files
+# pre-push hook: verify that all project version files are consistent, that
+# any pushed tag vX.Y.Z matches the version in those files, and that the
+# frontend npm audit passes (same check as CI, see .github/workflows/ci.yml)
 set -u
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
@@ -20,6 +21,7 @@ for f in "$CARGOTOML" "$TAURICONF" "$PKGBUILD"; do
 done
 
 . "$REPO_ROOT/scripts/version.sh"
+. "$REPO_ROOT/scripts/npm-audit.sh"
 cargo_ver="$(version_from_toml "$CARGOTOML")"
 tauri_ver="$(version_from_json "$TAURICONF")"
 pkgbuild_ver="$(version_from_pkgbuild "$PKGBUILD")"
@@ -35,6 +37,33 @@ if [ -n "$mismatches" ]; then
     echo "  crates/app/Cargo.toml holds the reference version, align the files above"
   } >&2
   exit 1
+fi
+
+# Check D: frontend npm audit (same check as CI, see .github/workflows/ci.yml).
+# The count comes from scripts/npm-audit.sh: one place knows how to read npm.
+# The audit runs on the working tree, so a local lockfile fix that is not
+# committed would hide a vulnerable lockfile from this check (CI fails later).
+if ! git -C "$REPO_ROOT" diff --quiet HEAD -- frontend/package-lock.json 2>/dev/null; then
+  fail "frontend/package-lock.json has uncommitted changes: commit them so the audit matches what is pushed."
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "pre-push: npm not installed, skipping frontend audit" >&2
+else
+  vulns="$(npm_audit_count "$REPO_ROOT/frontend")"
+  if [ -z "$vulns" ]; then
+    echo "pre-push: npm audit could not run (no network?), skipping" >&2
+  elif [ "$vulns" -eq 0 ]; then
+    echo "pre-push: frontend npm audit: no vulnerabilities."
+  else
+    {
+      echo "pre-push: frontend npm audit found $vulns vulnerable package(s):"
+      npm_audit_report "$REPO_ROOT/frontend" | sed 's/^/  /'
+      echo "  npm output above gives the fix command (npm audit fix, maybe --force)"
+      echo "  escape hatch: git push --no-verify (CI will still fail)"
+    } >&2
+    exit 1
+  fi
 fi
 
 # Check B: every pushed tag refs/tags/vX.Y.Z must match the file version

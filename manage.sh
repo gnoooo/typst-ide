@@ -4,9 +4,9 @@
 # manage.sh : manager de projet pour Typst IDE (Rust + Tauri + frontend)
 
 # Usage:
-#   ./manage.sh info                      Infos du projet (nom, version, cohérence, git…)
+#   ./manage.sh info                      Infos du projet (nom, version, cohérence, audit npm, git…)
 #   ./manage.sh bump <version|type>       Met à jour la version partout (--dry-run dispo)
-#   ./manage.sh check                     Cohérence des versions + cargo fmt/check
+#   ./manage.sh check                     Cohérence des versions + cargo fmt/check + test npm audit
 #   ./manage.sh test [cibles]             Tests du workspace
 #                                           cibles : rust | front | all (défaut)
 #   ./manage.sh build [cibles] [opts]     Build frontend + bundles Tauri
@@ -95,6 +95,7 @@ require_file() {
 
 # extraction version mutualisée avec hooks/pre-push, scripts/fix-appimage.sh et scripts/build/in-container.sh : éditer les patterns dans scripts/version.sh
 . "$REPO_ROOT/scripts/version.sh"
+. "$REPO_ROOT/scripts/npm-audit.sh"
 
 app_version()      { version_from_toml "$APP_CRATE"; }
 app_name()         { sed -n 's/^name = "\([^"]*\)"/\1/p' "$APP_CRATE" | head -n 1; }
@@ -331,6 +332,24 @@ cmd_info() {
   printf "    %-28s %s\n" "node" "$(node --version 2>/dev/null || echo "(introuvable)")"
   printf "    %-28s %s\n" "npm" "$(npm --version 2>/dev/null || echo "(introuvable)")"
 
+  # Même check que la CI (.github/workflows/ci.yml) : avec --package-lock-only,
+  # npm audit n'a besoin que du lock + du registre (pas de node_modules).
+  echo
+  echo "${BOLD}Audit npm (frontend)${NC}"
+  local vulns=""
+  if ! command -v npm >/dev/null 2>&1; then
+    printf "    %-28s %s\n" "audit" "(npm introuvable, vérification ignorée)"
+  else
+    vulns="$(npm_audit_count "$REPO_ROOT/frontend")"
+    if [ -z "$vulns" ]; then
+      printf "    %-28s %s\n" "audit" "${DIM}(vérification impossible : pas de réseau ?)${NC}"
+    elif [ "$vulns" -eq 0 ]; then
+      printf "    %-28s %s\n" "audit" "${GREEN}OK${NC} (aucune vulnérabilité)"
+    else
+      printf "    %-28s %s\n" "audit" "${RED}KO${NC} $vulns vulnérabilité(s) -> cd frontend && npm audit"
+    fi
+  fi
+
   echo
   echo "${BOLD}Git${NC}"
   printf "    %-28s %s\n" "branche" "$(git_branch)"
@@ -479,6 +498,10 @@ cmd_check() {
     echo "== cargo check --workspace =="
     ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die "    cargo check a échoué"
   fi
+
+  echo
+  echo "== Test du parseur npm audit =="
+  "$REPO_ROOT/scripts/test-npm-audit.sh" || die "    le test npm audit a échoué"
 }
 
 cmd_test() {
