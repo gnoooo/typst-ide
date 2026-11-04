@@ -19,8 +19,8 @@
  *  * opts.frame: HTMLIFrameElement where the compiled HTML should be written
  *  * opts.debounceMs: number of milliseconds to wait after a change before recompiling (default: adaptive)
  *
- * renderUpdate(frame, preview, pages, { jumpPos, autoFit, onZoomChange, onClickRegion }) -> Promise<void>
- *  * Writes `pages` into `frame` (Blob first load, then incremental hash updates)
+ * renderUpdate(frame, preview, pageHashes, changedPages, { jumpPos, autoFit, onZoomChange, onClickRegion }) -> Promise<void>
+ *  * Writes `changedPages` into `frame` (Blob first load, then incremental hash updates)
  *
  * showPreviewError(preview, frame, message) -> void
  *  * Displays the given error message in the preview panel, hiding the iframe
@@ -87,8 +87,9 @@ function _yieldToEventLoop() {
 
 /**
  * Applies an incremental DOM update to the preview iframe.
- * Only updates `<div class="page">` elements whose hash has changed.
- * Adds or removes page divs as needed when the page count changes.
+ * `changedPages` contains only pages whose hash changed since the last compile,
+ * each with its 0-based index. `pageHashes` is the ordered list of all page
+ * hashes and drives adding/removing divs when the page count changes.
  *
  * The update is chunked: after every ~8ms of synchronous DOM work the event
  * loop gets a chance to run, so keyboard input is processed between pages
@@ -96,10 +97,11 @@ function _yieldToEventLoop() {
  * of KB of SVG markup per page).
  *
  * @param {HTMLIFrameElement} frame
- * @param {Array<{svg: string, hash: string}>} pages
+ * @param {Array<string>} pageHashes
+ * @param {Array<{index: number, svg: string, hash: string}>} changedPages
  * @returns {Promise<void>}
  */
-async function _applyIncrementalUpdate(frame, pages) {
+async function _applyIncrementalUpdate(frame, pageHashes, changedPages) {
     const doc = frame.contentDocument;
     if (!doc?.body) return;
 
@@ -110,34 +112,40 @@ async function _applyIncrementalUpdate(frame, pages) {
     const existingDivs = Array.from(doc.querySelectorAll('.page'));
     let lastYield = performance.now();
 
-    for (let i = 0; i < pages.length; i++) {
-        if (generation !== _frameGeneration) return;
-        const { svg, hash } = pages[i];
-        if (i < existingDivs.length) {
-            // Update only if the page content changed
-            if (hash !== _pageHashes[i]) {
-                existingDivs[i].innerHTML = svg + '\n';
-            }
-        } else {
-            // New page (document grew)
+    if (pageHashes.length !== existingDivs.length) {
+        // Page count changed: the backend sends all pages; rebuild the body.
+        doc.body.innerHTML = '';
+        for (const { svg } of changedPages) {
+            if (generation !== _frameGeneration) return;
             const div = doc.createElement('div');
             div.className = 'page';
             div.innerHTML = svg + '\n';
             doc.body.appendChild(div);
+            const now = performance.now();
+            if (now - lastYield > DOM_WRITE_BUDGET_MS) {
+                await _yieldToEventLoop();
+                lastYield = performance.now();
+                if (generation !== _frameGeneration) return;
+            }
         }
-        const now = performance.now();
-        if (now - lastYield > DOM_WRITE_BUDGET_MS) {
-            await _yieldToEventLoop();
-            lastYield = performance.now();
+    } else {
+        // Same page count: patch only the divs whose content changed.
+        for (const { index, svg } of changedPages) {
             if (generation !== _frameGeneration) return;
+            const div = existingDivs[index];
+            if (div) {
+                div.innerHTML = svg + '\n';
+            }
+            const now = performance.now();
+            if (now - lastYield > DOM_WRITE_BUDGET_MS) {
+                await _yieldToEventLoop();
+                lastYield = performance.now();
+                if (generation !== _frameGeneration) return;
+            }
         }
-    }
-    // Remove pages that no longer exist (document shrank)
-    for (let i = pages.length; i < existingDivs.length; i++) {
-        existingDivs[i].remove();
     }
 
-    _pageHashes = pages.map(p => p.hash);
+    _pageHashes = pageHashes;
 }
 
 // ### Web Worker for off-thread Blob creation ##################################
@@ -622,7 +630,7 @@ async function handleRegionClick(page, x, y) {
  * @param {function} [opts.onZoomChange]
  * @param {function} [opts.onClickRegion] (page, x, y) => void
  */
-export async function renderUpdate(frame, preview, pages, opts = {}) {
+export async function renderUpdate(frame, preview, pageHashes, changedPages, opts = {}) {
     const { jumpPos = null, autoFit = true, onZoomChange, onClickRegion } = opts;
     clearPreviewError(preview, frame);
 
@@ -633,7 +641,7 @@ export async function renderUpdate(frame, preview, pages, opts = {}) {
         // large documents where only a few pages actually changed.
         // Chunked: yields between pages so keystrokes are processed during
         // the write instead of freezing the UI for the whole update.
-        await _applyIncrementalUpdate(frame, pages);
+        await _applyIncrementalUpdate(frame, pageHashes, changedPages);
         // Resize the iframe shell to fit potentially new content height.
         // Must happen before scrollToJumpPos so the parent container's
         // scroll range reflects the new content height; otherwise the
@@ -657,8 +665,8 @@ export async function renderUpdate(frame, preview, pages, opts = {}) {
     } else {
         // ## First load ##################################################
         // Assemble full HTML from page array and load via Blob URL.
-        const html = _buildPreviewHtml(pages);
-        _pageHashes = pages.map(p => p.hash);
+        const html = _buildPreviewHtml(changedPages);
+        _pageHashes = pageHashes;
         await loadHtml(frame, html);
         if (jumpPos) scrollToJumpPos(frame, preview, jumpPos);
         if (autoFit) {
@@ -681,7 +689,7 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onZo
             cursor,
         });
         const ipcMs = Math.round(performance.now() - t0);
-        const { pages, jump_pos: jumpPos, timings } = result;
+        const { pages: changedPages, page_hashes: pageHashes, jump_pos: jumpPos, timings } = result;
         _lastJumpPos = jumpPos ?? null;
         console.debug('[compile] jumpPos:', jumpPos);
 
@@ -690,12 +698,13 @@ async function _doCompile(source, preview, frame, onDiagnostics, getCursor, onZo
             // Preview window is open: forward the compiled pages there, it owns
             // the DOM writing, the auto-fit and the error overlay.
             window.__TAURI__.event.emit('preview:update', {
-                pages,
+                pages: changedPages,
+                pageHashes,
                 jumpPos: _lastJumpPos,
             });
         } else {
             const tWrite = performance.now();
-            await renderUpdate(frame, preview, pages, {
+            await renderUpdate(frame, preview, pageHashes, changedPages, {
                 jumpPos: _lastJumpPos,
                 autoFit: true,
                 onZoomChange,

@@ -114,13 +114,13 @@ async function main() {
 
   (async () => {
     await window.__TAURI__.event.listen("preview:update", (event) => {
-      const { pages = [], jumpPos = null, hasError = false, message = "" } =
+      const { pages = [], pageHashes = [], jumpPos = null, hasError = false, message = "" } =
         event.payload ?? {};
       if (hasError) {
         showPreviewError(preview, frame, message);
         return;
       }
-      renderUpdate(frame, preview, pages, {
+      renderUpdate(frame, preview, pageHashes, pages, {
         jumpPos,
         autoFit: true,
         onZoomChange: syncZoomInput,

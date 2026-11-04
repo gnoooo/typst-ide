@@ -269,9 +269,10 @@ fn preview_picks_up_image_rewritten_externally() {
     assert_ne!(v1.pages[0].hash, v2.pages[0].hash);
 
     // Third compile with nothing changed: hash stays stable (memoization
-    // reuses the page, no spurious re-render).
+    // reuses the page, no spurious re-render), and no pages are re-sent.
     let v3 = render();
-    assert_eq!(v2.pages[0].hash, v3.pages[0].hash);
+    assert!(v3.pages.is_empty());
+    assert_eq!(v2.page_hashes[0], v3.page_hashes[0]);
 }
 
 // ---------------------------------------------------------------

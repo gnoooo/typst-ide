@@ -51,6 +51,19 @@ fn svg_cache() -> &'static Mutex<HashMap<u128, String>> {
     SVG_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+// ## Last-preview page hashes ##################################################
+//
+// Keeps the hashes of the pages sent in the last successful preview compile.
+// Only pages whose hash changed (or whose index changed because the page count
+// changed) are returned to the frontend; the frontend receives the full ordered
+// hash list so it can add/remove/update divs correctly.
+
+static LAST_PREVIEW_HASHES: OnceLock<Mutex<Vec<u128>>> = OnceLock::new();
+
+fn last_preview_hashes() -> &'static Mutex<Vec<u128>> {
+    LAST_PREVIEW_HASHES.get_or_init(|| Mutex::new(Vec::new()))
+}
+
 /// A single Typst diagnostic with resolved source position, ready to be
 /// serialized and sent to the frontend.
 #[derive(Serialize, Clone)]
@@ -158,6 +171,8 @@ pub struct CompileTimings {
 /// and skips DOM updates for unchanged pages, avoiding redundant browser re-renders.
 #[derive(Serialize)]
 pub struct RenderedPage {
+    /// 0-based index of this page in the document.
+    pub index: usize,
     /// SVG markup for this page (just the `<svg>…</svg>` element, no wrapper div).
     pub svg: String,
     /// Hex-encoded 128-bit hash of the compiled `Page` struct.
@@ -168,9 +183,11 @@ pub struct RenderedPage {
 /// Result returned by `compile_to_preview_html`.
 #[derive(Serialize)]
 pub struct PreviewResult {
-    /// Individual rendered pages.  The frontend assembles the full HTML on first load
-    /// and performs targeted per-div DOM updates on subsequent compilations.
+    /// Only pages whose content changed since the last successful compile.
     pub pages: Vec<RenderedPage>,
+    /// Hex-encoded hashes of all pages in document order.
+    /// The frontend uses this to add/remove pages and to skip unchanged divs.
+    pub page_hashes: Vec<String>,
     pub jump_pos: Option<JumpPos>,
     pub timings: CompileTimings,
 }
@@ -366,6 +383,11 @@ pub fn compile_to_preview_html(
             .map_err(|errors| collect_diagnostics(&errors, world))?;
         typst::comemo::evict(30);
         let compile_ms = t_compile.elapsed().as_millis() as u64;
+        tracing::debug!(
+            compile_ms,
+            page_count = document.pages().len(),
+            "typst compile done"
+        );
 
         // Compute the preview jump position corresponding to the editor cursor
         let jump_pos = cursor.and_then(|(line, col)| {
@@ -380,29 +402,54 @@ pub fn compile_to_preview_html(
     // 3. Render pages to SVG (with per-page cache)
     let t_svg = Instant::now();
     let mut svg_guard = svg_cache().lock().unwrap_or_else(|p| p.into_inner());
-    let pages: Vec<RenderedPage> = document
-        .pages()
-        .iter()
-        .map(|page| {
-            let hash = typst_utils::hash128(page);
+    let last_hashes = last_preview_hashes()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner());
+    let mut all_hashes: Vec<u128> = Vec::with_capacity(document.pages().len());
+    let mut changed_pages: Vec<RenderedPage> = Vec::new();
+    let length_changed = last_hashes.len() != document.pages().len();
+
+    for (i, page) in document.pages().iter().enumerate() {
+        let hash = typst_utils::hash128(page);
+        all_hashes.push(hash);
+
+        if length_changed || last_hashes.get(i) != Some(&hash) {
+            let t_page = Instant::now();
+            let cached = svg_guard.contains_key(&hash);
             let svg = svg_guard
                 .entry(hash)
                 .or_insert_with(|| {
-                    typst_svg::svg(
+                    let t_render = Instant::now();
+                    let svg = typst_svg::svg(
                         page,
                         &typst_svg::SvgOptions {
                             render_bleed: false,
                             pretty: false,
                         },
-                    )
+                    );
+                    tracing::debug!(
+                        page_index = i,
+                        render_ms = t_render.elapsed().as_millis() as u64,
+                        "rendered page svg"
+                    );
+                    svg
                 })
                 .clone();
-            RenderedPage {
+            tracing::debug!(
+                page_index = i,
+                cache_hit = cached,
+                total_ms = t_page.elapsed().as_millis() as u64,
+                "page svg ready"
+            );
+            changed_pages.push(RenderedPage {
+                index: i,
                 svg,
                 hash: format!("{hash:032x}"),
-            }
-        })
-        .collect();
+            });
+        }
+    }
+    drop(last_hashes);
+
     // Evict SVG cache entries for pages no longer in this document.
     let current_hashes: std::collections::HashSet<u128> =
         document.pages().iter().map(typst_utils::hash128).collect();
@@ -410,9 +457,18 @@ pub fn compile_to_preview_html(
     drop(svg_guard);
     let svg_ms = t_svg.elapsed().as_millis() as u64;
 
+    // Remember what we sent so the next compile can return only changed pages.
+    *last_preview_hashes()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner()) = all_hashes.clone();
+
+    let page_hashes: Vec<String> = all_hashes.iter().map(|h| format!("{h:032x}")).collect();
     let total_ms = t_total.elapsed().as_millis() as u64;
-    Ok(PreviewResult {
-        pages,
+
+    let t_serialize = Instant::now();
+    let result = Ok(PreviewResult {
+        pages: changed_pages,
+        page_hashes,
         jump_pos,
         timings: CompileTimings {
             world_ms,
@@ -420,7 +476,13 @@ pub fn compile_to_preview_html(
             svg_ms,
             total_ms,
         },
-    })
+    });
+    tracing::debug!(
+        serialize_ms = t_serialize.elapsed().as_millis() as u64,
+        changed_pages = result.as_ref().map_or(0, |r| r.pages.len()),
+        "preview result built"
+    );
+    result
 }
 
 /// Result of resolving a click in the preview back to a source position.

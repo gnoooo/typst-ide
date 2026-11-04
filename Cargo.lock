@@ -817,6 +817,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "tracing",
  "typst",
  "typst-as-library",
  "typst-ide",
