@@ -47,7 +47,17 @@ import { getCurrentProject } from './project.js';
 
 // ### Preview CSS (injected into the iframe on first load) #####################
 
-const _PREVIEW_CSS = `
+function _extractPageHeightPx(svg) {
+    const match = svg.match(/viewBox="\s*0\s+0\s+[\d.]+\s+([\d.]+)\s*"/);
+    if (match) {
+        const pt = parseFloat(match[1]);
+        if (Number.isFinite(pt)) return Math.round(pt * 96 / 72);
+    }
+    return 1123;
+}
+
+function _buildPreviewCss(pageHeightPx) {
+    return `
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { overflow-y: auto; }
 body {
@@ -60,10 +70,13 @@ body {
 }
 .page {
   background: white;
+  content-visibility: auto;
+  contain-intrinsic-size: auto ${pageHeightPx}px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 .page svg { display: block; cursor: pointer; }
 `;
+}
 
 /**
  * Builds a full preview HTML document from an array of RenderedPage objects.
@@ -72,8 +85,9 @@ body {
  * @returns {string}
  */
 function _buildPreviewHtml(pages) {
+    const pageHeightPx = pages.length > 0 ? _extractPageHeightPx(pages[0].svg) : 1123;
     const body = pages.map(p => `<div class="page">${p.svg}\n</div>`).join('\n');
-    return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <style>${_PREVIEW_CSS}</style>\n</head>\n<body>\n${body}\n</body>\n</html>`;
+    return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <style>${_buildPreviewCss(pageHeightPx)}</style>\n</head>\n<body>\n${body}\n</body>\n</html>`;
 }
 
 /** Max time spent writing SVG innerHTML before yielding to the event loop (ms). */
