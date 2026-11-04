@@ -72,7 +72,7 @@ body {
   background: white;
   content-visibility: auto;
   contain-intrinsic-size: auto ${pageHeightPx}px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
 }
 .page svg { display: block; cursor: pointer; }
 `;
