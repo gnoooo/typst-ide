@@ -1,11 +1,11 @@
 // Preview commands: compile to HTML, invalidate cache, resolve clicks
 
 use crate::commands::fs::anchored_project_root;
-use crate::state::CompileState;
+use crate::state::{CompileRequest, CompileState};
 use tauri::Runtime;
+use tokio::sync::oneshot;
 use typst_ide_core::compiler::{
-    ClickResult, DiagnosticInfo, PreviewResult, compile_to_preview_html,
-    invalidate_preview_file_cache, resolve_click,
+    ClickResult, DiagnosticInfo, PreviewResult, invalidate_preview_file_cache, resolve_click,
 };
 
 /// Cursor position as reported by Monaco (1-based line and UTF-16 column).
@@ -18,8 +18,8 @@ pub struct CursorPos {
 }
 
 /// Compiles Typst source code to a preview HTML document (pages rendered as inline SVGs)
-/// At most one compilation runs at a time, the semaphore suspends excess callers
-/// asynchronously (zero thread cost) until the running compile finishes.
+/// At most one compilation runs at a time. Pending requests are coalesced so
+/// only the latest source is compiled; older pending requests are dropped.
 /// The compile root is the Rust-anchored project root: the invoke arguments are not consulted.
 #[tauri::command]
 pub async fn render_preview<R: Runtime + 'static>(
@@ -29,11 +29,18 @@ pub async fn render_preview<R: Runtime + 'static>(
     cursor: Option<CursorPos>,
 ) -> Result<PreviewResult, Vec<DiagnosticInfo>> {
     let root = anchored_project_root(&app).map(|p| p.to_string_lossy().into_owned());
-    // Acquire before spawning the blocking work: suspends (not blocks) extra callers
-    let _permit = state.0.acquire().await.map_err(|e| {
+    let cur = cursor.map(|c| (c.line_number, c.column));
+    let (tx, rx) = oneshot::channel();
+    let request = CompileRequest {
+        root,
+        source,
+        cursor: cur,
+        result_tx: tx,
+    };
+    state.request_tx.send(request).map_err(|_| {
         vec![DiagnosticInfo {
             severity: "error".into(),
-            message: e.to_string(),
+            message: "Preview compile worker is not running".into(),
             hints: vec![],
             line: None,
             column: None,
@@ -41,15 +48,10 @@ pub async fn render_preview<R: Runtime + 'static>(
             end_column: None,
         }]
     })?;
-    tauri::async_runtime::spawn_blocking(move || {
-        let cur = cursor.map(|c| (c.line_number, c.column));
-        compile_to_preview_html(root.as_deref(), &source, cur)
-    })
-    .await
-    .map_err(|e| {
+    rx.await.map_err(|_| {
         vec![DiagnosticInfo {
             severity: "error".into(),
-            message: e.to_string(),
+            message: "Preview compile result was dropped".into(),
             hints: vec![],
             line: None,
             column: None,

@@ -2,11 +2,10 @@
 // They exercise the full command layer (state injection, SQLite) without
 // spawning a real window.
 
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use tauri::Manager;
 use tauri::test::{mock_builder, mock_context, noop_assets};
-use tokio::sync::Semaphore;
 
 use crate::state::{
     CompileState, HistoryDbState, NotesDbState, PdfExportPathState, ProjectRootState,
@@ -21,7 +20,7 @@ fn mock_app() -> tauri::App<tauri::test::MockRuntime> {
     mock_builder()
         .manage(NotesDbState(Mutex::new(notes)))
         .manage(HistoryDbState(Mutex::new(history)))
-        .manage(CompileState(Arc::new(Semaphore::new(1))))
+        .manage(CompileState::new())
         .manage(ProjectRootState(Mutex::new(None)))
         .manage(PdfExportPathState(Mutex::new(None)))
         .build(mock_context(noop_assets()))

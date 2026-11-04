@@ -169,7 +169,7 @@ pub struct CompileTimings {
 /// A single rendered page returned by `compile_to_preview_html`.
 /// The frontend uses `hash` to detect which pages actually changed between compilations
 /// and skips DOM updates for unchanged pages, avoiding redundant browser re-renders.
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct RenderedPage {
     /// 0-based index of this page in the document.
     pub index: usize,
@@ -181,7 +181,7 @@ pub struct RenderedPage {
 }
 
 /// Result returned by `compile_to_preview_html`.
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct PreviewResult {
     /// Only pages whose content changed since the last successful compile.
     pub pages: Vec<RenderedPage>,

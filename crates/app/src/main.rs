@@ -9,11 +9,9 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-use std::sync::Arc;
 use std::sync::Mutex;
 use tauri::Emitter;
 use tauri::Manager;
-use tokio::sync::Semaphore;
 use typst_ide_core::database::{history_db, notes_db};
 
 use commands::bibliography;
@@ -100,8 +98,7 @@ fn main() {
                 init_db_with_dialog("history", &history_db_path, history_db::init_db)?;
             app.manage(HistoryDbState(Mutex::new(history_conn)));
 
-            // Semaphore(1): at most one Typst compile at a time
-            app.manage(CompileState(Arc::new(Semaphore::new(1))));
+            app.manage(CompileState::new());
 
             // FS sandbox + PDF export anchors, filled by open/create_project
             // and pick_pdf_path respectively. Never set from frontend args.
