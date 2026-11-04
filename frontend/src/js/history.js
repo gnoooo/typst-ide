@@ -151,10 +151,9 @@ async function createHistoryEntry() {
     wrap.appendChild(sub);
     body.appendChild(wrap);
 
-    let path;
     folderBtn.addEventListener('click', async () => {
-        path = await invoke('open_folder_dialog');
-        if (path) input.value = path;
+        const picked = await invoke('open_folder_dialog');
+        if (picked) input.value = picked;
     });
 
     openModal({
@@ -164,8 +163,10 @@ async function createHistoryEntry() {
         buttons: [
             { label: t('modal.cancel'),    primary: false, onClick: (c) => c() },
             { label: t('modal.add'), primary: true,  onClick: async (c) => {
-                if (!path) return false;
+                const rawPath = input.value.trim();
+                if (!rawPath) return false;
 
+                const path = rawPath.replace(/[\\/]+$/, '');
                 const name = path.split(/[/\\]/).pop();
                 if (!name || !path) {
                     showToast("error", t('history.invalid_path'));
@@ -256,11 +257,12 @@ async function editHistoryEntry(entry) {
         buttons: [
             { label: t('modal.cancel'),    primary: false, onClick: (c) => c() },
             { label: t('modal.save'), primary: true,  onClick: async (close) => {
-                const newPath = body.querySelector('#history-entry-path-input').value.trim();
-                if (!newPath) {
+                const rawPath = body.querySelector('#history-entry-path-input').value.trim();
+                if (!rawPath) {
                     showToast("error", t('history.empty_fields'));
                     return;
                 }
+                const newPath = rawPath.replace(/[\\/]+$/, '');
                 const newName = newPath.split(/[/\\]/).pop();
                 if (!newName) {
                     showToast("error", t('history.invalid_path'));

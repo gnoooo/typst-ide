@@ -295,15 +295,24 @@ impl TypstWrapperWorld {
             .decode_gzip()
             .map_err(|error| PackageError::MalformedArchive(Some(eco_format!("{error}"))))?;
 
-        // Ne pas laisser de dépendances à moitié existantes, l'erreur est
-        // propagée puisque la décompression complète dépend de ce nettoyage
-        std::fs::remove_dir_all(&path)
+        // Ensure the cache root exists so the package directory can be created.
+        std::fs::create_dir_all(&self.cache_directory)
             .map_err(|error| PackageError::Other(Some(eco_format!("{error}"))))?;
+
+        // Ne pas laisser de dépendances à moitié existantes, l'erreur est
+        // propagée puisque la décompression complète dépend de ce nettoyage.
+        // On a first download the package directory does not exist yet.
+        if path.exists() {
+            std::fs::remove_dir_all(&path)
+                .map_err(|error| PackageError::Other(Some(eco_format!("{error}"))))?;
+        }
 
         let mut archive = tar::Archive::new(raw_archive.as_slice());
         archive.unpack(&path).map_err(|error| {
-            if let Err(cleanup) = std::fs::remove_dir_all(&path) {
-                eprintln!("failed to clear {}: {cleanup}", path.display());
+            if path.exists() {
+                if let Err(cleanup) = std::fs::remove_dir_all(&path) {
+                    eprintln!("failed to clear {}: {cleanup}", path.display());
+                }
             }
             PackageError::MalformedArchive(Some(eco_format!("{error}")))
         })?;
