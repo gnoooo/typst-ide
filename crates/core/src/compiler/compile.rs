@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::env;
 #[cfg(test)]
 use std::fs;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 
 use serde::Serialize;
@@ -62,6 +62,27 @@ static LAST_PREVIEW_HASHES: OnceLock<Mutex<Vec<u128>>> = OnceLock::new();
 
 fn last_preview_hashes() -> &'static Mutex<Vec<u128>> {
     LAST_PREVIEW_HASHES.get_or_init(|| Mutex::new(Vec::new()))
+}
+
+// ## Last-compiled document cache #############################################
+//
+// Caches the last successfully compiled PagedDocument from the preview worker
+// so click-to-source can reuse it instead of recompiling. Stored as an Arc so
+// callers never hold the world lock while resolving a click.
+
+static LAST_DOCUMENT: OnceLock<Mutex<Option<(u64, Arc<PagedDocument>)>>> = OnceLock::new();
+
+fn last_document() -> &'static Mutex<Option<(u64, Arc<PagedDocument>)>> {
+    LAST_DOCUMENT.get_or_init(|| Mutex::new(None))
+}
+
+/// Hash of the source text used to tag the last-compiled document cache.
+fn hash_source(content: &str) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    content.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// A single Typst diagnostic with resolved source position, ready to be
@@ -389,6 +410,11 @@ pub fn compile_to_preview_html(
             "typst compile done"
         );
 
+        // Cache the compiled document for click-to-source reuse.
+        let document = Arc::new(document);
+        *last_document().lock().unwrap_or_else(|p| p.into_inner()) =
+            Some((hash_source(content), Arc::clone(&document)));
+
         // Compute the preview jump position corresponding to the editor cursor
         let jump_pos = cursor.and_then(|(line, col)| {
             let source = world.source(world.main()).ok()?;
@@ -504,6 +530,16 @@ pub fn resolve_click(
     y: f64,
 ) -> Option<ClickResult> {
     let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
+    let source_hash = hash_source(content);
+
+    // Try to reuse the last successfully compiled document when the source
+    // hash matches, avoiding a second compile on every preview click.
+    let cached_document: Option<Arc<PagedDocument>> = last_document()
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .as_ref()
+        .and_then(|(hash, doc)| (*hash == source_hash).then(|| Arc::clone(doc)));
+
     let mut world_guard = preview_world_cache()
         .lock()
         .unwrap_or_else(|p| p.into_inner());
@@ -515,15 +551,18 @@ pub fn resolve_click(
     }
     world.reset_source(content);
 
-    let document: PagedDocument = match typst::compile(world as &_).output {
-        Ok(doc) => doc,
-        Err(_) => return None,
+    let document: Arc<PagedDocument> = match cached_document {
+        Some(doc) => doc,
+        None => match typst::compile(world as &_).output {
+            Ok(doc) => Arc::new(doc),
+            Err(_) => return None,
+        },
     };
     let pos = PagedPosition {
         page: NonZeroUsize::new(page)?,
         point: Point::new(typst::layout::Abs::pt(x), typst::layout::Abs::pt(y)),
     };
-    let jump = jump_from_click(world, &document, &pos)?;
+    let jump = jump_from_click(world, document.as_ref(), &pos)?;
     let (file_id, offset) = match jump {
         Jump::File(id, off) => (id, off),
         Jump::Url(_) | Jump::Position(_) => return None,
