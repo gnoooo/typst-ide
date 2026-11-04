@@ -451,8 +451,7 @@ pub fn compile_to_preview_html(
     drop(last_hashes);
 
     // Evict SVG cache entries for pages no longer in this document.
-    let current_hashes: std::collections::HashSet<u128> =
-        document.pages().iter().map(typst_utils::hash128).collect();
+    let current_hashes: std::collections::HashSet<u128> = all_hashes.iter().copied().collect();
     svg_guard.retain(|k, _| current_hashes.contains(k));
     drop(svg_guard);
     let svg_ms = t_svg.elapsed().as_millis() as u64;
