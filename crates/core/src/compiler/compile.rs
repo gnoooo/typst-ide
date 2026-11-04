@@ -552,13 +552,28 @@ pub fn invalidate_preview_file_cache() {
 /// Compiles Typst source to raw PDF bytes
 /// `root` should be the open project directory.
 pub fn compile_to_pdf(root: Option<&str>, content: &str) -> Result<Vec<u8>, String> {
-    let world = match root {
-        Some(r) => create_world_with_root(r, content),
-        None => create_default_world(content),
+    let root_str = root.map(|r| r.to_owned()).unwrap_or_else(current_dir);
+
+    // Reuse the persistent preview world when the root matches: this keeps the
+    // file cache and comemo memoization warm, so repeated exports are fast.
+    let document: PagedDocument = {
+        let mut world_guard = preview_world_cache()
+            .lock()
+            .unwrap_or_else(|p| p.into_inner());
+        let needs_new_world = world_guard
+            .as_ref()
+            .map_or(true, |(_, cached_root)| *cached_root != root_str);
+        if needs_new_world {
+            let new_world = create_world_with_root(&root_str, content);
+            *world_guard = Some((new_world, root_str));
+        } else {
+            world_guard.as_mut().unwrap().0.reset_source(content);
+        }
+        let (world, _) = world_guard.as_mut().unwrap();
+        typst::compile(world as &_)
+            .output
+            .map_err(|errors| format_diagnostics(&errors))?
     };
-    let document: PagedDocument = typst::compile(&world)
-        .output
-        .map_err(|errors| format_diagnostics(&errors))?;
 
     typst_pdf::pdf(&document, &PdfOptions::default()).map_err(|errors| format_diagnostics(&errors))
 }
