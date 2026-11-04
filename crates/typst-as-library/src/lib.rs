@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use typst::diag::{eco_format, FileError, FileResult, PackageError, PackageResult};
 use typst::foundations::{Bytes, Datetime};
 use typst::syntax::package::PackageSpec;
-use typst::syntax::{FileId, Source};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt};
@@ -95,6 +95,19 @@ impl TypstWrapperWorld {
     /// Call this when the project root changes or when files on disk may have changed.
     pub fn reset_files(&mut self) {
         *self.files.lock().unwrap_or_else(|p| p.into_inner()) = HashMap::new();
+    }
+
+    /// Removes a single project file from the cache so the next access re-reads
+    /// it from disk. Paths outside the project root are ignored.
+    pub fn reset_file(&mut self, path: &Path) {
+        let Ok(vpath) = VirtualPath::virtualize(&self.root, path) else {
+            return;
+        };
+        let id = RootedPath::new(typst::syntax::VirtualRoot::Project, vpath).intern();
+        self.files
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .remove(&id);
     }
 }
 

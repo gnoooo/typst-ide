@@ -43,7 +43,7 @@ export async function handleMove(relPath, targetDir, container, skipConfirm = fa
       oldPath: `${project.path}/${relPath}`,
       newPath: `${project.path}/${newRelPath}`,
     });
-    await invoke("invalidate_file_cache");
+    await invoke("invalidate_file_cache", { path: `${project.path}/${newRelPath}` });
     if (targetDir) addExpanded(targetDir);
     showToast("success", t('file.moved', { name: fileName }));
     await refreshTree(container);
@@ -91,7 +91,7 @@ export async function handleRename(relPath, container) {
       oldPath: `${project.path}/${relPath}`,
       newPath: `${project.path}/${newRelPath}`,
     });
-    await invoke("invalidate_file_cache");
+    await invoke("invalidate_file_cache", { path: `${project.path}/${newRelPath}` });
     if (parentDir) addExpanded(parentDir);
     showToast("success", t('file.renamed', { name: newName }));
     await refreshTree(container);
@@ -187,7 +187,7 @@ export async function handleReplace(relPath, container) {
   try {
     const name = await invoke("replace_file", { path: `${project.path}/${relPath}`});
     if (!name) return;
-    await invoke("invalidate_file_cache");
+    await invoke("invalidate_file_cache", { path: `${project.path}/${relPath}` });
     showToast("success", t('file.replaced', { name }));
   } catch (err) {
     if (!isUserCancelled(err)) {
@@ -205,7 +205,9 @@ export async function handleImport(container, destRel = "") {
   try {
     const imported = await invoke("import_file_dialog", { destDir});
     if (imported && imported.length > 0) {
-      await invoke("invalidate_file_cache");
+      for (const name of imported) {
+        await invoke("invalidate_file_cache", { path: `${destDir}/${name}` });
+      }
       if (destRel) addExpanded(destRel);
       showToast("success", t('file.imported', { count: imported.length }));
       await refreshTree(container);
@@ -299,7 +301,7 @@ export async function handleDelete(relativePath, li, row, container) {
 
   try {
     await invoke("delete_file_or_dir", { path: `${project.path}/${relativePath}`});
-    await invoke("invalidate_file_cache");
+    await invoke("invalidate_file_cache", { path: `${project.path}/${relativePath}` });
     showToast("success", t('file.deleted', { name: relativePath }));
     filterFiles(f => f.relative_path !== relativePath && !f.relative_path.startsWith(relativePath + "/"));
     removeExpandedWithPrefix(relativePath);

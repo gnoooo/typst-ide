@@ -538,13 +538,19 @@ pub fn resolve_click(
 /// Call this after the user saves a file that is imported by the main document
 /// (e.g. a `.typ` module, an image, a data file) so that the next compilation
 /// re-reads the updated content from disk.
-pub fn invalidate_preview_file_cache() {
+///
+/// If `path` is `Some`, only that file is evicted; otherwise the entire cache
+/// is cleared. Selective eviction keeps other imports/packages warm.
+pub fn invalidate_preview_file_cache(path: Option<&str>) {
     let Some(guard) = PREVIEW_WORLD.get() else {
         return;
     };
     let mut opt = guard.lock().unwrap_or_else(|p| p.into_inner());
     if let Some((world, _)) = opt.as_mut() {
-        world.reset_files();
+        match path {
+            Some(p) => world.reset_file(std::path::Path::new(p)),
+            None => world.reset_files(),
+        }
     }
 }
 

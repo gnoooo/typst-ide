@@ -65,12 +65,15 @@ pub async fn render_preview<R: Runtime + 'static>(
 /// Call this after saving a file that is imported by the main document so the
 /// next preview compilation picks up the changes from disk.
 ///
+/// If `path` is provided, only that file is evicted; otherwise the entire cache
+/// is cleared. Selective eviction keeps other imports/packages warm.
+///
 /// Runs on the blocking thread pool: the preview world mutex may be held by a
 /// running compile for seconds, so a synchronous version would freeze the UI
 /// (the command would run on the main thread).
 #[tauri::command]
-pub async fn invalidate_file_cache() {
-    tauri::async_runtime::spawn_blocking(invalidate_preview_file_cache)
+pub async fn invalidate_file_cache(path: Option<String>) {
+    tauri::async_runtime::spawn_blocking(move || invalidate_preview_file_cache(path.as_deref()))
         .await
         .ok();
 }
