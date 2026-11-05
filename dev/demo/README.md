@@ -53,13 +53,13 @@ dev/demo/
 └── tests/
     ├── walkthrough1.test.js  # premier lancement de l'app (GIF)
     ├── walkthrough2.test.js  # saisie de texte + preview temps réel (GIF)
-    ├── preview.test.js       # capture statique images/preview.png
-    └── preview-popup.test.js # carnet de marqueurs (images/preview-popup.png)
+    ├── preview.test.js       # capture statique docs/images/preview.png
+    └── preview-popup.test.js # carnet de marqueurs (docs/images/preview-popup.png)
 ```
 
-Les scénarios `walkthrought*` produisent les GIFs `images/walkthrought*.gif` ;
+Les scénarios `walkthrought*` produisent les GIFs `docs/images/walkthrought*.gif` ;
 les scénarios `preview*` exportent leur dernière frame en PNG statique dans
-`images/` (voir `demo.sh`).
+`docs/images/` (voir `demo.sh`).
 
 ## Comment ça fonctionne
 `demo.sh` va :

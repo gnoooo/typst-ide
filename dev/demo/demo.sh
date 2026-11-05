@@ -2,9 +2,9 @@
 # demo.sh : record demo GIFs for Typst IDE
 #
 # Usage:
-#   cd demo && bash demo.sh              # full pipeline: build + record + gif
-#   cd demo && bash demo.sh --skip-build # skip the Tauri build step
-#   cd demo && bash demo.sh --gif-only   # only convert existing PNGs to GIFs
+#   cd dev/demo && bash demo.sh              # full pipeline: build + record + gif
+#   cd dev/demo && bash demo.sh --skip-build # skip the Tauri build step
+#   cd dev/demo && bash demo.sh --gif-only   # only convert existing PNGs to GIFs
 #
 # Prerequisites:
 #   cargo install tauri-driver
@@ -15,7 +15,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DEMO_DIR="$REPO_ROOT/dev/demo"
 OUTPUT_DIR="$DEMO_DIR/output"
-IMAGES_DIR="$REPO_ROOT/images"
+IMAGES_DIR="$REPO_ROOT/docs/images"
 
 # ## Build #################################################################
 
@@ -63,7 +63,7 @@ for dir in "$OUTPUT_DIR"/*/; do
 
     rm -f "$list"
     cp "$OUTPUT_DIR/${name}.gif" "$IMAGES_DIR/${name}.gif"
-    echo "    -> images/${name}.gif"
+    echo "    -> docs/images/${name}.gif"
 done
 
 # ## Export static screenshots ###############################################
@@ -79,8 +79,8 @@ for dir in "$OUTPUT_DIR"/*/; do
 
     # Last frame = the settled final state of the scenario
     cp "${pngs[-1]}" "$IMAGES_DIR/${name}.png"
-    echo "    -> images/${name}.png"
+    echo "    -> docs/images/${name}.png"
 done
 
 echo ""
-echo "Done. GIFs and screenshots written to images/"
+echo "Done. GIFs and screenshots written to docs/images/"

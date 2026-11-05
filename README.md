@@ -3,12 +3,12 @@
 [Typst Studio](https://gitlab.com/gnoooo/typst_studio), rebuilt with Tauri and Rust.
 Harder. Better. Faster. Stronger.
 
-![banner](./images/banner.png)
+![banner](./docs/images/banner.png)
 
 A modern local Typst editor (not a lie anymore, since Electron has been replaced with Tauri), with an intuitive writing experience.
 
 # Preview
-![preview](./images/preview.png)
+![preview](./docs/images/preview.png)
 
 # Installation
 ## Users
@@ -108,12 +108,12 @@ The CI runs the same commands with the same pinned tools (Rust 1.98.1, Node 20.2
 # Usage
 ## Typical workflow
 When you first open the app, you'll see two windows:
-![First open](https://raw.githubusercontent.com/gnoooo/typst-ide/refs/heads/main/images/walkthrought1.gif)
+![First open](https://raw.githubusercontent.com/gnoooo/typst-ide/refs/heads/main/docs/images/walkthrought1.gif)
 
 On the left, you'll find the editor, where you can write your Typst documents.
 On the right, you'll find the preview, where you can see how your document looks like. You can now start typing your document, and the preview will update automatically as you type.
 
-![Typing](https://raw.githubusercontent.com/gnoooo/typst-ide/refs/heads/main/images/walkthrought2.gif)
+![Typing](https://raw.githubusercontent.com/gnoooo/typst-ide/refs/heads/main/docs/images/walkthrought2.gif)
 
 But as you can see, on the top left, there are two buttons blinking:
 - The blue one on the left, will prompt you to create a new project, by entering a name and a path. No worries, what you have typed so far will be saved in the created project.

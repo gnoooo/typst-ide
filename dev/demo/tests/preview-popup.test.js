@@ -1,7 +1,7 @@
 /**
  * Preview popup screenshot.
  * Shows a document full of markers with the marker book open.
- * The last frame of this scenario is exported to images/preview-popup.png.
+ * The last frame of this scenario is exported to docs/images/preview-popup.png.
  */
 const {
   createRecorder,
