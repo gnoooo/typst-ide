@@ -232,6 +232,9 @@ jobs:
           find . -type f ! -name SHA256SUMS -print0 | sort -z \
             | xargs -0 sha256sum > SHA256SUMS
 
+      - name: Verify version consistency
+        run: ./manage.sh check --no-cargo-check
+
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: artifacts/**/*
