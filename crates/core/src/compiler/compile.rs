@@ -70,6 +70,7 @@ fn last_preview_hashes() -> &'static Mutex<Vec<u128>> {
 // so click-to-source can reuse it instead of recompiling. Stored as an Arc so
 // callers never hold the world lock while resolving a click.
 
+#[allow(clippy::type_complexity)]
 static LAST_DOCUMENT: OnceLock<Mutex<Option<(u64, Arc<PagedDocument>)>>> = OnceLock::new();
 
 fn last_document() -> &'static Mutex<Option<(u64, Arc<PagedDocument>)>> {
@@ -606,7 +607,7 @@ pub fn compile_to_pdf(root: Option<&str>, content: &str) -> Result<Vec<u8>, Stri
             .unwrap_or_else(|p| p.into_inner());
         let needs_new_world = world_guard
             .as_ref()
-            .map_or(true, |(_, cached_root)| *cached_root != root_str);
+            .is_none_or(|(_, cached_root)| *cached_root != root_str);
         if needs_new_world {
             let new_world = create_world_with_root(&root_str, content);
             *world_guard = Some((new_world, root_str));
