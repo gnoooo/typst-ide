@@ -282,6 +282,21 @@ check_flatpak_node_sources() {
   fi
 }
 
+# Vérifie que les chemins sources référencés dans le manifeste Flatpak existent.
+# Seuls les fichiers installés par `install -Dm...` sont inspectés ; les artefacts
+# de build (target/) sont ignorés car produits pendant le build.
+check_flatpak_manifest_paths() {
+  local missing=""
+  while IFS= read -r path; do
+    [ -e "$REPO_ROOT/$path" ] || missing="$missing${missing:+, }$path"
+  done < <(awk '/^[[:space:]]*- install -Dm[0-9]+ / { print $4 }' "$FLATPAK_MANIFEST" | grep -v '^target/')
+
+  if [ -n "$missing" ]; then
+    echo "    chemins source manquants dans $FLATPAK_MANIFEST: $missing" >&2
+    return 1
+  fi
+}
+
 # --- Divers ---
 
 last_git_tag() {
@@ -520,6 +535,14 @@ cmd_check() {
   fi
 
   echo
+  echo "== Chemins du manifeste Flatpak =="
+  if check_flatpak_manifest_paths; then
+    echo "    ${GREEN}OK${NC} tous les fichiers source référencés existent"
+  else
+    exit "$EXIT_NOINPUT"
+  fi
+
+  echo
   echo "== cargo fmt --all --check =="
   if cargo fmt --version >/dev/null 2>&1; then
     ( cd "$REPO_ROOT" && cargo fmt --all --check ) && echo -e "    rustfmt: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    rustfmt: des fichiers ne sont pas formatés"
@@ -528,6 +551,14 @@ cmd_check() {
   fi
 
   echo
+  echo
+  echo "== cargo clippy --workspace -- -D warnings =="
+  if command -v cargo-clippy >/dev/null 2>&1 || cargo clippy --version >/dev/null 2>&1; then
+    ( cd "$REPO_ROOT" && cargo clippy --workspace -- -D warnings ) && echo "    clippy: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    clippy a échoué"
+  else
+    echo "    ${YELLOW}clippy non installé (rustup component add clippy), vérification ignorée${NC}"
+  fi
+
   if [ "$no_cargo_check" = true ]; then
     echo "== cargo check --workspace =="
     echo "    (omis, l'appelant compile le workspace autrement)"
