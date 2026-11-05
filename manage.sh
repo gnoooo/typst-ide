@@ -20,6 +20,9 @@ FRONTEND_LOCK="$REPO_ROOT/frontend/package-lock.json"
 FLATPAK_MANIFEST="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.yml"
 FLATPAK_METAINFO="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.metainfo.xml"
 FLATPAK_APP_ID="io.github.gnoooo.typst-ide"
+FLATPAK_STATE_DIR="$REPO_ROOT/target/.flatpak-builder"
+FLATPAK_REPO_DIR="$REPO_ROOT/target/repo"
+FLATPAK_BUILD_DIR="$REPO_ROOT/target/builddir"
 
 # Runtime et extensions Flatpak (branches alignées sur le runtime du manifeste :
 # GNOME 51 -> extensions 26.08). À ajuster en même temps que runtime-version
@@ -83,7 +86,7 @@ ${BOLD}${CYAN_DIM}Usage:${NC}
                                                      ${GREEN}--container-rebuild${NC}         reconstruit l'image de build sans cache
   $0 ${BLUE}fix-appimage${NC} [${YELLOW}chemin${NC}]     Rejoue le post-traitement AppImage (docs/appimage.md)
   $0 ${BLUE}flatpak-sources${NC}           Régénère les sources cargo/npm du manifeste Flatpak
-  $0 ${BLUE}flatpak-build${NC}             Build + installe le Flatpak + lints (cache .flatpak-builder)
+  $0 ${BLUE}flatpak-build${NC}             Build + installe le Flatpak + lints (cache target/.flatpak-builder)
   $0 ${BLUE}flatpak-run${NC}               Lance l'app sandboxée (flatpak run)
   $0 ${BLUE}flatpak-bump${NC} ${YELLOW}<tag>${NC}        Épingle tag/commit dans le manifeste Flatpak (après la sortie d'un tag)
   $0 ${BLUE}clean${NC} [${YELLOW}cibles${NC}] [${GREEN}opts${NC}]     Nettoie les builds et caches
@@ -1127,7 +1130,7 @@ cmd_flatpak_sources() {
   command -v python3 >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "python3 introuvable"
   command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1 || die_code "$EXIT_UNAVAILABLE" "node/npm introuvables"
 
-  local tools="$REPO_ROOT/.flatpak-builder/tools"
+  local tools="$FLATPAK_STATE_DIR/tools"
   local venv="$tools/venv"
   local fbt="$tools/flatpak-builder-tools"
   # maitres du vendoring : le clone suit un commit precise, pas master du jour
@@ -1176,8 +1179,9 @@ cmd_flatpak_build() {
   require_file "$FLATPAK_MANIFEST"
   flatpak_setup
 
-  echo "==> Build + install (org.flatpak.Builder, cache .flatpak-builder)"
-  ( cd "$REPO_ROOT" && flatpak run --command=flathub-build "$FLATPAK_BUILDER_APP" --install "$FLATPAK_MANIFEST" ) \
+  echo "==> Build + install (org.flatpak.Builder, cache target/.flatpak-builder)"
+  ( cd "$REPO_ROOT" && flatpak run --command=flathub-build "$FLATPAK_BUILDER_APP" \
+      --install --state-dir target/.flatpak-builder --repo target/repo target/builddir "$FLATPAK_MANIFEST" ) \
     || die_code "$EXIT_SOFTWARE" "le build Flatpak a échoué"
 
   echo "==> flatpak-builder-lint manifest"
@@ -1186,7 +1190,7 @@ cmd_flatpak_build() {
 
   echo "==> flatpak-builder-lint repo"
   flatpak_lint_fix
-  ( cd "$REPO_ROOT" && flatpak run --command=flatpak-builder-lint "$FLATPAK_BUILDER_APP" repo "$REPO_ROOT/repo" ) \
+  ( cd "$REPO_ROOT" && flatpak run --command=flatpak-builder-lint "$FLATPAK_BUILDER_APP" repo target/repo ) \
     || die_code "$EXIT_CONFIG" "lint repo : erreurs à corriger"
 
   echo

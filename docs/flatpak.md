@@ -65,7 +65,7 @@ Le manifeste est maintenu dans le dépôt `flathub/io.github.gnoooo.typst-ide`, 
 
 `manage.sh` gère le packaging :
 
-- `flatpak-sources` : régénère `flatpak/cargo-sources.json` et `flatpak/node-sources.json` (venv + clone shallow de `flatpak-builder-tools` dans `.flatpak-builder/tools/`, générateur npm installé dans `.flatpak-builder/tools/nodegen/` ; l'arbre npm est copié sans `node_modules`, bug flatpak-builder-tools#377)
+- `flatpak-sources` : régénère `flatpak/cargo-sources.json` et `flatpak/node-sources.json` (venv + clone shallow de `flatpak-builder-tools` dans `target/.flatpak-builder/tools/`, générateur npm installé dans `target/.flatpak-builder/tools/nodegen/` ; l'arbre npm est copié sans `node_modules`, bug flatpak-builder-tools#377)
 - `flatpak-build` : installe `org.flatpak.Builder` + runtime/SDK/extensions si absents (branches en tête de `manage.sh`), build + install, puis les deux lints (`manifest` et `repo`)
 - `flatpak-run` : lance l'app sandboxée
 - `flatpak-bump <tag>` : épingle `tag`/`commit` dans le manifeste, après la sortie du tag
@@ -140,7 +140,7 @@ Notes :
 Les builds Flathub sont **sans réseau**. Il faut donc fournir les dépendances :
 
 ```bash
-# Tout en une commande (venv + générateurs installés dans .flatpak-builder/tools/)
+# Tout en une commande (venv + générateurs installés dans target/.flatpak-builder/tools/)
 ./manage.sh flatpak-sources
 ```
 

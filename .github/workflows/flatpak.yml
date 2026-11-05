@@ -43,3 +43,6 @@ jobs:
           bundle: typst-ide-${{ matrix.arch }}.flatpak
           manifest-path: flatpak/io.github.gnoooo.typst-ide.yml
           arch: ${{ matrix.arch }}
+          build-dir: target/builddir
+          repo-dir: target/repo
+          state-dir: target/.flatpak-builder
