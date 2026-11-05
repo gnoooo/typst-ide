@@ -15,7 +15,7 @@ A modern local Typst editor (not a lie anymore, since Electron has been replaced
 Check out the [releases](https://github.com/gnoooo/typst-ide/releases) page for the latest version.
 
 Available versions:
-- **Linux** : [Flatpak](https://flathub.org/apps/io.github.gnoooo.typst-ide) (`flatpak install flathub io.github.gnoooo.typst-ide`), AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./packaging/PKGBUILD) for Arch.
+- **Linux** : [Flatpak](https://flathub.org/apps/io.github.gnoooo.typst-ide) (`flatpak install flathub io.github.gnoooo.typst-ide`), AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./packaging/aur/PKGBUILD) for Arch.
   The AppImage is portable (no installation): it uses the system `webkit2gtk-4.1` when available (like the `.deb`/`.rpm`) and falls back to the bundled copy otherwise. It supports AppImageUpdate through the published `.zsync` : see [docs/appimage.md](./docs/appimage.md).
 - **Windows** : setup executable, plus a portable executable.
 - Maybe MacOS in the future?

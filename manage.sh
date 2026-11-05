@@ -487,7 +487,7 @@ cmd_bump() {
 
   echo
   echo "Fichiers modifiés :"
-  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json packaging/PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json "$FLATPAK_METAINFO" | sed 's/^/    /'
+  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json packaging/aur/PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json "$FLATPAK_METAINFO" | sed 's/^/    /'
   echo
   echo "Note : aucun commit ni tag créé. Le hook pre-push vérifiera la cohérence à la prochaine poussée."
   echo "Le manifeste Flatpak ($(basename "$FLATPAK_MANIFEST")) sera épinglé au tag après sa création : ./manage.sh flatpak-bump v$new_version"

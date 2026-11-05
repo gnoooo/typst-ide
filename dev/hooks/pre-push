@@ -8,7 +8,7 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 
 CARGOTOML="$REPO_ROOT/crates/app/Cargo.toml"
 TAURICONF="$REPO_ROOT/crates/app/tauri.conf.json"
-PKGBUILD="$REPO_ROOT/packaging/PKGBUILD"
+PKGBUILD="$REPO_ROOT/packaging/aur/PKGBUILD"
 METAINFO="$REPO_ROOT/packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml"
 
 fail() {
