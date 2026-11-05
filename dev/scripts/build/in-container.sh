@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # =============================================================================
 # in-container.sh : build steps executed inside the release container
-# (scripts/build/Containerfile.ubuntu2204).
+# (dev/scripts/build/Containerfile.ubuntu2204).
 #
 # Driven by `./manage.sh build <targets> --container`; not meant to be run
 # directly. See docs/appimage.md and docs/windows-build.md.
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 REPO_ROOT="/work"
-. "$REPO_ROOT/scripts/version.sh"
+. "$REPO_ROOT/dev/scripts/version.sh"
 BUNDLES="${BUNDLES:-appimage}"
 TARGET="${TARGET:-}"
 
@@ -47,7 +47,7 @@ export XWIN_CACHE_DIR="${XWIN_CACHE_DIR:-$CACHE_DIR/xwin}"
 # the NSIS bundler otherwise fails with "Invalid cross-device link"
 # (tauri-apps/tauri#10647).
 export TMPDIR="${TMPDIR:-$CACHE_DIR/tmp}"
-# Final artifacts (see scripts/publish-artifacts.sh).
+# Final artifacts (see dev/scripts/publish-artifacts.sh).
 export DIST_DIR="${DIST_DIR:-$CARGO_TARGET_DIR/dist}"
 export NO_STRIP=1
 
@@ -121,7 +121,7 @@ if [ -n "$NATIVE" ]; then
     [ -d "$BUNDLE_DIR" ] || { echo "in-container: $BUNDLE_DIR not found" >&2; exit 1; }
 
     echo "== AppImage : post-traitement =="
-    bash "$REPO_ROOT/scripts/fix-appimage.sh" --out-dir "$BUNDLE_DIR" "$BUNDLE_DIR"
+    bash "$REPO_ROOT/dev/scripts/fix-appimage.sh" --out-dir "$BUNDLE_DIR" "$BUNDLE_DIR"
   fi
 fi
 
@@ -156,5 +156,5 @@ if [ -n "$KINDS" ]; then
   )
   [ -n "$NATIVE_TARGET" ] && PUBLISH_ARGS+=(--native-target "$NATIVE_TARGET")
   [ -n "$WIN_TARGET" ] && PUBLISH_ARGS+=(--windows-target "$WIN_TARGET")
-  bash "$REPO_ROOT/scripts/publish-artifacts.sh" "${PUBLISH_ARGS[@]}"
+  bash "$REPO_ROOT/dev/scripts/publish-artifacts.sh" "${PUBLISH_ARGS[@]}"
 fi

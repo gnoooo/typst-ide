@@ -52,7 +52,7 @@ target/container/dist/
 [Voir docs/windows-build.md](./windows-build.md)
 
 Le build hôte publie la même structure dans `target/dist/` (`linux/`).
-La collecte est faite par `scripts/publish-artifacts.sh` (appelé par `in-container.sh` et `manage.sh`), qui rafraîchit uniquement les types demandés et purge les anciennes versions de ces types.
+La collecte est faite par `dev/scripts/publish-artifacts.sh` (appelé par `in-container.sh` et `manage.sh`), qui rafraîchit uniquement les types demandés et purge les anciennes versions de ces types.
 
 Pour rejouer uniquement le post-traitement sur un bundle existant :
 ```bash
@@ -60,7 +60,7 @@ Pour rejouer uniquement le post-traitement sur un bundle existant :
 ./manage.sh fix-appimage target/container/release/bundle/appimage
 ```
 
-## Ce que fait le post-traitement (`scripts/fix-appimage.sh`)
+## Ce que fait le post-traitement (`dev/scripts/fix-appimage.sh`)
 
 `tauri build` produit une AppImage brute via `linuxdeploy` + son plugin GTK.
 Elle n'est pas directement conforme (et casse sur les systèmes récents), donc le script la corrige :
@@ -69,7 +69,7 @@ Elle n'est pas directement conforme (et casse sur les systèmes récents), donc 
    `linuxdeploy` en exclut déjà la plupart (GL/EGL/drm/gbm/X11/xcb/freetype...), mais pas `libwayland-*`, 
     or un `libwayland-client` embarqué casse l'EGL de Mesa récent (fenêtre blanche, scroll cassé, tauri-apps/tauri#15665).
 
-2. **AppRun personnalisé** (`scripts/appimage/AppRun`) : il utilise le
+2. **AppRun personnalisé** (`dev/scripts/appimage/AppRun`) : il utilise le
    **WebKitGTK de l'hôte** quand il existe (comme le .deb/.rpm : Wayland natif,
    "jump from cursor" fonctionnel), et retombe sur le WebKitGTK embarqué
    sinon (hôte sans WebKit, CI Ubuntu nue). `TYPST_IDE_PREFER_SYSTEM_WEBKIT=0`
@@ -86,7 +86,7 @@ Elle n'est pas directement conforme (et casse sur les systèmes récents), donc 
 
 `manage.sh` enchaîne :
 
-1. **Build de l'image** depuis `scripts/build/Containerfile.ubuntu2204`
+1. **Build de l'image** depuis `dev/scripts/build/Containerfile.ubuntu2204`
    (Ubuntu 22.04 + deps Tauri + Rust + Node 20 + `@tauri-apps/cli` épinglé + `appimagetool`). 
    Les couches sont mises en cache : seuls les changements du Containerfile déclenchent une reconstruction.
 
@@ -94,10 +94,10 @@ Elle n'est pas directement conforme (et casse sur les systèmes récents), donc 
    Sous Docker rootful, le conteneur tourne avec ton UID/GID pour que les fichiers sortent à votre nom. 
    Sous Podman rootless, le root du conteneur est déjà mappé sur votre utilisateur.
 
-3. **Exécution de `scripts/build/in-container.sh`** : `npm ci` + build frontend, `tauri build --bundles <cibles>` 
+3. **Exécution de `dev/scripts/build/in-container.sh`** : `npm ci` + build frontend, `tauri build --bundles <cibles>` 
    (les cibles Windows `nsis`/`windows` y sont cross-compilées en MSVC via `cargo-xwin`, voir [docs/windows-build.md](./windows-build.md)), puis `fix-appimage.sh`.
 
-4. **Publication** dans `target/container/dist/linux/` (AppImage + `.zsync`, deb, rpm) et `target/container/dist/windows/` le cas échéant, via `scripts/publish-artifacts.sh`.
+4. **Publication** dans `target/container/dist/linux/` (AppImage + `.zsync`, deb, rpm) et `target/container/dist/windows/` le cas échéant, via `dev/scripts/publish-artifacts.sh`.
 
 5. **Caches persistants** (regroupés sous `target/container/cache/`, ignoré par git) :
    `cargo-home/` (registre Cargo), `npm-cache/`, `xwin/` (SDK MSVC de cargo-xwin), `tmp/` (TMPDIR) et `tauri/` (outils linuxdeploy/NSIS). 

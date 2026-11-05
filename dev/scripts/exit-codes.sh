@@ -4,7 +4,7 @@
 # génériques, 126/127 sont réservés par le shell et 128+n signifie « tué par le
 # signal n ». Un code custom hors de ces plages est donc à éviter.
 #
-# Usage : . scripts/exit-codes.sh  puis  die_code "$EXIT_USAGE" "message"
+# Usage : . dev/scripts/exit-codes.sh  puis  die_code "$EXIT_USAGE" "message"
 
 EXIT_OK=0
 EXIT_ERROR=1

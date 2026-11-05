@@ -27,7 +27,7 @@ Ce qui est déjà en place dans le dépôt et réutilisable :
 
 Avant de générer le manifeste, les identifiants doivent être alignés sur `io.github.gnoooo.typst-ide`. Flathub impose le préfixe `io.github.` pour les applications hébergées sur GitHub. Il faut modifier l'identifiant Tauri, le metainfo, le desktop file, le nom des icônes et le manifeste. Cette décision doit être prise avant la première soumission : un changement d'identifiant après publication nécessite une nouvelle soumission.
 
-Le metainfo Flatpak est valide : il contient un `<developer>`, une release réelle et des screenshots épinglés sur un commit immuable. Le template AppImage (`scripts/appimage/io.github.gnoooo.typst-ide.appdata.xml`) conserve les placeholders `@VERSION@`/`@DATE@`, remplacés au build. Le desktop file copié dans Flatpak doit avoir `Icon=io.github.gnoooo.typst-ide`, et l'icône installée doit porter ce même nom.
+Le metainfo Flatpak est valide : il contient un `<developer>`, une release réelle et des screenshots épinglés sur un commit immuable. Le template AppImage (`dev/scripts/appimage/io.github.gnoooo.typst-ide.appdata.xml`) conserve les placeholders `@VERSION@`/`@DATE@`, remplacés au build. Le desktop file copié dans Flatpak doit avoir `Icon=io.github.gnoooo.typst-ide`, et l'icône installée doit porter ce même nom.
 
 Le code d'accès aux projets est maintenant validé : `create_project()` et `open_project()` n'acceptent que des dossiers choisis via un dialogue (registre `GRANTED_PATHS` de `commands/fs.rs`), les montages document-portal sous le sandbox, ou `$HOME` hors sandbox. Les sources de templates passent par le même contrôle.
 

@@ -12,8 +12,8 @@
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEMO_DIR="$REPO_ROOT/demo"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+DEMO_DIR="$REPO_ROOT/dev/demo"
 OUTPUT_DIR="$DEMO_DIR/output"
 IMAGES_DIR="$REPO_ROOT/images"
 

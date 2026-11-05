@@ -48,7 +48,7 @@ XVFB_PID=$!
 sleep 2
 
 echo "==> demo.sh"
-cd /work/demo
+cd /work/dev/demo
 bash demo.sh
 
 kill "$XVFB_PID" 2>/dev/null || true

@@ -125,10 +125,10 @@ require_file() {
 
 # --- Fetch (lecture des versions) ---
 
-# extraction version mutualisée avec hooks/pre-push, scripts/fix-appimage.sh et scripts/build/in-container.sh : éditer les patterns dans scripts/version.sh
-. "$REPO_ROOT/scripts/version.sh"
-. "$REPO_ROOT/scripts/npm-audit.sh"
-. "$REPO_ROOT/scripts/exit-codes.sh"
+# extraction version mutualisée avec dev/hooks/pre-push, dev/scripts/fix-appimage.sh et dev/scripts/build/in-container.sh : éditer les patterns dans dev/scripts/version.sh
+. "$REPO_ROOT/dev/scripts/version.sh"
+. "$REPO_ROOT/dev/scripts/npm-audit.sh"
+. "$REPO_ROOT/dev/scripts/exit-codes.sh"
 
 # tout échec non rattrapé sort en 70 (erreur interne) au lieu de laisser fuire le code de la commande
 set -E
@@ -538,11 +538,11 @@ cmd_check() {
 
   echo
   echo "== Test du parseur npm audit =="
-  "$REPO_ROOT/scripts/test-npm-audit.sh" || die_code "$EXIT_SOFTWARE" "    le test npm audit a échoué"
+  "$REPO_ROOT/dev/scripts/test-npm-audit.sh" || die_code "$EXIT_SOFTWARE" "    le test npm audit a échoué"
 
   echo
   echo "== Test des codes de sortie =="
-  "$REPO_ROOT/scripts/test-exit-codes.sh" || die_code "$EXIT_SOFTWARE" "    le test des codes de sortie a échoué"
+  "$REPO_ROOT/dev/scripts/test-exit-codes.sh" || die_code "$EXIT_SOFTWARE" "    le test des codes de sortie a échoué"
 }
 
 cmd_test() {
@@ -658,7 +658,7 @@ windows_prereqs_hint() {
   echo "    Debian : sudo apt install gcc-mingw-w64-x86-64 nsis  puis  rustup target add x86_64-pc-windows-gnu" >&2
 }
 
-# Build dans le conteneur de release (voir scripts/build/Containerfile.ubuntu2204
+# Build dans le conteneur de release (voir dev/scripts/build/Containerfile.ubuntu2204
 # et docs/appimage.md). Liste et target sont passés par variables d'environnement.
 build_in_container() {
   local list="$1" target="$2" image="$3" rebuild="$4"
@@ -666,7 +666,7 @@ build_in_container() {
   local runtime
   runtime="$(container_runtime)" || die_code "$EXIT_UNAVAILABLE" "ni podman ni docker n'est installé (requis pour --container)"
 
-  local containerfile="$REPO_ROOT/scripts/build/Containerfile.ubuntu2204"
+  local containerfile="$REPO_ROOT/dev/scripts/build/Containerfile.ubuntu2204"
   require_file "$containerfile"
 
   # Regroupe les anciens caches à la racine de target/container/ sous cache/
@@ -685,7 +685,7 @@ build_in_container() {
   local -a build_args=(build --build-arg "BASE_IMAGE=$image" -t "$tag" -f "$containerfile")
   [ "$rebuild" = "1" ] && build_args+=(--no-cache)
   echo "== Image de build ($runtime, $image) =="
-  "$runtime" "${build_args[@]}" "$REPO_ROOT/scripts/build" \
+  "$runtime" "${build_args[@]}" "$REPO_ROOT/dev/scripts/build" \
     || die_code "$EXIT_SOFTWARE" "la construction de l'image de build a échoué"
 
   local -a run_args=(run --rm -w /work)
@@ -704,7 +704,7 @@ build_in_container() {
     -e "CARGO_TARGET_DIR=/work/target/container"
     -e "DIST_DIR=/work/target/container/dist"
     "$tag"
-    bash scripts/build/in-container.sh
+    bash dev/scripts/build/in-container.sh
   )
   echo "== Build dans le conteneur ($list${target:+ --target $target}) =="
   "$runtime" "${run_args[@]}" || die_code "$EXIT_SOFTWARE" "le build conteneurisé a échoué"
@@ -873,7 +873,7 @@ cmd_build() {
       [ -d "$dir" ] || die_code "$EXIT_SOFTWARE" "    bundle appimage introuvable: $dir"
       echo
       echo "== AppImage : post-traitement =="
-      "$REPO_ROOT/scripts/fix-appimage.sh" --out-dir "$dir" "$dir" || die_code "$EXIT_SOFTWARE" "    le post-traitement AppImage a échoué"
+      "$REPO_ROOT/dev/scripts/fix-appimage.sh" --out-dir "$dir" "$dir" || die_code "$EXIT_SOFTWARE" "    le post-traitement AppImage a échoué"
     fi
   fi
 
@@ -916,7 +916,7 @@ cmd_build() {
       fi
       [ -n "$win_pub_target" ] && publish_args+=(--windows-target "$win_pub_target")
     fi
-    "$REPO_ROOT/scripts/publish-artifacts.sh" "${publish_args[@]}" \
+    "$REPO_ROOT/dev/scripts/publish-artifacts.sh" "${publish_args[@]}" \
       || die_code "$EXIT_SOFTWARE" "    la publication des artefacts a échoué"
     echo
     echo "Artefacts : ${BOLD}target/dist/${NC}"
@@ -926,9 +926,9 @@ cmd_build() {
   fi
 }
 
-# Rejoue scripts/fix-appimage.sh sur le dernier bundle (ou sur un chemin donné).
+# Rejoue dev/scripts/fix-appimage.sh sur le dernier bundle (ou sur un chemin donné).
 cmd_fix_appimage() {
-  "$REPO_ROOT/scripts/fix-appimage.sh" "$@"
+  "$REPO_ROOT/dev/scripts/fix-appimage.sh" "$@"
 }
 
 # ---------------------

@@ -35,7 +35,7 @@ cd typst-ide
 
 Install the git hooks (pre-commit / pre-push checks), once per clone:
 ```sh
-./hooks/install.sh
+./dev/hooks/install.sh
 ```
 
 Install the frontend dependencies (only needed once):
@@ -73,7 +73,7 @@ Flatpak packaging (see [docs/flatpak.md](./docs/flatpak.md)):
 
 `target/` grows fast (debug builds, cargo intermediates, container caches). `./manage.sh clean [build|cache|dist|image|all]` removes them safely, keeps the published `dist/` artifacts by default and never runs `cargo clean`. See [docs/appimage.md](./docs/appimage.md#nettoyage) for details.
 
-Artifacts are collected by `scripts/publish-artifacts.sh` into a single tree per build workspace, organized by OS: `target/dist/{linux,windows}/` for host builds and `target/container/dist/{linux,windows}/` for `--container` builds.
+Artifacts are collected by `dev/scripts/publish-artifacts.sh` into a single tree per build workspace, organized by OS: `target/dist/{linux,windows}/` for host builds and `target/container/dist/{linux,windows}/` for `--container` builds.
 The AppImage is named `typst-ide-<version>-x86_64.AppImage`, the Windows installer and portable executable are named like the CI ones.
 
 There is no Windows container on Linux (containers share the host kernel), but the release container cross-compiles Windows with `cargo-xwin` (no Windows machine and no host toolchain required). Without `--container`, `build all` uses MinGW and includes Windows only when `mingw64-gcc`, the Rust `x86_64-pc-windows-gnu` standard library and the NSIS stubs are available.

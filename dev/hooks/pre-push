@@ -20,8 +20,8 @@ for f in "$CARGOTOML" "$TAURICONF" "$PKGBUILD"; do
   [ -f "$f" ] || fail "file not found: $f"
 done
 
-. "$REPO_ROOT/scripts/version.sh"
-. "$REPO_ROOT/scripts/npm-audit.sh"
+. "$REPO_ROOT/dev/scripts/version.sh"
+. "$REPO_ROOT/dev/scripts/npm-audit.sh"
 cargo_ver="$(version_from_toml "$CARGOTOML")"
 tauri_ver="$(version_from_json "$TAURICONF")"
 pkgbuild_ver="$(version_from_pkgbuild "$PKGBUILD")"

@@ -22,12 +22,12 @@ Les items sont groupés par priorité.
 
 - [x] Ajouter des tests unitaires JavaScript (aucun test pour ~6 600 lignes de frontend)
 - [x] Ajouter des tests d'intégration pour les commandes Tauri (tests Rust via `tauri::test` mock apps, sans tauri-driver)
-- [x] Sortir les démos `demo/` du périmètre (moyens de générer les GIFs du README, pas des tests)
+- [x] Sortir les démos `dev/demo/` du périmètre (moyens de générer les GIFs du README, pas des tests)
 - [x] Lancer `./manage.sh check` et `./manage.sh test` dans la CI (actuellement : build sur tag uniquement, sans test ni lint) — couvert par le workflow CI des PR
 - [x] Créer un workflow CI pour les PR (build + tests) en plus du workflow de release
 - [ ] Ajouter un job macOS au build de release
 - [x] Réparer bundle AppImage
-  - Corrigé en septembre 2026 : `scripts/fix-appimage.sh` retire les libs qui doivent venir de l'hôte (`libwayland-*`), l'AppRun personnalisé utilise le WebKitGTK de l'hôte quand il existe (comme le .deb/.rpm) et retombe sur le WebKit embarqué sinon, AppStream + desktop `io.github.gnoooo.typst-ide.desktop` embarqués, repack `appimagetool` avec update info + `.zsync`, asset nommé `typst-ide-<version>-x86_64.AppImage`. `manage.sh build appimage [--container]`, doc dans `docs/appimage.md`.
+  - Corrigé en septembre 2026 : `dev/scripts/fix-appimage.sh` retire les libs qui doivent venir de l'hôte (`libwayland-*`), l'AppRun personnalisé utilise le WebKitGTK de l'hôte quand il existe (comme le .deb/.rpm) et retombe sur le WebKit embarqué sinon, AppStream + desktop `io.github.gnoooo.typst-ide.desktop` embarqués, repack `appimagetool` avec update info + `.zsync`, asset nommé `typst-ide-<version>-x86_64.AppImage`. `manage.sh build appimage [--container]`, doc dans `docs/appimage.md`.
 - [x] Bundle Windows exécutable (et non setup NSIS)
 
 ## Fonctionnalités

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Audit npm mutualisé entre manage.sh (info) et hooks/pre-push (garde-fou push).
-# Comme scripts/version.sh pour les versions : un seul endroit sait lire npm,
+# Audit npm mutualisé entre manage.sh (info) et dev/hooks/pre-push (garde-fou push).
+# Comme dev/scripts/version.sh pour les versions : un seul endroit sait lire npm,
 # sinon les deux appelants dérivent et un seul bloque (cf. version_mismatches).
 #
 # npm_audit_count <frontend_dir> : écrit sur stdout le nombre de paquets

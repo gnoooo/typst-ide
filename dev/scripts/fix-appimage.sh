@@ -9,14 +9,14 @@
 #      host (the pkg2appimage excludelist) and that linuxdeploy misses, today
 #      `libwayland-*` (bundled libwayland-client breaks host Mesa/EGL);
 #   3. records the bundled WebKitGTK version for the runtime AppRun;
-#   4. installs the custom AppRun (see scripts/appimage/AppRun);
+#   4. installs the custom AppRun (see dev/scripts/appimage/AppRun);
 #   5. installs AppStream metadata and normalizes the desktop file to
 #      `io.github.gnoooo.typst-ide.desktop`;
 #   6. repacks with the official appimagetool, embedding the
 #      `gh-releases-zsync` update information, and generates the .zsync file.
 #
 # Usage:
-#   scripts/fix-appimage.sh [options] [BUNDLE_DIR | APPDIR | APPIMAGE]
+#   dev/scripts/fix-appimage.sh [options] [BUNDLE_DIR | APPDIR | APPIMAGE]
 #
 # Options:
 #   --version VERSION   version to use for the output name (default: read from
@@ -34,8 +34,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-. "$REPO_ROOT/scripts/version.sh"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+. "$REPO_ROOT/dev/scripts/version.sh"
 
 APPIMAGE_NAME="typst-ide"
 # Immutable release tag: the URL cannot silently change (an asset re-uploaded

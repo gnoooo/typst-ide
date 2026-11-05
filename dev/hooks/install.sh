@@ -2,12 +2,12 @@
 # Install the shared git hooks for this repository (one-time per clone).
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-HOOKS_DIR="$REPO_ROOT/hooks"
+REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+HOOKS_DIR="$REPO_ROOT/dev/hooks"
 
 for hook in pre-commit pre-push; do
   [ -x "$HOOKS_DIR/$hook" ] || chmod +x "$HOOKS_DIR/$hook"
 done
 
-git -C "$REPO_ROOT" config core.hooksPath hooks
+git -C "$REPO_ROOT" config core.hooksPath dev/hooks
 echo "git hooks installed: $(git -C "$REPO_ROOT" config core.hooksPath) (in $REPO_ROOT)"

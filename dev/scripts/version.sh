@@ -1,4 +1,4 @@
-# Extraction de version, sourcée par manage.sh, hooks/pre-push, scripts/fix-appimage.sh et scripts/build/in-container.sh
+# Extraction de version, sourcée par manage.sh, dev/hooks/pre-push, dev/scripts/fix-appimage.sh et dev/scripts/build/in-container.sh
 # Les patterns sont ici uniquement : un changement de format se modifie en un seul endroit.
 
 # Cargo.toml (première ligne `version = "..."`

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Test du compteur d'audit npm (scripts/npm-audit.sh).
+# Test du compteur d'audit npm (dev/scripts/npm-audit.sh).
 # Faux npm sur le PATH : aucun accès réseau, aucun node_modules, aucun audit réel.
 set -u
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-. "$ROOT/scripts/npm-audit.sh"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+. "$ROOT/dev/scripts/npm-audit.sh"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT

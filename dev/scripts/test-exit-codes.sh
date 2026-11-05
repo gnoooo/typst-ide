@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Test des codes de sortie de manage.sh (scripts/exit-codes.sh).
+# Test des codes de sortie de manage.sh (dev/scripts/exit-codes.sh).
 # Aucun réseau, aucun build : seule la table et quelques chemins d'erreur sont exercés.
 set -u
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-. "$ROOT/scripts/exit-codes.sh"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+. "$ROOT/dev/scripts/exit-codes.sh"
 
 fails=0
 expect() { # <attendu> <obtenu> <libellé>

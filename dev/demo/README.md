@@ -1,10 +1,10 @@
 # Demo : Génération de GIFs avec Webdriver
 ## Prérequis
 ### Via conteneur (recommandé)
-Le pipeline complet tourne dans un conteneur Ubuntu 24.04 jetable (`demo/Dockerfile`) : il fournit `WebKitWebDriver` (requis par `tauri-driver`, absent des dépôts Arch) et reprend les versions épinglées du projet (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0). Docker seul est requis sur l'hôte.
+Le pipeline complet tourne dans un conteneur Ubuntu 24.04 jetable (`dev/demo/Dockerfile`) : il fournit `WebKitWebDriver` (requis par `tauri-driver`, absent des dépôts Arch) et reprend les versions épinglées du projet (Rust 1.98.1, Node 20.20.2, Tauri CLI 2.12.0). Docker seul est requis sur l'hôte.
 
 ```bash
-cd demo
+cd dev/demo
 bash run-container.sh
 ```
 
@@ -19,13 +19,13 @@ sudo apt install ffmpeg   # Debian/Ubuntu
 
 ### Node.js
 ```bash
-cd demo && npm install
+cd dev/demo && npm install
 ```
 
 ## Utilisation
 ### Pipeline complet (build + record + convert)
 ```bash
-cd demo
+cd dev/demo
 bash demo.sh
 ```
 
@@ -41,7 +41,7 @@ bash demo.sh --gif-only
 
 ## Structure
 ```
-demo/
+dev/demo/
 ├── package.json
 ├── wdio.conf.js              # configuration WebdriverIO + tauri-driver
 ├── Dockerfile                # image Ubuntu 24.04 (WebKitWebDriver, toolchain)
@@ -72,7 +72,7 @@ les scénarios `preview*` exportent leur dernière frame en PNG statique dans
 Un helper est disponible pour faciliter la création de scénarios de démonstration.
 Pour ajouter une nouvelle démo :
 
-- Créer un fichier `demo/tests/mon-scenario.test.js` en suivant le même pattern :
+- Créer un fichier `dev/demo/tests/mon-scenario.test.js` en suivant le même pattern :
   ```javascript
   const { createRecorder, waitForEditor } = require("../helpers");
   
