@@ -75,4 +75,4 @@ jobs:
         run: npm audit
 
       - name: Run tests
-        run: ./manage.sh test
+        run: ./manage.sh test rust
