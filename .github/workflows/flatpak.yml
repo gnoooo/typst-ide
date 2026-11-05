@@ -6,7 +6,21 @@ on:
   # The push to main after `manage.sh flatpak-bump` verifies the new release.
   push:
     branches: [main]
+    paths:
+      - 'packaging/flatpak/**'
+      - 'crates/**'
+      - 'frontend/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/flatpak.yml'
   pull_request:
+    paths:
+      - 'packaging/flatpak/**'
+      - 'crates/**'
+      - 'frontend/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/flatpak.yml'
 
 # Le build vérifie le manifeste et n'écrit nulle part dans le dépôt.
 permissions:
