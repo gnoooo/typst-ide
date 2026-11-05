@@ -1,7 +1,7 @@
 {
     "$schema": "https://tauri.app/schemas/config-schema.json",
     "productName": "Typst IDE",
-    "version": "1.8.0",
+    "version": "1.8.1",
     "identifier": "io.github.gnoooo.typst-ide",
     "build": {
         "beforeBuildCommand": {

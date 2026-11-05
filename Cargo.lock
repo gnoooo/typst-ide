@@ -6123,7 +6123,7 @@ dependencies = [
 
 [[package]]
 name = "typst-ide-app"
-version = "1.8.0"
+version = "1.8.1"
 dependencies = [
  "ashpd",
  "base64 0.22.1",

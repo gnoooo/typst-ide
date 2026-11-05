@@ -60,8 +60,11 @@ jobs:
 
       - name: Pin Flatpak manifest to current commit
         run: |
-          sed -i 's/^        tag: v1\.8\.0$/        commit: ${{ github.sha }}/' packaging/flatpak/io.github.gnoooo.typst-ide.yml
-          sed -i '/^        commit: 283322a8f76ad4d506c3ead9e121f5ad9dd15f8d$/d' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+          # The checked-in manifest only pins the release tag. For CI we need the
+          # exact commit under test, so replace the tag line with the current SHA
+          # and drop any stale commit line from the previous release.
+          sed -i 's|^        tag: v[0-9]\+\.[0-9]\+\.[0-9]\+$|        commit: ${{ github.sha }}|' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+          sed -i '/^        commit: [a-f0-9]\{40\}$/d' packaging/flatpak/io.github.gnoooo.typst-ide.yml
 
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3
         with:
