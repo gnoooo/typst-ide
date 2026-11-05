@@ -1,26 +1,11 @@
 name: Flatpak
 
 on:
-  # Only main and pull requests: a tag points at a commit whose manifest still
-  # pins the previous release, so a tag build would verify the wrong version.
-  # The push to main after `manage.sh flatpak-bump` verifies the new release.
+  # Flatpak builds are slow; only run them for release tags. The manifest pins
+  # the release tag, so a tag build always resolves to the correct commit.
   push:
-    branches: [main]
-    paths:
-      - 'packaging/flatpak/**'
-      - 'crates/**'
-      - 'frontend/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/flatpak.yml'
-  pull_request:
-    paths:
-      - 'packaging/flatpak/**'
-      - 'crates/**'
-      - 'frontend/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/flatpak.yml'
+    tags:
+      - 'v*'
 
 # Le build vérifie le manifeste et n'écrit nulle part dans le dépôt.
 permissions:
@@ -49,9 +34,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Verification build only : the official Flathub build stays on their
-      # buildbot. The manifest in git is pinned to the last release tag for
-      # Flathub; for CI we repin the git source to the current checkout so the
-      # build-commands match the working tree.
+      # buildbot. The checked-in manifest pins the release tag; for CI we pin
+      # the exact commit the tag points to so the build-commands match.
       # No cache-key : the action's default (hash of the manifest path) keeps
       # the .flatpak-builder cache warm between runs and invalidates it when
       # the manifest changes.
