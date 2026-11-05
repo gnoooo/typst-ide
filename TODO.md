@@ -5,7 +5,7 @@ Les items sont groupés par priorité.
 
 ## Bugs / incohérences
 
-- [x] Ajouter un fichier `LICENSE` à la racine (le PKGBUILD déclare GPL-3.0 mais aucun fichier ne l'accompagne)
+- [x] Ajouter un fichier `LICENSE` à la racine (le packaging/PKGBUILD déclare GPL-3.0 mais aucun fichier ne l'accompagne)
 - [x] Mettre à jour le README : supprimer les références à `npm run build:css` et `npm run postinstall` (scripts absents du `frontend/package.json`) et à l'AppImage (plus dans les targets de `tauri.conf.json`)
 - [x] Ajouter l'entrée v1.4.3 dans `RELEASE_NOTES.md` (les fichiers de version sont à 1.4.3, les notes s'arrêtent à v1.4.2)
 - [x] Retirer les `eprintln!` de debug laissés dans `crates/core/src/compiler/compile.rs` (cursor_jump, resolve_click)
@@ -47,7 +47,7 @@ Les items sont groupés par priorité.
 ## Flathub
 
 - [x] Brand color : https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines/quality-guidelines#brand-colors
-  - Fait en v1.8.0 : `<branding>` ajouté dans `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` avec `#8FE0EA` (clair) et `#1D7F8C` (sombre).
+  - Fait en v1.8.0 : `<branding>` ajouté dans `packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml` avec `#8FE0EA` (clair) et `#1D7F8C` (sombre).
 - [x] Ajouter les notes de version dans `<release>`
   - Fait en v1.8.0 : description de la release ajoutée dans le metainfo.
 - [ ] Finaliser la page Flathub : https://flathub.org/fr/apps/io.github.gnoooo.typst-ide

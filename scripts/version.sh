@@ -22,6 +22,6 @@ version_mismatches() {
   local app="$1" tauri="$2" pkgbuild="$3" meta="$4"
   [ -n "$app" ]      || echo "crates/app/Cargo.toml (version absente)"
   [ "$app" = "$tauri" ]    || echo "crates/app/tauri.conf.json ($tauri)"
-  [ "$app" = "$pkgbuild" ] || echo "PKGBUILD ($pkgbuild)"
-  [ "$app" = "$meta" ]     || echo "flatpak/io.github.gnoooo.typst-ide.metainfo.xml ($meta)"
+  [ "$app" = "$pkgbuild" ] || echo "packaging/PKGBUILD ($pkgbuild)"
+  [ "$app" = "$meta" ]     || echo "packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml ($meta)"
 }

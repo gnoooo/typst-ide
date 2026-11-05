@@ -19,8 +19,8 @@ Ce qui est déjà en place dans le dépôt et réutilisable :
 | Licence | GPL-3.0 (`LICENSE` à la racine) |
 | `Cargo.lock` commité, aucune dépendance git | vendoring cargo simple |
 | Fork `crates/typst-as-library` inclus dans le dépôt | source git autoportante |
-| AppStream | `flatpak/io.github.gnoooo.typst-ide.metainfo.xml` (validé avec `appstreamcli`) |
-| Desktop + icônes | `typst-ide.desktop`, `crates/app/icons/*` |
+| AppStream | `packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml` (validé avec `appstreamcli`) |
+| Desktop + icônes | `packaging/typst-ide.desktop`, `crates/app/icons/*` |
 | Tags Git | `v1.6.13` (`3d5a80bb42024d97ab85dba980a6218476091d48`) |
 
 ## 2. Phase 0 : corrections bloquantes
@@ -50,22 +50,25 @@ Si le runtime courant ne fournit plus `webkit2gtk-4.1`, choisir le plus récent 
 ## 3. Arborescence prévue
 
 ```
-flatpak/
-├── io.github.gnoooo.typst-ide.yml       # manifest flatpak-builder
-├── io.github.gnoooo.typst-ide.metainfo.xml # AppStream statique validée
-├── io.github.gnoooo.typst-ide.desktop    # desktop file au nom de l'app ID
-├── flathub.json                 # options Flathub (skip-arches si besoin)
-├── cargo-sources.json           # généré (flatpak-cargo-generator)
-└── node-sources.json            # généré (flatpak-node-generator)
+packaging/
+├── PKGBUILD
+├── typst-ide.desktop
+└── flatpak/
+    ├── io.github.gnoooo.typst-ide.yml       # manifest flatpak-builder
+    ├── io.github.gnoooo.typst-ide.metainfo.xml # AppStream statique validée
+    ├── io.github.gnoooo.typst-ide.desktop    # desktop file au nom de l'app ID
+    ├── flathub.json                 # options Flathub (skip-arches si besoin)
+    ├── cargo-sources.json           # généré (flatpak-cargo-generator)
+    └── node-sources.json            # généré (flatpak-node-generator)
 flatpak-builder-tools/           # sous-module git (génération des sources)
 docs/flatpak.md                  # ce document
 ```
 
-Le manifeste est maintenu dans le dépôt `flathub/io.github.gnoooo.typst-ide`, à la racine, conformément aux exigences actuelles. Le projet amont conserve ses fichiers de packaging dans `flatpak/`.
+Le manifeste est maintenu dans le dépôt `flathub/io.github.gnoooo.typst-ide`, à la racine, conformément aux exigences actuelles. Le projet amont conserve ses fichiers de packaging dans `packaging/flatpak/`.
 
 `manage.sh` gère le packaging :
 
-- `flatpak-sources` : régénère `flatpak/cargo-sources.json` et `flatpak/node-sources.json` (venv + clone shallow de `flatpak-builder-tools` dans `target/.flatpak-builder/tools/`, générateur npm installé dans `target/.flatpak-builder/tools/nodegen/` ; l'arbre npm est copié sans `node_modules`, bug flatpak-builder-tools#377)
+- `flatpak-sources` : régénère `packaging/flatpak/cargo-sources.json` et `packaging/flatpak/node-sources.json` (venv + clone shallow de `flatpak-builder-tools` dans `target/.flatpak-builder/tools/`, générateur npm installé dans `target/.flatpak-builder/tools/nodegen/` ; l'arbre npm est copié sans `node_modules`, bug flatpak-builder-tools#377)
 - `flatpak-build` : installe `org.flatpak.Builder` + runtime/SDK/extensions si absents (branches en tête de `manage.sh`), build + install, puis les deux lints (`manifest` et `repo`)
 - `flatpak-run` : lance l'app sandboxée
 - `flatpak-bump <tag>` : épingle `tag`/`commit` dans le manifeste, après la sortie du tag
@@ -119,8 +122,8 @@ modules:
       - npm run build
       - cargo build --release --offline -p typst-ide-app
       - install -Dm755 target/release/typst-ide /app/bin/typst-ide
-      - install -Dm644 flatpak/io.github.gnoooo.typst-ide.desktop /app/share/applications/io.github.gnoooo.typst-ide.desktop
-      - install -Dm644 flatpak/io.github.gnoooo.typst-ide.metainfo.xml /app/share/metainfo/io.github.gnoooo.typst-ide.metainfo.xml
+      - install -Dm644 packaging/flatpak/io.github.gnoooo.typst-ide.desktop /app/share/applications/io.github.gnoooo.typst-ide.desktop
+      - install -Dm644 packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml /app/share/metainfo/io.github.gnoooo.typst-ide.metainfo.xml
       - install -Dm644 crates/app/icons/32x32.png /app/share/icons/hicolor/32x32/apps/io.github.gnoooo.typst-ide.png
       - install -Dm644 crates/app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.gnoooo.typst-ide.png
       - install -Dm644 crates/app/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/io.github.gnoooo.typst-ide.png
@@ -147,7 +150,7 @@ Les builds Flathub sont **sans réseau**. Il faut donc fournir les dépendances 
 `flatpak-sources` encapsule les deux commandes (venv Python local, générateur npm local).
 À relancer quand `Cargo.lock` ou `frontend/package-lock.json` changent.
 
-`./manage.sh check` vérifie que `flatpak/node-sources.json` vendore chaque tarball npm
+`./manage.sh check` vérifie que `packaging/flatpak/node-sources.json` vendore chaque tarball npm
 référencé par `frontend/package-lock.json`, et `flatpak-bump` refuse d'épingler un tag
 si ce n'est pas le cas. C'est le garde-fou contre l'erreur `ENOTCACHED` : les builds
 Flatpak étant hors ligne, toute archive ajoutée par un `npm audit fix` ou une montée de
@@ -244,7 +247,7 @@ Le workflow `.github/workflows/flatpak.yml` (PR, push main et tags) vérifie le 
 - uses: flatpak/flatpak-github-actions/flatpak-builder@master
   with:
     bundle: typst-ide-${{ matrix.arch }}.flatpak
-    manifest-path: flatpak/io.github.gnoooo.typst-ide.yml
+    manifest-path: packaging/flatpak/io.github.gnoooo.typst-ide.yml
     arch: ${{ matrix.arch }}
 ```
 

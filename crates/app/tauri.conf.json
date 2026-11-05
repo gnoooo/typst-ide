@@ -44,10 +44,10 @@
                 "bundleMediaFramework": false
             },
             "deb": {
-                "desktopTemplate": "../../typst-ide.desktop"
+                "desktopTemplate": "../../packaging/typst-ide.desktop"
             },
             "rpm": {
-                "desktopTemplate": "../../typst-ide.desktop"
+                "desktopTemplate": "../../packaging/typst-ide.desktop"
             }
         }
     }

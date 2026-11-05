@@ -15,7 +15,7 @@ A modern local Typst editor (not a lie anymore, since Electron has been replaced
 Check out the [releases](https://github.com/gnoooo/typst-ide/releases) page for the latest version.
 
 Available versions:
-- **Linux** : [Flatpak](https://flathub.org/apps/io.github.gnoooo.typst-ide) (`flatpak install flathub io.github.gnoooo.typst-ide`), AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./PKGBUILD) for Arch.
+- **Linux** : [Flatpak](https://flathub.org/apps/io.github.gnoooo.typst-ide) (`flatpak install flathub io.github.gnoooo.typst-ide`), AppImage (`typst-ide-<version>-x86_64.AppImage`), `.deb`, `.rpm`, and the [PKGBUILD](./packaging/PKGBUILD) for Arch.
   The AppImage is portable (no installation): it uses the system `webkit2gtk-4.1` when available (like the `.deb`/`.rpm`) and falls back to the bundled copy otherwise. It supports AppImageUpdate through the published `.zsync` : see [docs/appimage.md](./docs/appimage.md).
 - **Windows** : setup executable, plus a portable executable.
 - Maybe MacOS in the future?
@@ -65,7 +65,7 @@ The `manage.sh` wrapper drives every build:
 Flatpak packaging (see [docs/flatpak.md](./docs/flatpak.md)):
 
 ```bash
-./manage.sh flatpak-sources                # regenerate flatpak/cargo-sources.json + node-sources.json
+./manage.sh flatpak-sources                # regenerate packaging/flatpak/cargo-sources.json + node-sources.json
 ./manage.sh flatpak-build                  # install runtimes if needed, build + install + lints
 ./manage.sh flatpak-run                    # run the sandboxed app
 ./manage.sh flatpak-bump vX.Y.Z            # pin tag/commit in the Flatpak manifest (after a release tag)

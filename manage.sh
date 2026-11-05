@@ -13,12 +13,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 APP_CRATE="$REPO_ROOT/crates/app/Cargo.toml"
 TAURI_CONF="$REPO_ROOT/crates/app/tauri.conf.json"
-PKGBUILD="$REPO_ROOT/PKGBUILD"
+PKGBUILD="$REPO_ROOT/packaging/PKGBUILD"
 LOCKFILE="$REPO_ROOT/Cargo.lock"
 FRONTEND_PKG="$REPO_ROOT/frontend/package.json"
 FRONTEND_LOCK="$REPO_ROOT/frontend/package-lock.json"
-FLATPAK_MANIFEST="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.yml"
-FLATPAK_METAINFO="$REPO_ROOT/flatpak/io.github.gnoooo.typst-ide.metainfo.xml"
+FLATPAK_MANIFEST="$REPO_ROOT/packaging/flatpak/io.github.gnoooo.typst-ide.yml"
+FLATPAK_METAINFO="$REPO_ROOT/packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml"
 FLATPAK_APP_ID="io.github.gnoooo.typst-ide"
 FLATPAK_STATE_DIR="$REPO_ROOT/target/.flatpak-builder"
 FLATPAK_REPO_DIR="$REPO_ROOT/target/repo"
@@ -252,15 +252,15 @@ check_consistency() {
   [ "$ok" = "1" ]
 }
 
-# Vérifie que flatpak/node-sources.json vendore chaque tarball npm du lock,
+# Vérifie que packaging/flatpak/node-sources.json vendore chaque tarball npm du lock,
 # et qu'aucun `resolved` ne pointe hors du registre npmjs (git, autre
 # registre) car ces dépendances sont impossibles à installer hors ligne.
 # Les builds Flatpak/Flathub sont hors ligne : une archive absente du cache
 # fait échouer `npm ci --offline` avec ENOTCACHED. Régénérer avec
 # `./manage.sh flatpak-sources` après tout changement de package-lock.json.
 check_flatpak_node_sources() {
-  local sources="$REPO_ROOT/flatpak/node-sources.json"
-  [ -f "$sources" ] || { echo "    flatpak/node-sources.json absent -> ./manage.sh flatpak-sources" >&2; return 1; }
+  local sources="$REPO_ROOT/packaging/flatpak/node-sources.json"
+  [ -f "$sources" ] || { echo "    packaging/flatpak/node-sources.json absent -> ./manage.sh flatpak-sources" >&2; return 1; }
 
   local lock_urls src_urls missing unsupported
   lock_urls="$(sed -n 's/.*"resolved": "\(https:\/\/registry\.npmjs\.org\/[^"]*\.tgz\)".*/\1/p' "$FRONTEND_LOCK" | sort -u)"
@@ -487,7 +487,7 @@ cmd_bump() {
 
   echo
   echo "Fichiers modifiés :"
-  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json "$FLATPAK_METAINFO" | sed 's/^/    /'
+  git -C "$REPO_ROOT" status --short -- crates/app/Cargo.toml crates/app/tauri.conf.json packaging/PKGBUILD Cargo.lock frontend/package.json frontend/package-lock.json "$FLATPAK_METAINFO" | sed 's/^/    /'
   echo
   echo "Note : aucun commit ni tag créé. Le hook pre-push vérifiera la cohérence à la prochaine poussée."
   echo "Le manifeste Flatpak ($(basename "$FLATPAK_MANIFEST")) sera épinglé au tag après sa création : ./manage.sh flatpak-bump v$new_version"
@@ -513,7 +513,7 @@ cmd_check() {
   echo
   echo "== Sources Flatpak hors-ligne =="
   if check_flatpak_node_sources; then
-    echo "    flatpak/node-sources.json: ${GREEN}OK${NC} (complet pour package-lock.json)"
+    echo "    packaging/flatpak/node-sources.json: ${GREEN}OK${NC} (complet pour package-lock.json)"
   else
     echo "    ${RED}KO${NC} : régénérez avec ./manage.sh flatpak-sources"
     exit "$EXIT_CONFIG"
@@ -1136,7 +1136,7 @@ cmd_flatpak_sources() {
   # maitres du vendoring : le clone suit un commit precise, pas master du jour
   local fbt_pin=9d86d336a39b9af38b86f114b6ce5820fe260f91
 
-  echo "==> flatpak-cargo-generator (Cargo.lock -> flatpak/cargo-sources.json)"
+  echo "==> flatpak-cargo-generator (Cargo.lock -> packaging/flatpak/cargo-sources.json)"
   if [ ! -x "$venv/bin/python" ]; then
     python3 -m venv "$venv" \
       || die_code "$EXIT_UNAVAILABLE" "python3 -m venv a échoué : installe python-venv (ou utilise un conteneur python:3.12-slim, voir docs/flatpak.md)"
@@ -1152,11 +1152,11 @@ cmd_flatpak_sources() {
   fi
   "$venv/bin/pip" install -q 'aiohttp<4.0.0,>=3.9.5' 'PyYAML<7.0.0,>=6.0.2' 'tomlkit>=0.13.3,<1.0' \
     || die_code "$EXIT_TEMPFAIL" "pip install des dépendances a échoué"
-  "$venv/bin/python" "$fbt/cargo/flatpak-cargo-generator.py" -o "$REPO_ROOT/flatpak/cargo-sources.json" "$LOCKFILE" \
+  "$venv/bin/python" "$fbt/cargo/flatpak-cargo-generator.py" -o "$REPO_ROOT/packaging/flatpak/cargo-sources.json" "$LOCKFILE" \
     || die_code "$EXIT_SOFTWARE" "flatpak-cargo-generator a échoué"
-  echo "    ${GREEN}OK${NC} flatpak/cargo-sources.json"
+  echo "    ${GREEN}OK${NC} packaging/flatpak/cargo-sources.json"
 
-  echo "==> flatpak-node-generator (frontend/package-lock.json -> flatpak/node-sources.json)"
+  echo "==> flatpak-node-generator (frontend/package-lock.json -> packaging/flatpak/node-sources.json)"
   # paquet Python du dépôt flatpak-builder-tools, installé dans le même venv
   if [ ! -x "$venv/bin/flatpak-node-generator" ]; then
     "$venv/bin/pip" install -q "git+https://github.com/flatpak/flatpak-builder-tools.git@$fbt_pin#subdirectory=node" \
@@ -1169,9 +1169,9 @@ cmd_flatpak_sources() {
   trap 'rm -rf "$clean"' RETURN
   cp "$FRONTEND_PKG" "$FRONTEND_LOCK" "$clean/"
   "$venv/bin/flatpak-node-generator" --no-requests-cache \
-    -o "$REPO_ROOT/flatpak/node-sources.json" npm "$clean/package-lock.json" \
+    -o "$REPO_ROOT/packaging/flatpak/node-sources.json" npm "$clean/package-lock.json" \
     || die_code "$EXIT_SOFTWARE" "flatpak-node-generator a échoué"
-  echo "    ${GREEN}OK${NC} flatpak/node-sources.json"
+  echo "    ${GREEN}OK${NC} packaging/flatpak/node-sources.json"
 }
 
 cmd_flatpak_build() {
@@ -1214,7 +1214,7 @@ cmd_flatpak_bump() {
 
   echo "==> Vérification des sources npm hors-ligne"
   check_flatpak_node_sources \
-    || die_code "$EXIT_CONFIG" "flatpak/node-sources.json ne couvre pas frontend/package-lock.json -> ./manage.sh flatpak-sources"
+    || die_code "$EXIT_CONFIG" "packaging/flatpak/node-sources.json ne couvre pas frontend/package-lock.json -> ./manage.sh flatpak-sources"
   echo "    ${GREEN}OK${NC} node-sources.json couvre package-lock.json"
   echo
 
@@ -1224,7 +1224,7 @@ cmd_flatpak_bump() {
   echo "    ${GREEN}OK${NC} $(basename "$FLATPAK_MANIFEST") -> tag $tag, commit $commit"
   echo
   echo "Faites un dernier point sur le metainfo (entrée <release>, screenshots), puis :"
-  echo "    git add flatpak/ && git commit && git push"
+  echo "    git add packaging/flatpak/ && git commit && git push"
   echo "Note : l'entrée <release> du metainfo est mise à jour par 'manage.sh bump' (avant le tag)."
 }
 

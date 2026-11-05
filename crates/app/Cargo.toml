@@ -3,7 +3,7 @@ name = "typst-ide-app"
 version = "1.8.0"
 edition = "2024"
 
-# Keep the binary named `typst-ide` (desktop entry, PKGBUILD install path…),
+# Keep the binary named `typst-ide` (desktop entry, packaging/PKGBUILD install path…),
 # while the package name `typst-ide-app` avoids clashing with the registry
 # crate `typst-ide` (0.15.x) that `core` depends on.
 [[bin]]

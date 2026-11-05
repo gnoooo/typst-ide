@@ -48,8 +48,8 @@ modules:
       - (cd frontend && npm run build)
       - cargo build --release --offline -p typst-ide-app
       - install -Dm755 target/release/typst-ide /app/bin/typst-ide
-      - install -Dm644 flatpak/io.github.gnoooo.typst-ide.desktop /app/share/applications/io.github.gnoooo.typst-ide.desktop
-      - install -Dm644 flatpak/io.github.gnoooo.typst-ide.metainfo.xml /app/share/metainfo/io.github.gnoooo.typst-ide.metainfo.xml
+      - install -Dm644 packaging/flatpak/io.github.gnoooo.typst-ide.desktop /app/share/applications/io.github.gnoooo.typst-ide.desktop
+      - install -Dm644 packaging/flatpak/io.github.gnoooo.typst-ide.metainfo.xml /app/share/metainfo/io.github.gnoooo.typst-ide.metainfo.xml
       - install -Dm644 crates/app/icons/32x32.png /app/share/icons/hicolor/32x32/apps/io.github.gnoooo.typst-ide.png
       - install -Dm644 crates/app/icons/128x128.png /app/share/icons/hicolor/128x128/apps/io.github.gnoooo.typst-ide.png
       - install -Dm644 crates/app/icons/128x128@2x.png /app/share/icons/hicolor/256x256/apps/io.github.gnoooo.typst-ide.png

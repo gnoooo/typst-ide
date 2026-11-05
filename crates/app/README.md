@@ -73,7 +73,7 @@ crates/app/
 - **Frontend dist** : `../../frontend/dist`
 - **Dev URL** : `http://localhost:1420`
 - **Bundle targets** : `appimage` (Linux), `deb` (Linux), `rpm` (Linux), `nsis` (Windows, via cross-build `--target x86_64-pc-windows-gnu`)
-- **Desktop file** : `deb` and `rpm` (and therefore the AppImage) use the repository's `typst-ide.desktop` as a Handlebars template
+- **Desktop file** : `deb` and `rpm` (and therefore the AppImage) use the repository's `packaging/typst-ide.desktop` as a Handlebars template
 - **Identifier** : `io.github.gnoooo.typst-ide`
 
 ## Build Commands
