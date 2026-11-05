@@ -49,13 +49,20 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # Verification build only : the official Flathub build stays on their
-      # buildbot. The manifest is pinned to the last release tag, the CI
-      # proves both architectures build from the vendored sources.
+      # buildbot. The manifest in git is pinned to the last release tag for
+      # Flathub; for CI we repin the git source to the current checkout so the
+      # build-commands match the working tree.
       # No cache-key : the action's default (hash of the manifest path) keeps
       # the .flatpak-builder cache warm between runs and invalidates it when
       # the manifest changes.
       # Pinned to commit (2026-08-25), not @master: the action runs in a
       # --privileged container, a mutable ref there is a compromise vector.
+
+      - name: Pin Flatpak manifest to current commit
+        run: |
+          sed -i 's/^        tag: v1\.8\.0$/        commit: ${{ github.sha }}/' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+          sed -i '/^        commit: 283322a8f76ad4d506c3ead9e121f5ad9dd15f8d$/d' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3
         with:
           bundle: typst-ide-${{ matrix.arch }}.flatpak
