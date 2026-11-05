@@ -13,7 +13,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 APP_CRATE="$REPO_ROOT/crates/app/Cargo.toml"
 TAURI_CONF="$REPO_ROOT/crates/app/tauri.conf.json"
-PKGBUILD="$REPO_ROOT/packaging/PKGBUILD"
+PKGBUILD="$REPO_ROOT/packaging/aur/PKGBUILD"
 LOCKFILE="$REPO_ROOT/Cargo.lock"
 FRONTEND_PKG="$REPO_ROOT/frontend/package.json"
 FRONTEND_LOCK="$REPO_ROOT/frontend/package-lock.json"
