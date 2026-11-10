@@ -19,7 +19,7 @@ fn load_fonts(db: &mut fontdb::Database) {
     }
 }
 
-/// Returns "fr" if the system locale is French, "en" otherwise.
+/// Returns "fr", "ru" or "en" according to the system locale.
 /// Reads the locale env vars (LANGUAGE > LC_ALL > LC_MESSAGES > LANG)
 /// LANGUAGE comes first because gettext gives it priority over LC_* for UI text.
 #[tauri::command]
@@ -39,6 +39,7 @@ pub fn system_lang() -> &'static str {
 pub fn lang_from_env(val: Option<String>) -> &'static str {
     match val.as_deref().map(str::trim) {
         Some(v) if v.starts_with("fr") => "fr",
+        Some(v) if v.starts_with("ru") => "ru",
         _ => "en",
     }
 }

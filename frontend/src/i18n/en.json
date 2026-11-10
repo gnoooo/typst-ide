@@ -408,6 +408,7 @@
 
   "lang.french": "Français",
   "lang.english": "English",
+  "lang.russian": "Русский",
 
   "theme.error": "Theme error: {error}",
   "theme.invalid_scheme": "Invalid theme file: only colors for existing variables are accepted.",
