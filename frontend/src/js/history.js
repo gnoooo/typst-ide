@@ -3,7 +3,7 @@
 const { invoke } = window.__TAURI__.core;
 
 
-import { t, getLang } from '../i18n/index.js'
+import { t, getLocaleTag } from '../i18n/index.js'
 import { openModal, showConfirm, closeTopModal } from './modal.js';
 import { wireSearchInput } from './utils/search.js';
 import { getCurrentFontFamily } from './editor.js';
@@ -287,7 +287,7 @@ async function editHistoryEntry(entry) {
 }
 
 async function viewHistoryEntry(entry) {
-    const locale = getLang() === 'fr' ? 'fr-FR' : 'en-US'
+    const locale = getLocaleTag()
     const createdAt = new Date(entry.created_at);
     const createdAtDate = createdAt.toLocaleDateString(locale, {
         day: 'numeric',

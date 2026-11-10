@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { t, setLang, getLang, initI18n } from '../src/i18n/index.js';
 import fr from '../src/i18n/fr.json';
 import en from '../src/i18n/en.json';
+import ru from '../src/i18n/ru.json';
 
 // Stubs minimaux : setLang() touche localStorage et document.
 globalThis.localStorage = {
@@ -46,10 +47,12 @@ describe('i18n', () => {
         );
     });
 
-    it('fr and en have exactly the same keys', () => {
+    it('fr, en and ru have exactly the same keys', () => {
         const frKeys = Object.keys(fr).sort();
         const enKeys = Object.keys(en).sort();
+        const ruKeys = Object.keys(ru).sort();
         expect(frKeys).toEqual(enKeys);
+        expect(frKeys).toEqual(ruKeys);
         expect(frKeys.length).toBeGreaterThan(0);
     });
 });
@@ -88,6 +91,12 @@ describe('initI18n', () => {
         expect(getLang()).toBe('fr');
     });
 
+    it('maps a Russian system to ru', async () => {
+        setup({ tauri: true, sysLang: 'ru' });
+        await initI18n();
+        expect(getLang()).toBe('ru');
+    });
+
     it('saved preference wins over system detection', async () => {
         setup({ tauri: true, sysLang: 'fr', saved: 'en' });
         await initI18n();
@@ -98,6 +107,12 @@ describe('initI18n', () => {
         setup({ tauri: false, navLang: 'fr-FR' });
         await initI18n();
         expect(getLang()).toBe('fr');
+    });
+
+    it('falls back to Russian navigator.language', async () => {
+        setup({ tauri: false, navLang: 'ru-RU' });
+        await initI18n();
+        expect(getLang()).toBe('ru');
     });
 
     it('defaults to en when invoke fails', async () => {

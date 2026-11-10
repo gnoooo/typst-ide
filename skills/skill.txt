@@ -1,0 +1,451 @@
+================================================================================
+SKILL: РУССКАЯ ЛОКАЛИЗАЦИЯ TYPST IDE
+================================================================================
+Файл:        skills/skill.txt
+Назначение:  передать контекст другому ИИ или вернуться к задаче позже
+Статус:      русская локализация подключена, фронтенд проверен и собран;
+             Rust/exe ещё НЕ собирался; изменения НЕ закоммичены
+Дата:        2026-11-10
+Источник:    https://github.com/Yaromir-Svetozarovich/typst-ide_rus
+Локальный путь: Z:\github\typst-ide_rus
+Ветка/коммит:   main / 42b9dc8 (версия проекта 1.8.1)
+
+
+================================================================================
+1. КРАТКОЕ ОПИСАНИЕ ЗАДАЧИ
+================================================================================
+В репозиторий typst-ide_rus (форк Typst IDE) нужно было добавить русский язык
+интерфейса. В исходном состоянии поддерживались только французский (fr) и
+английский (en), несмотря на название репозитория.
+
+Что уже сделано:
+  - создан полный русский словарь frontend/src/i18n/ru.json (413 ключей);
+  - русский зарегистрирован в движке переводов;
+  - добавлена кнопка «Русский» в главное меню и в окно обучения;
+  - добавлено определение русской системной локали в Rust;
+  - переведены 14 файлов обучения (frontend/src/tutorial/ru/*.md);
+  - даты в истории и блокноте форматируются как ru-RU;
+  - тесты расширены на русский;
+  - фронтенд протестирован (158 тестов) и собран (npm run build).
+
+Что НЕ сделано:
+  - не выполнялась сборка Rust/Tauri (в системе не было Rust и VS Build Tools);
+  - готовый typst-ide.exe не собран;
+  - изменения не закоммичены и не отправлены в GitHub;
+  - установленная программа (1.8.0) пока не заменена.
+
+
+================================================================================
+2. КАК УСТРОЕН ПЕРЕВОД В ПРОЕКТЕ
+================================================================================
+Механизм находится в frontend/src/i18n/.
+
+  frontend/src/i18n/index.js
+      Движок i18n:
+        import fr from './fr.json'
+        import en from './en.json'
+        import ru from './ru.json'
+        const locales = { fr, en, ru }
+
+      Экспортируемые функции:
+        t(key, params)      — возвращает строку по ключу; если ключа нет,
+                              возвращает сам ключ; подставляет {name}-параметры.
+        getLang()           — текущий язык ('fr' | 'en' | 'ru').
+        getLocaleTag()      — тег локали для дат: fr-FR / en-US / ru-RU.
+        setLang(lang)       — переключает язык, пишет его в localStorage('lang'),
+                              ставит document.documentElement.lang и вызывает
+                              applyI18n().
+        applyI18n(root)     — применяет переводы к DOM.
+        initI18n()          — при старте: сохранённый язык из localStorage,
+                              иначе system_lang через Tauri, иначе
+                              navigator.language (первые 2 символа), иначе 'en'.
+
+  frontend/src/i18n/en.json
+  frontend/src/i18n/fr.json
+  frontend/src/i18n/ru.json
+      Плоские JSON-объекты «ключ — строка». Ключи с точками, например:
+        "menu.file": "Файл"
+        "filesync.save_error": "Ошибка сохранения: {error}"
+      Во всех трёх файлах набор ключей обязан совпадать.
+      В ru.json сейчас 413 ключей (как и в en/fr после добавления
+      lang.russian).
+
+  Разметка HTML:
+      data-i18n="ключ"              — заменяет textContent
+      data-i18n-placeholder="ключ"  — заменяет placeholder
+      data-i18n-title="ключ"        — заменяет title (подсказку)
+      data-lang="ru"                — кнопка переключения языка
+
+  Переключение языка:
+      frontend/src/js/main.js      — обработчики кнопок [data-lang]
+      frontend/src/js/tutorial.js  — отдельное окно обучения, свои кнопки
+
+
+================================================================================
+3. СОЗДАННЫЕ И ИЗМЕНЁННЫЕ ФАЙЛЫ
+================================================================================
+Созданы:
+  frontend/src/i18n/ru.json
+      Полный русский перевод. 413 ключей, те же ключи и плейсхолдеры, что в
+      en.json/fr.json. Включён ключ "lang.russian": "Русский".
+
+  frontend/src/tutorial/ru/01-приветствие.md
+  frontend/src/tutorial/ru/02-проекты.md
+  frontend/src/tutorial/ru/03-форматирование.md
+  frontend/src/tutorial/ru/04-структуры.md
+  frontend/src/tutorial/ru/05-изображения.md
+  frontend/src/tutorial/ru/06-предпросмотр.md
+  frontend/src/tutorial/ru/07-консоль.md
+  frontend/src/tutorial/ru/08-экспорт.md
+  frontend/src/tutorial/ru/09-блокнот.md
+  frontend/src/tutorial/ru/10-файлы.md
+  frontend/src/tutorial/ru/11-библиография.md
+  frontend/src/tutorial/ru/12-шаблоны.md
+  frontend/src/tutorial/ru/13-клавиши.md
+  frontend/src/tutorial/ru/14-метки.md
+      Русские шаги обучения. Имена файлов на кириллице допустимы: Vite
+      import.meta.glob их корректно обрабатывает. Из имени файла берётся
+      подпись шага (дефисы заменяются пробелами), номер 01..14 — бейдж.
+      Файлы должны идти строго с номерами 01..14, как в en/fr.
+
+Изменены:
+  frontend/src/i18n/index.js
+      + import ru
+      + ru в locales
+      + getLocaleTag()
+      + navigator.language: берутся первые 2 символа и проверяются по locales
+        (раньше была жёсткая проверка только на 'fr').
+
+  frontend/src/i18n/en.json
+  frontend/src/i18n/fr.json
+      + "lang.russian": "Русский"
+      (нативное название языка одинаково во всех локалях).
+
+  frontend/src/index.html
+      + <li><button data-lang="ru" data-i18n="lang.russian">Русский</button></li>
+      Рядом с кнопками fr/en, после кнопки en.
+
+  frontend/src/tutorial.html
+      + <button type="button" data-lang="ru" data-i18n="lang.russian">Русский</button>
+
+  frontend/src/js/tutorial.js
+      + STEPS_RU = import.meta.glob("../tutorial/ru/*.md")
+      + const STEP_SETS = { fr: STEPS_FR, en: STEPS_EN, ru: STEPS_RU }
+      + stepMap(lang) возвращает STEP_SETS[lang] ?? STEPS_EN
+      Обновлён комментарий в шапке файла: {fr,en,ru}.
+
+  frontend/src/js/history.js
+      - import { t, getLang } ...; const locale = getLang() === 'fr' ? ...
+      + import { t, getLocaleTag } ...; const locale = getLocaleTag()
+
+  frontend/src/js/notepad.js
+      То же самое: getLang() заменён на getLocaleTag().
+
+  crates/app/src/commands/misc.rs
+      system_lang()/lang_from_env():
+        Some(v) if v.starts_with("fr") => "fr",
+        Some(v) if v.starts_with("ru") => "ru",   // добавлено
+        _ => "en",
+      Обновлён doc-комментарий: возвращает "fr", "ru" или "en".
+
+  crates/app/src/tests.rs
+      Тест system_lang_from_env расширен:
+        ru_RU.UTF-8 -> ru
+        ru          -> ru
+        "  ru_RU.utf8  " -> ru
+      Локальная переменная fr переименована в lang (она уже не только про fr).
+
+  frontend/tests/i18n.test.js
+      + import ru
+      + тест «fr, en and ru have exactly the same keys»
+      + тест «maps a Russian system to ru»
+      + тест «falls back to Russian navigator.language»
+
+  frontend/tests/tutorial.test.js
+      Тест сравнения шагов теперь проверяет fr == en == ru по номерам 01..14.
+
+
+================================================================================
+4. СТРУКТУРА РАБОТЫ (ПОРЯДОК ДЕЙСТВИЙ)
+================================================================================
+Если нужно повторить или проверить работу:
+
+  1. Клонировать репозиторий:
+       git clone https://github.com/Yaromir-Svetozarovich/typst-ide_rus.git
+       cd typst-ide_rus
+
+  2. Найти механизм перевода:
+       frontend/src/i18n/index.js
+       frontend/src/i18n/{en,fr}.json
+       Атрибуты data-i18n / data-lang в frontend/src/*.html.
+
+  3. Создать ru.json по образцу en.json:
+       - сохранить все ключи без исключения;
+       - сохранить все плейсхолдеры вида {error}, {name}, {path}, {count},
+         {date}, {time}, {mode}, {suggestion}, {current}, {total} и т. д.;
+       - сохранить JSON-экранирование кавычек и переводов строк (\n);
+       - не переводить технические значения (имена файлов, .typ, .bib, CSS).
+
+  4. Зарегистрировать язык в frontend/src/i18n/index.js.
+
+  5. Добавить кнопку data-lang="ru" в index.html и tutorial.html.
+
+  6. Научить Rust определять ru в crates/app/src/commands/misc.rs.
+
+  7. Добавить frontend/src/tutorial/ru/*.md (14 файлов) и STEPS_RU в
+     frontend/src/js/tutorial.js.
+
+  8. Заменить жёсткие проверки языка в history.js/notepad.js на
+     getLocaleTag().
+
+  9. Обновить тесты и прогнать:
+       cd frontend
+       npm ci
+       npm test
+       npm run build
+
+ 10. Собрать Tauri-приложение (см. раздел 6).
+
+ 11. Заменить установленный exe или установить новый NSIS-инсталлятор
+     (см. раздел 7).
+
+
+================================================================================
+5. ТРЕБОВАНИЯ ДЛЯ ВЫПОЛНЕНИЯ
+================================================================================
+Для фронтенда:
+  - Node.js 20.x + npm (проект проверялся на Node 20.20.2, npm 10.8.2)
+  - package-lock.json уже есть; используется npm ci
+  - зависимости ставятся в frontend/node_modules (gitignored)
+
+Для сборки приложения (Windows):
+  - Rust stable MSVC (через rustup)
+  - Visual Studio 2022 Build Tools:
+      компонент «Разработка классических приложений на C++»
+      (MSVC v143 + Windows 10/11 SDK)
+  - Tauri CLI 2.12.0:
+      npm install -g @tauri-apps/cli@2.12.0
+  - WebView2 Runtime (на машине уже есть — установленная программа работает)
+  - Желательно Git Bash, если используется ./manage.sh
+
+Текущая машина (на момент создания файла):
+  - Node/npm/Rust/cargo в PATH отсутствуют;
+  - для проверки фронтенда использовался portable Node:
+      %LOCALAPPDATA%\Temp\opencode\node-v20.20.2-win-x64
+    (временная папка, может быть удалена; при необходимости скачать заново
+     с https://nodejs.org/dist/v20.20.2/node-v20.20.2-win-x64.zip)
+  - Rust/Tauri-сборка не запускалась.
+
+
+================================================================================
+6. КАК СОБРАТЬ ПРОЕКТ
+================================================================================
+Вариант A. Windows, нативная MSVC-сборка (рекомендуется для этой машины).
+
+  PowerShell:
+
+    cd Z:\github\typst-ide_rus\frontend
+    npm ci
+    npm test
+    npm run build
+
+    cd ..\crates\app
+    npx @tauri-apps/cli@2.12.0 build --bundles nsis
+
+  Если Tauri CLI установлен глобально, вместо npx можно:
+    tauri build --bundles nsis
+
+  Готовые артефакты:
+    Z:\github\typst-ide_rus\target\release\typst-ide.exe
+    Z:\github\typst-ide_rus\target\release\bundle\nsis\
+        Typst IDE_1.8.1_x64-setup.exe
+
+  Примечание: beforeBuildCommand в crates/app/tauri.conf.json сам запускает
+  npm run build в ../../frontend, но node_modules всё равно должны быть
+  установлены заранее (npm ci).
+
+Вариант B. Через manage.sh (как в CI, Windows + Git Bash):
+
+    bash ./manage.sh build windows
+
+Вариант C. Linux/контейнер (если работа идёт не на Windows):
+
+    ./manage.sh build windows --container
+    ./manage.sh build all --container
+    ./manage.sh build rust
+
+  Подробности: README.md, docs/windows-build.md, docs/appimage.md.
+
+
+================================================================================
+7. ИНТЕГРАЦИЯ В УЖЕ УСТАНОВЛЕННУЮ ПРОГРАММУ
+================================================================================
+Важно: Tauri встраивает frontend/dist внутрь исполняемого файла на этапе
+компиляции (frontendDist = ../../frontend/dist). Отдельного внешнего файла
+перевода в установленной программе НЕТ. Просто положить ru.json рядом с exe
+недостаточно — нужно заменить сам exe на пересобранный.
+
+Текущая установка на этой машине:
+  C:\Users\greg\AppData\Local\Typst IDE\typst-ide.exe
+  Версия: 1.8.0
+  Ярлык: %APPDATA%\Microsoft\Windows\Start Menu\Programs\Typst IDE.lnk
+
+Быстрый путь (замена exe):
+
+  # 1. Закрыть приложение
+  Get-Process typst-ide -ErrorAction SilentlyContinue | Stop-Process
+
+  # 2. Резервная копия
+  Copy-Item "$env:LOCALAPPDATA\Typst IDE\typst-ide.exe" `
+            "$env:LOCALAPPDATA\Typst IDE\typst-ide.exe.bak-1.8.0"
+
+  # 3. Заменить на новую сборку
+  Copy-Item "Z:\github\typst-ide_rus\target\release\typst-ide.exe" `
+            "$env:LOCALAPPDATA\Typst IDE\typst-ide.exe" -Force
+
+Альтернатива: запустить собранный NSIS-инсталлятор
+  Typst IDE_1.8.1_x64-setup.exe
+Он обновится поверх, пользовательские данные сохранятся (тот же identifier
+io.github.gnoooo.typst-ide).
+
+После запуска выбрать язык:
+  Справка > Язык > Русский
+  (Help > Language > Русский)
+
+Если язык ещё не выбирался вручную и системная локаль русская, initI18n()
+через команду system_lang определит 'ru' автоматически. Если в localStorage
+уже сохранён 'fr' или 'en', он имеет приоритет — язык надо переключить в меню.
+
+
+================================================================================
+8. ПРОВЕРКА КАЧЕСТВА / ЧЕК-ЛИСТ
+================================================================================
+После любых изменений переводов проверить:
+
+  1. JSON валиден:
+       PowerShell:
+       Get-Content frontend\src\i18n\ru.json -Raw -Encoding UTF8 |
+         ConvertFrom-Json | Out-Null
+
+  2. Наборы ключей совпадают (должно быть 413/413/413):
+       $en=(Get-Content frontend\src\i18n\en.json -Raw | ConvertFrom-Json).PSObject.Properties.Name
+       $fr=(Get-Content frontend\src\i18n\fr.json -Raw | ConvertFrom-Json).PSObject.Properties.Name
+       $ru=(Get-Content frontend\src\i18n\ru.json -Raw | ConvertFrom-Json).PSObject.Properties.Name
+       Compare-Object $en $fr
+       Compare-Object $en $ru
+
+  3. Плейсхолдеры не потеряны:
+       для каждого ключа множества {x} в en/fr/ru должны совпадать.
+
+  4. Количество шагов обучения:
+       Get-ChildItem frontend\src\tutorial\ru -Filter *.md
+       Должно быть 14 файлов с номерами 01..14.
+
+  5. Тесты и сборка:
+       cd frontend
+       npm test          # ожидается: 158 tests passed
+       npm run build     # ожидается: built successfully
+
+  6. В собранном бандле есть русские строки:
+       dist\index.html содержит data-lang="ru";
+       dist\color-scheme.js содержит «Русский», «Книга меток», «Обучение»;
+       dist\01-приветствие.js содержит русский текст обучения.
+       (Имена чанков могут меняться после обновления Vite.)
+
+  7. Rust-тест (после установки Rust):
+       cd Z:\github\typst-ide_rus
+       cargo test -p typst-ide-app system_lang_from_env
+       Ожидается прохождение проверок fr/ru/en.
+
+
+================================================================================
+9. ВОЗМОЖНЫЕ ПРОБЛЕМЫ И РЕШЕНИЯ
+================================================================================
+Проблема: после переключения на русский часть строк осталась французской.
+  Причина: у элемента нет data-i18n (или data-i18n-placeholder/title).
+  Решение: добавить атрибут в HTML и ключ во все три JSON.
+
+Проблема: ключ отображается как есть, например "menu.file".
+  Причина: ключа нет в текущем JSON или файл не импортирован в locales.
+  Решение: проверить ключ во всех трёх JSON и запись в index.js.
+
+Проблема: сломалась подстановка {error}/{name}.
+  Причина: плейсхолдер переведён или удалён.
+  Решение: оставить {error}, {name} и т. п. без изменений.
+
+Проблема: русский не включился автоматически.
+  Причина: в localStorage уже сохранён lang = 'fr'/'en'; он приоритетнее
+  системной локали.
+  Решение: выбрать язык в меню либо удалить сохранённое значение.
+
+Проблема: Vite не видит русские markdown-файлы.
+  Причина: папка/файлы отсутствуют на момент сборки или нарушена нумерация.
+  Решение: проверить frontend/src/tutorial/ru/*.md и glob "../tutorial/ru/*.md".
+
+Проблема: кириллица выглядит «кракозябрами» в консоли PowerShell.
+  Причина: кодировка консоли, а не файла. Файлы записаны в UTF-8 без BOM.
+  Проверка: прочитать через
+    [System.IO.File]::ReadAllText(path, [System.Text.Encoding]::UTF8)
+  или проверить коды символов:
+    "Файл".ToCharArray() | ForEach-Object { [int]$_ }  # 1060,1072,1081,1083
+
+Проблема: собранный exe не запускается / SmartScreen.
+  Причина: сборка без подписи.
+  Решение: «Подробнее > Выполнить в любом случае» либо использовать NSIS-
+  инсталлятор. Для работы нужен WebView2 Runtime.
+
+Проблема: `cargo tauri build` не найден.
+  Причина: Tauri CLI установлен через npm, а не через cargo.
+  Решение: использовать `npx @tauri-apps/cli@2.12.0 build ...` или
+  `cargo install tauri-cli --version 2.12.0`.
+
+
+================================================================================
+10. СТАТУС И СЛЕДУЮЩИЕ ШАГИ
+================================================================================
+Сделано:
+  [x] ru.json (413 ключей)
+  [x] регистрация ru в i18n/index.js
+  [x] кнопки языка в index.html и tutorial.html
+  [x] определение ru в Rust
+  [x] русские 14 шагов обучения
+  [x] ru-RU для дат
+  [x] тесты обновлены
+  [x] 158 тестов фронтенда проходят
+  [x] production-сборка фронтенда проходит
+
+Не сделано:
+  [ ] собрать Rust/Tauri exe (нужны Rust + VS Build Tools)
+  [ ] заменить установленный typst-ide.exe 1.8.0
+  [ ] закоммитить изменения
+  [ ] при желании — обновить CHANGELOG.md / версию
+
+Команды для продолжения:
+  cd Z:\github\typst-ide_rus
+  git status
+  cd frontend && npm test && npm run build
+  cd ..\crates\app && npx @tauri-apps/cli@2.12.0 build --bundles nsis
+
+
+================================================================================
+11. КАК ДОБАВИТЬ ЕЩЁ ОДИН ЯЗЫК (ОБОБЩЕНИЕ)
+================================================================================
+На примере языка XX (например, de):
+
+  1. Скопировать frontend/src/i18n/en.json в XX.json и перевести значения.
+  2. В frontend/src/i18n/index.js:
+       import xx from './xx.json'
+       const locales = { fr, en, ru, xx }
+       (при необходимости добавить тег в getLocaleTag)
+  3. В en/fr/ru/XX.json добавить "lang.xx": "<нативное название>".
+  4. В frontend/src/index.html и tutorial.html добавить кнопку
+       data-lang="xx" data-i18n="lang.xx".
+  5. При необходимости добавить frontend/src/tutorial/xx/*.md и STEPS_XX
+     в STEP_SETS (frontend/src/js/tutorial.js).
+  6. В crates/app/src/commands/misc.rs добавить ветку для кода языка.
+  7. Обновить тесты (паритет ключей, определение системного языка).
+  8. npm test && npm run build, затем пересобрать Tauri-приложение.
+
+================================================================================
+КОНЕЦ ФАЙЛА
+================================================================================
