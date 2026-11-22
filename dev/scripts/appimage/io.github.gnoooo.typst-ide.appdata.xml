@@ -54,11 +54,11 @@
   <screenshots>
     <screenshot type="default">
       <caption>Editing a Typst document with the live preview</caption>
-      <image type="source">https://raw.githubusercontent.com/gnoooo/typst-ide/main/images/preview.png</image>
+      <image type="source">https://raw.githubusercontent.com/gnoooo/typst-ide/1c9c69ebfa50104e29a6f86795c98786c972cde5/images/preview.png</image>
     </screenshot>
     <screenshot>
       <caption>The marker book collecting TODO and FIXME comments</caption>
-      <image type="source">https://raw.githubusercontent.com/gnoooo/typst-ide/main/images/preview-popup.png</image>
+      <image type="source">https://raw.githubusercontent.com/gnoooo/typst-ide/1c9c69ebfa50104e29a6f86795c98786c972cde5/images/preview-popup.png</image>
     </screenshot>
   </screenshots>
 
@@ -68,15 +68,13 @@
   <releases>
     <release version="@VERSION@" date="@DATE@">
       <description>
-        <p>This release adds JSON themes, automatic system language detection, a persistent scratch draft, and the new application identifier.</p>
+        <p>This release focuses on preview performance, safer file operations, and release tooling.</p>
         <ul>
-          <li>Choose light and dark variants from JSON theme files in the Help menu.</li>
-          <li>The current theme is included in the configuration export and restored on import.</li>
-          <li>The interface follows the system locale, with English as fallback.</li>
-          <li>Text typed without an open project is saved as a draft and restored at startup.</li>
-          <li>The app identifier is now io.github.gnoooo.typst-ide, with automatic migration of existing data.</li>
-          <li>Improved Typst syntax highlighting, PDF export feedback, and performance.</li>
-          <li>Fixed Ctrl+E, bibliography refresh, autosave races, modal validation, and package caching.</li>
+          <li>The preview only transfers the pages that changed and drops stale requests, so long documents stay smooth.</li>
+          <li>Compilation reuses the last document and the Typst world instead of rebuilding them on every preview click or PDF export.</li>
+          <li>Template copies are confined to the project roots and written atomically.</li>
+          <li>Package cache, database and bibliography errors are reported instead of being silently ignored.</li>
+          <li>Fixed paste handling, history and notepad error reporting, and Typst source escaping for image paths and figure captions.</li>
         </ul>
       </description>
     </release>
