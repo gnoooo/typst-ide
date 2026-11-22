@@ -6,6 +6,9 @@ on:
   push:
     tags:
       - 'v*'
+  # Manual runs (e.g. to re-check the manifest after a workflow fix) build the
+  # dispatched ref and publish nothing.
+  workflow_dispatch:
 
 # Le build vérifie le manifeste et n'écrit nulle part dans le dépôt.
 permissions:
@@ -45,10 +48,13 @@ jobs:
       - name: Pin Flatpak manifest to current commit
         run: |
           # The checked-in manifest only pins the release tag. For CI we need the
-          # exact commit under test, so replace the tag line with the current SHA
-          # and drop any stale commit line from the previous release.
-          sed -i 's|^        tag: v[0-9]\+\.[0-9]\+\.[0-9]\+$|        commit: ${{ github.sha }}|' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+          # exact commit under test, so drop any stale commit line from the
+          # previous release first, then replace the tag with the current SHA.
+          # (Reversed, the delete would also remove the line the replace writes.)
           sed -i '/^        commit: [a-f0-9]\{40\}$/d' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+          sed -i 's|^        tag: v[0-9]\+\.[0-9]\+\.[0-9]\+$|        commit: ${{ github.sha }}|' packaging/flatpak/io.github.gnoooo.typst-ide.yml
+          grep -q "        commit: ${{ github.sha }}$" packaging/flatpak/io.github.gnoooo.typst-ide.yml \
+            || { echo "manifest pin failed: no commit line for ${{ github.sha }}" >&2; exit 1; }
 
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3
         with:
