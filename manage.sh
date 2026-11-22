@@ -73,6 +73,7 @@ ${BOLD}${CYAN_DIM}Usage:${NC}
   $0 ${BLUE}info${NC}                      Infos du projet (nom, version, cohérence, audit npm, git...)
   $0 ${BLUE}bump${NC} ${YELLOW}<version|type>${NC}       Met à jour la version partout (${GREEN}--dry-run${NC} dispo)
   $0 ${BLUE}check${NC}                     Cohérence des versions + cargo fmt/check + tests npm audit/codes
+                                          options : --no-cargo-check (saute cargo check), --no-cargo (saute tout cargo)
   $0 ${BLUE}test${NC} [${YELLOW}cibles${NC}]             Tests du workspace
                                           ${YELLOW}cibles${NC} : rust | front | all (défaut)
   $0 ${BLUE}build${NC} [${YELLOW}cibles${NC}] [${GREEN}opts${NC}]     Build frontend + bundles Tauri
@@ -509,11 +510,15 @@ cmd_bump() {
 }
 
 cmd_check() {
-  local no_cargo_check=false
+  local no_cargo_check=false no_cargo=false
   case "${1:-}" in
     --no-cargo-check) no_cargo_check=true ;;
+    # --no-cargo : ne touche pas à cargo du tout (ni fmt, ni clippy, ni check).
+    # Utile là où la toolchain ou les libs GTK/WebKit ne sont pas installées,
+    # comme le job de publication de la CI : il ne vérifie que versions et packaging.
+    --no-cargo) no_cargo=true; no_cargo_check=true ;;
     "") ;;
-    *) die_code "$EXIT_USAGE" "option inconnue: $1 (seule --no-cargo-check est acceptée)" ;;
+    *) die_code "$EXIT_USAGE" "option inconnue: $1 (seules --no-cargo-check et --no-cargo sont acceptées)" ;;
   esac
   require_file "$APP_CRATE" "$TAURI_CONF" "$PKGBUILD" "$FRONTEND_LOCK"
 
@@ -542,6 +547,11 @@ cmd_check() {
     exit "$EXIT_NOINPUT"
   fi
 
+  if [ "$no_cargo" = true ]; then
+    echo
+    echo "== cargo fmt / clippy / check =="
+    echo "    (omis : --no-cargo, versions et packaging seulement)"
+  else
   echo
   echo "== cargo fmt --all --check =="
   if cargo fmt --version >/dev/null 2>&1; then
@@ -565,6 +575,7 @@ cmd_check() {
   else
     echo "== cargo check --workspace =="
     ( cd "$REPO_ROOT" && cargo check --workspace ) && echo "    cargo check: ${GREEN}OK${NC}" || die_code "$EXIT_SOFTWARE" "    cargo check a échoué"
+  fi
   fi
 
   echo

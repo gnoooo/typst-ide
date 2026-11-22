@@ -232,8 +232,11 @@ jobs:
           find . -type f ! -name SHA256SUMS -print0 | sort -z \
             | xargs -0 sha256sum > SHA256SUMS
 
+      # --no-cargo: this job publishes artifacts built by the two build jobs and
+      # has no GTK/WebKit headers, so it only re-checks versions and packaging
+      # (clippy already ran in the CI workflow for this commit).
       - name: Verify version consistency
-        run: ./manage.sh check --no-cargo-check
+        run: ./manage.sh check --no-cargo
 
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
