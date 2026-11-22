@@ -33,7 +33,7 @@ source=("${url}/archive/v${pkgver}.tar.gz" "typst-ide.desktop")
 
 # Verify against the SHA256SUMS published with the GitHub release.
 # The tarball sum must be recomputed after each new tag.
-sha256sums=('e26e25922cdf8760ff48750be481f05b225da1107f8374125b9ffbff791081d8'
+sha256sums=('2d40553ff2a1bbef42d7702b5638e4cae0b6be93470a19bbcbfb2a5119d5e55f'
             '1d5284711e5c6fb212093845eb3c74c17ac0221f4f4d0025c9b14633646b3f84')
 
 build() {
