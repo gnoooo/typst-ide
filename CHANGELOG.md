@@ -1,5 +1,38 @@
 # Release Notes
 
+## v1.8.1
+
+### Highlights
+
+- **Faster preview** : only the pages that changed are sent back, stale requests are dropped instead of racing, the last compiled document is reused when the preview is clicked, and the editor buffer is no longer hashed with BigInt maths every two seconds. Large documents stay smooth.
+- **Safer file operations** : template copies are confined to the project roots and written atomically, and package-cache cleanup failures are reported instead of silently swallowed.
+
+### Performance
+
+- **Preview** : only changed pages cross the IPC boundary (the full page-hash list is sent alongside), a newer request supersedes a pending one, and pages render with `content-visibility` and a flat shadow so off-screen pages are skipped.
+- **Compilation** : the last compiled document is reused when the preview is clicked, the Typst world is reused for PDF export when the root matches, and stale SVG cache entries are evicted by reusing the page hashes instead of re-hashing every file.
+- **Editor** : the two-second poll hashes the buffer with 32-bit FNV-1a (`Math.imul`, matching the Rust `file_hash`) instead of BigInt per byte, which removes a visible stall on large documents in WebKitGTK.
+- **Lists** : the seven list filters share a single debounced search helper.
+
+### Fixes
+
+- **Templates** : files are written atomically (temp file + rename), so a crash cannot leave a torn `lib.typ`, and `copy_template_to_project` now goes through the shared root check instead of trusting a frontend-supplied path (an arbitrary directory could be deleted and overwritten).
+- **Preview cache** : the file fingerprint now includes an edge-content sample hash, so a same-length rewrite that keeps the mtime is detected on filesystems with coarse timestamps.
+- **Packages** : a failed `.ok` marker write and the best-effort cleanup calls are logged instead of hidden, and the download cleanup is guarded.
+- **Projects** : trailing path separators are normalised.
+- **Database** : a project's notes are purged with their history entry, mutations fail on rows that vanished, and history is reordered on reopen.
+- **Bibliography** : rewriting a `.bib` file now fails loudly when the file changed underneath.
+- **Frontend** : paste handling no longer fires the text default before the image branch, history and notepad mutations report failures, image paths and figure captions are escaped before being interpolated into Typst source, and a dead CSS class plus a stray HTML attribute were removed.
+- **AppImage** : the previous artifact is kept when the repack fails.
+
+### For developers
+
+- **Layout** : packaging lives under `packaging/` (PKGBUILD in `packaging/aur/`), hooks, scripts and demo under `dev/`, and `RELEASE_NOTES.md` is now `CHANGELOG.md`.
+- **manage.sh** : documented sysexits codes (64-78) with `manage.sh codes`, npm audit status in `info`, clippy and Flatpak manifest path validation in `check`, an offline npm-sources coverage check, a coloured usage screen, and `flatpak-builder-tools` pinned to a commit.
+- **Hooks** : pre-push prints step-by-step progress, blocks a push when the frontend lockfile has vulnerabilities, and post-commit mirrors to the local bare remote in the background.
+- **CI** : actions pinned by commit SHA with a read-only token, superseded runs cancelled, Flatpak builds restricted to release tags (pinned to the commit under test), version consistency verified before publishing, and `SHA256SUMS` published with the artifacts.
+- **Packaging** : the AUR package uses the real source checksums and `cargo build --locked`.
+
 ## v1.8.0
 
 ### Highlights
