@@ -33,7 +33,7 @@
  */
 const { invoke } = window.__TAURI__.core;
 
-import { t, getLang } from '../i18n/index.js'
+import { t, getLocaleTag } from '../i18n/index.js'
 import { openModal, showPrompt, showConfirm, closeTopModal } from './modal.js';
 import { getCurrentFontFamily, getEditor } from './editor.js';
 import { getCurrentProject } from './project.js';
@@ -366,7 +366,7 @@ async function editNote(note) {
 }
 
 export function viewNote(note) {
-    const locale = getLang() === 'fr' ? 'fr-FR' : 'en-US'
+    const locale = getLocaleTag()
     const createdAt = new Date(note.created_at)
     const createdAtDate = createdAt.toLocaleDateString(locale, {
         day: 'numeric',

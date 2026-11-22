@@ -3,7 +3,7 @@
  *  Tutorial window: sidebar navigation + markdown rendered steps.
  *
  *  Steps are discovered from the markdown files themselves:
- *  ../tutorial/{fr,en}/*.md -> order = filename sort, label = basename
+ *  ../tutorial/{fr,en,ru}/*.md -> order = filename sort, label = basename
  *  with dashes replaced by spaces (the numeric prefix becomes a badge).
  */
 
@@ -19,6 +19,10 @@ const STEPS_FR = import.meta.glob("../tutorial/fr/*.md", {
   import: "default",
 });
 const STEPS_EN = import.meta.glob("../tutorial/en/*.md", {
+  query: "?raw",
+  import: "default",
+});
+const STEPS_RU = import.meta.glob("../tutorial/ru/*.md", {
   query: "?raw",
   import: "default",
 });
@@ -80,8 +84,10 @@ marked.use({
 let _index = 0;
 let _steps = [];
 
+const STEP_SETS = { fr: STEPS_FR, en: STEPS_EN, ru: STEPS_RU };
+
 function stepMap(lang) {
-  return lang === "en" ? STEPS_EN : STEPS_FR;
+  return STEP_SETS[lang] ?? STEPS_EN;
 }
 
 function listSteps(lang) {

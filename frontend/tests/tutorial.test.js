@@ -19,11 +19,13 @@ function listMd(lang) {
 }
 
 describe('tutorial steps', () => {
-  it('fr and en define the same numbered steps', () => {
+  it('fr, en and ru define the same numbered steps', () => {
     const fr = listMd('fr');
     const en = listMd('en');
+    const ru = listMd('ru');
     const numbers = (files) => files.map((f) => f.slice(0, 2));
     expect(numbers(fr)).toEqual(numbers(en));
+    expect(numbers(fr)).toEqual(numbers(ru));
     expect(fr.length).toBeGreaterThan(0);
   });
 

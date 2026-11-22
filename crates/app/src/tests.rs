@@ -473,17 +473,20 @@ fn read_file_rejects_paths_outside_the_anchored_root() {
 #[test]
 fn system_lang_from_env() {
     use crate::commands::misc::lang_from_env;
-    let fr = |s: &str| lang_from_env(Some(s.to_string()));
+    let lang = |s: &str| lang_from_env(Some(s.to_string()));
     let none = || lang_from_env(None);
 
-    assert_eq!(fr("fr_FR.UTF-8"), "fr");
-    assert_eq!(fr("fr"), "fr");
-    assert_eq!(fr("en_US.UTF-8"), "en");
-    assert_eq!(fr("C"), "en");
-    assert_eq!(fr("C.UTF-8"), "en");
-    assert_eq!(fr("  fr_CA.utf8  "), "fr");
-    assert_eq!(fr("fr_FR:en_US"), "fr");
-    assert_eq!(fr("en_GB:fr_FR"), "en");
-    assert_eq!(fr("   "), "en");
+    assert_eq!(lang("fr_FR.UTF-8"), "fr");
+    assert_eq!(lang("fr"), "fr");
+    assert_eq!(lang("ru_RU.UTF-8"), "ru");
+    assert_eq!(lang("ru"), "ru");
+    assert_eq!(lang("  ru_RU.utf8  "), "ru");
+    assert_eq!(lang("en_US.UTF-8"), "en");
+    assert_eq!(lang("C"), "en");
+    assert_eq!(lang("C.UTF-8"), "en");
+    assert_eq!(lang("  fr_CA.utf8  "), "fr");
+    assert_eq!(lang("fr_FR:en_US"), "fr");
+    assert_eq!(lang("en_GB:fr_FR"), "en");
+    assert_eq!(lang("   "), "en");
     assert_eq!(none(), "en");
 }

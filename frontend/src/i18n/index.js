@@ -1,7 +1,8 @@
 import fr from './fr.json'
 import en from './en.json'
+import ru from './ru.json'
 
-const locales = { fr, en }
+const locales = { fr, en, ru }
 let currentLang = null
 
 export function t(key, params = {}) {
@@ -17,6 +18,10 @@ export function t(key, params = {}) {
 
 export function getLang() {
   return currentLang
+}
+
+export function getLocaleTag() {
+  return { fr: 'fr-FR', en: 'en-US', ru: 'ru-RU' }[currentLang] ?? 'en-US'
 }
 
 export function setLang(lang) {
@@ -64,7 +69,10 @@ export async function initI18n() {
     if (window.__TAURI__) {
       try { sys = await window.__TAURI__.core.invoke('system_lang') } catch (_) {}
     }
-    if (!sys) sys = navigator.language?.startsWith('fr') ? 'fr' : 'en'
+    if (!sys) {
+      const nav = navigator.language?.slice(0, 2)
+      sys = locales[nav] ? nav : 'en'
+    }
     currentLang = locales[sys] ? sys : 'en'
   }
   document.documentElement.lang = currentLang
